@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { streamChat } from "@/lib/streamChat";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -105,7 +107,7 @@ export default function ChatPage() {
   }, [activeConv.messages]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -122,19 +124,42 @@ export default function ChatPage() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "Obrigado pela sua pergunta. Com base na **Lei nº 14.133/2021**, posso esclarecer que este tema envolve diversos aspectos regulatórios. Recomendo a consulta aos artigos específicos mencionados nas referências laterais para uma análise mais completa.\n\n*Esta é uma resposta simulada. Em produção, a resposta será gerada pelo agente GPT especializado.*",
-        timestamp: new Date(),
-      };
-      const withBot = { ...updated, messages: [...updated.messages, botMsg] };
-      setActiveConv(withBot);
-      setConversations((prev) => prev.map((c) => (c.id === withBot.id ? withBot : c)));
-      setIsTyping(false);
-    }, 2000);
+    let assistantContent = "";
+    const assistantId = (Date.now() + 1).toString();
+
+    const chatMessages = updated.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    streamChat({
+      messages: chatMessages,
+      onDelta: (chunk) => {
+        assistantContent += chunk;
+        const botMsg: Message = {
+          id: assistantId,
+          role: "assistant",
+          content: assistantContent,
+          timestamp: new Date(),
+        };
+        const withBot = {
+          ...updated,
+          messages: [
+            ...updated.messages,
+            botMsg,
+          ],
+        };
+        setActiveConv(withBot);
+        setConversations((prev) => prev.map((c) => (c.id === withBot.id ? withBot : c)));
+      },
+      onDone: () => {
+        setIsTyping(false);
+      },
+      onError: (error) => {
+        toast.error(error);
+        setIsTyping(false);
+      },
+    });
   };
 
   const filteredConvs = conversations.filter((c) =>
