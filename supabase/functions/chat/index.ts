@@ -13,62 +13,49 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const GPT_MAKER_WEBHOOK_URL = Deno.env.get("GPT_MAKER_WEBHOOK_URL");
+    if (!GPT_MAKER_WEBHOOK_URL) throw new Error("GPT_MAKER_WEBHOOK_URL is not configured");
 
-    const systemPrompt = `Você é o Assistente Jurídico Intelicite, um especialista na Lei nº 14.133/2021 (Nova Lei de Licitações e Contratos Administrativos do Brasil).
+    // Get the last user message to send to GPT Maker webhook
+    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user");
+    if (!lastUserMessage) throw new Error("No user message found");
 
-Suas diretrizes:
-- Responda SEMPRE em português brasileiro.
-- Fundamente suas respostas citando artigos, incisos e parágrafos específicos da Lei 14.133/2021.
-- Quando relevante, cite também legislação complementar (IN SGD/ME, decretos regulamentadores, jurisprudência do TCU).
-- Estruture respostas com **negrito** para termos-chave e listas numeradas para clareza.
-- Se a pergunta for ambígua, peça esclarecimentos antes de responder.
-- Não invente artigos ou dispositivos legais. Se não souber, diga claramente.
-- Ofereça pontos de atenção práticos e alertas de risco quando aplicável.
-- Seja conciso mas completo. Priorize utilidade prática para gestores públicos e empresas licitantes.`;
-
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-          ],
-          stream: true,
-        }),
-      }
-    );
+    const response = await fetch(GPT_MAKER_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: lastUserMessage.content,
+        history: messages,
+      }),
+    });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("GPT Maker webhook error:", response.status, t);
       return new Response(
-        JSON.stringify({ error: "Erro no serviço de IA" }),
+        JSON.stringify({ error: "Erro no serviço do GPT Maker" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
+    // GPT Maker pode retornar texto puro ou JSON
+    const contentType = response.headers.get("content-type") || "";
+    let reply: string;
+
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+      // Tenta extrair a resposta de campos comuns
+      reply = data.response || data.message || data.reply || data.output || data.text || JSON.stringify(data);
+    } else {
+      reply = await response.text();
+    }
+
+    // Retorna como SSE para manter compatibilidade com o frontend
+    const ssePayload = `data: ${JSON.stringify({
+      choices: [{ delta: { content: reply } }],
+    })}\n\ndata: [DONE]\n\n`;
+
+    return new Response(ssePayload, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
