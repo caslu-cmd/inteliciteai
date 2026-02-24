@@ -17,7 +17,9 @@ import DiagnosticPage from "./pages/DiagnosticPage";
 import ValidatorPage from "./pages/ValidatorPage";
 import QuotationPage from "./pages/QuotationPage";
 import AdminPage from "./pages/AdminPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import BillingPage from "./pages/BillingPage";
+import SettingsPage from "./pages/SettingsPage";
+import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,9 +47,9 @@ const App = () => (
           <Route path="/dashboard/diagnostic" element={<DashboardRoute><DiagnosticPage /></DashboardRoute>} />
           <Route path="/dashboard/validator" element={<DashboardRoute><ValidatorPage /></DashboardRoute>} />
           <Route path="/dashboard/quotation" element={<DashboardRoute><QuotationPage /></DashboardRoute>} />
-          <Route path="/dashboard/reports" element={<DashboardRoute><PlaceholderPage /></DashboardRoute>} />
-          <Route path="/dashboard/billing" element={<DashboardRoute><PlaceholderPage /></DashboardRoute>} />
-          <Route path="/dashboard/settings" element={<DashboardRoute><PlaceholderPage /></DashboardRoute>} />
+          <Route path="/dashboard/reports" element={<DashboardRoute><ReportsPage /></DashboardRoute>} />
+          <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
+          <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
           <Route path="/admin" element={<DashboardRoute><AdminPage /></DashboardRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

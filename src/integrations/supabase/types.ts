@@ -14,16 +14,307 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          ip_address: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          discount_percent: number
+          id: string
+          max_uses: number | null
+          used_count: number
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          max_uses?: number | null
+          used_count?: number
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          max_uses?: number | null
+          used_count?: number
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          gateway_payment_id: string | null
+          id: string
+          paid_at: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          gateway_payment_id?: string | null
+          id?: string
+          paid_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          gateway_payment_id?: string | null
+          id?: string
+          paid_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          active: boolean
+          display_name: string
+          features: Json
+          id: string
+          name: Database["public"]["Enums"]["plan_type"]
+          price_cents: number
+        }
+        Insert: {
+          active?: boolean
+          display_name: string
+          features?: Json
+          id?: string
+          name: Database["public"]["Enums"]["plan_type"]
+          price_cents?: number
+        }
+        Update: {
+          active?: boolean
+          display_name?: string
+          features?: Json
+          id?: string
+          name?: Database["public"]["Enums"]["plan_type"]
+          price_cents?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          organization: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id: string
+          organization?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          organization?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          coupon_id: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          gateway: Database["public"]["Enums"]["payment_gateway"] | null
+          gateway_subscription_id: string | null
+          id: string
+          plan: Database["public"]["Enums"]["plan_type"]
+          price_cents: number
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coupon_id?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          gateway?: Database["public"]["Enums"]["payment_gateway"] | null
+          gateway_subscription_id?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_type"]
+          price_cents?: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          gateway?: Database["public"]["Enums"]["payment_gateway"] | null
+          gateway_subscription_id?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_type"]
+          price_cents?: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      payment_gateway: "mercado_pago" | "gerencianet" | "pagar_me"
+      plan_type:
+        | "gratuito"
+        | "profissional"
+        | "gestor_publico"
+        | "empresa"
+        | "institucional"
+      subscription_status:
+        | "trial"
+        | "active"
+        | "overdue"
+        | "expired"
+        | "blocked"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +441,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      payment_gateway: ["mercado_pago", "gerencianet", "pagar_me"],
+      plan_type: [
+        "gratuito",
+        "profissional",
+        "gestor_publico",
+        "empresa",
+        "institucional",
+      ],
+      subscription_status: [
+        "trial",
+        "active",
+        "overdue",
+        "expired",
+        "blocked",
+        "cancelled",
+      ],
+    },
   },
 } as const
