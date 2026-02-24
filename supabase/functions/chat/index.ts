@@ -32,8 +32,8 @@ serve(async (req) => {
       const t = await response.text();
       console.error("GPT Maker webhook error:", response.status, t);
       return new Response(
-        JSON.stringify({ error: "Erro no serviço do GPT Maker" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Erro no GPT Maker (${response.status}): ${t.substring(0, 200)}` }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
