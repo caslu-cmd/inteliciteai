@@ -12,11 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, usuario_id } = await req.json();
     const GPT_MAKER_WEBHOOK_URL = Deno.env.get("GPT_MAKER_WEBHOOK_URL");
     if (!GPT_MAKER_WEBHOOK_URL) throw new Error("GPT_MAKER_WEBHOOK_URL is not configured");
 
-    // Get the last user message to send to GPT Maker webhook
     const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user");
     if (!lastUserMessage) throw new Error("No user message found");
 
@@ -24,8 +23,8 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: lastUserMessage.content,
-        history: messages,
+        mensagem: lastUserMessage.content,
+        usuario_id: usuario_id || "",
       }),
     });
 
