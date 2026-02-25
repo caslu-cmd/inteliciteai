@@ -183,7 +183,16 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
       {/* Main content */}
       <div className={cn("flex-1 transition-all duration-300", collapsed ? "ml-16" : "ml-64")}>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-lg px-6">
-          <div />
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm" className="gap-2 text-xs">
+                  <Shield className="h-3.5 w-3.5" />
+                  Painel Admin
+                </Button>
+              </Link>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             {/* Notifications */}
             <Popover>
