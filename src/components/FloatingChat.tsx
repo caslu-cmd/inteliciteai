@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,11 @@ interface Message {
   content: string;
 }
 
-export default function FloatingChat() {
+export interface FloatingChatRef {
+  sendAutoMessage: (message: string) => void;
+}
+
+const FloatingChat = forwardRef<FloatingChatRef>((_props, ref) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -32,9 +36,9 @@ export default function FloatingChat() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim() || isTyping) return;
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: input };
+  const sendMessage = (text: string) => {
+    if (!text.trim() || isTyping) return;
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -63,6 +67,16 @@ export default function FloatingChat() {
       },
     });
   };
+
+  useImperativeHandle(ref, () => ({
+    sendAutoMessage: (message: string) => {
+      setOpen(true);
+      // Small delay to ensure chat is open before sending
+      setTimeout(() => sendMessage(message), 300);
+    },
+  }));
+
+  const handleSend = () => sendMessage(input);
 
   return (
     <>
@@ -174,4 +188,8 @@ export default function FloatingChat() {
       </AnimatePresence>
     </>
   );
-}
+});
+
+FloatingChat.displayName = "FloatingChat";
+
+export default FloatingChat;

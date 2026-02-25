@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import FloatingChat from "@/components/FloatingChat";
+import FloatingChat, { FloatingChatRef } from "@/components/FloatingChat";
 
 interface Finding {
   severity: "alta" | "media" | "baixa";
@@ -29,10 +29,22 @@ const severityConfig = {
 export default function ValidatorPage() {
   const [state, setState] = useState<"upload" | "processing" | "results">("upload");
   const [dragOver, setDragOver] = useState(false);
+  const chatRef = useRef<FloatingChatRef>(null);
 
   const handleUpload = () => {
     setState("processing");
-    setTimeout(() => setState("results"), 3000);
+    setTimeout(() => {
+      setState("results");
+      // Auto-trigger the legal assistant with findings context
+      const summary = mockFindings
+        .map((f) => `[${f.severity.toUpperCase()}] ${f.title}: ${f.description} (${f.article})`)
+        .join("\n");
+      setTimeout(() => {
+        chatRef.current?.sendAutoMessage(
+          `Acabei de validar um edital e encontrei os seguintes achados de conformidade com a Lei 14.133/2021:\n\n${summary}\n\nPor favor, analise esses achados e me dê orientações sobre como corrigir as não-conformidades mais críticas.`
+        );
+      }, 500);
+    }, 3000);
   };
 
   if (state === "upload") {
@@ -160,7 +172,7 @@ export default function ValidatorPage() {
           );
         })}
       </div>
-      <FloatingChat />
+      <FloatingChat ref={chatRef} />
     </div>
   );
 }
