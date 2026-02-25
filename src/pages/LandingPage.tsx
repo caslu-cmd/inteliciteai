@@ -64,10 +64,24 @@ const features = [
 
 const plans = [
   {
-    name: "Gestor Público",
+    name: "Gratuito",
+    price: "R$ 0",
+    period: "/ 7 dias",
+    description: "Teste todas as funcionalidades por 7 dias",
+    features: [
+      "Acesso completo por 7 dias",
+      "Assistente Jurídico IA",
+      "Gerador de ETP e TR",
+      "Validador de Editais",
+      "Diagnóstico de Licitação",
+    ],
+    highlighted: false,
+  },
+  {
+    name: "Profissional",
     price: "R$ 297",
     period: "/mês",
-    description: "Para prefeituras e órgãos públicos",
+    description: "Acesso completo e ilimitado a todos os recursos",
     features: [
       "Assistente Jurídico IA ilimitado",
       "Gerador de ETP e TR",
@@ -75,39 +89,11 @@ const plans = [
       "Diagnóstico de Licitação",
       "Checklist de Qualificação",
       "Exportação PDF e Word",
-      "5 GB de armazenamento",
-    ],
-    highlighted: false,
-  },
-  {
-    name: "Empresa Licitante",
-    price: "R$ 397",
-    period: "/mês",
-    description: "Para consultorias e fornecedores",
-    features: [
-      "Tudo do plano Gestor Público",
       "Cotação Inteligente",
-      "Multiusuário (até 5)",
       "Relatórios avançados",
-      "10 GB de armazenamento",
       "Suporte prioritário",
     ],
     highlighted: true,
-  },
-  {
-    name: "Institucional",
-    price: "Sob consulta",
-    period: "",
-    description: "Para grandes órgãos e empresas",
-    features: [
-      "Tudo do plano Empresa",
-      "Usuários ilimitados",
-      "SSO/SAML",
-      "API de integração",
-      "Armazenamento personalizado",
-      "Gerente de conta dedicado",
-    ],
-    highlighted: false,
   },
 ];
 
@@ -275,7 +261,7 @@ export default function LandingPage() {
               Comece com 7 dias grátis em qualquer plano. Cancele quando quiser.
             </p>
           </motion.div>
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
+          <div className="mt-16 grid gap-8 md:grid-cols-2 max-w-3xl mx-auto">
             {plans.map((plan, i) => (
               <motion.div
                 key={plan.name}

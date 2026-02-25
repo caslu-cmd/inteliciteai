@@ -12,7 +12,7 @@ import {
 
 const gatewayOptions = [
   { value: "mercado_pago", label: "Mercado Pago" },
-  { value: "gerencianet", label: "Gerencianet" },
+  { value: "gerencianet", label: "Gerencianet (Efí)" },
   { value: "pagar_me", label: "Pagar.me" },
 ];
 
@@ -173,7 +173,7 @@ export default function BillingPage() {
 
       {/* Plans */}
       <h2 className="text-lg font-bold mb-4">Escolha seu plano</h2>
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 max-w-2xl mb-8">
         {plans.map((plan, i) => {
           const isCurrent = subscription?.plan === plan.name;
           let price = plan.price_cents;

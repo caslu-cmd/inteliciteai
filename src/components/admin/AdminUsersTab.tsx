@@ -35,11 +35,8 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 };
 
 const planLabels: Record<string, string> = {
-  gratuito: "Gratuito",
+  gratuito: "Gratuito (Trial)",
   profissional: "Profissional",
-  gestor_publico: "Gestor Público",
-  empresa: "Empresa",
-  institucional: "Institucional",
 };
 
 export default function AdminUsersTab() {
