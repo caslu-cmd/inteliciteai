@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { plan_id, coupon_id } = await req.json();
+    const { plan_id, coupon_id, app_url } = await req.json();
 
     // Get plan
     const { data: plan } = await supabase
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     }
 
     // Build the public URL for callbacks
-    const appUrl = req.headers.get("origin") || "https://inteliciteai.lovable.app";
+    const appUrl = app_url || req.headers.get("origin") || "https://inteliciteai.lovable.app";
     const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
 
     // Create Mercado Pago preference
@@ -118,9 +118,9 @@ Deno.serve(async (req) => {
         installments: 1,
       },
       back_urls: {
-        success: `${appUrl}/billing?status=approved`,
-        failure: `${appUrl}/billing?status=rejected`,
-        pending: `${appUrl}/billing?status=pending`,
+        success: `${appUrl}/dashboard/billing?status=approved`,
+        failure: `${appUrl}/dashboard/billing?status=rejected`,
+        pending: `${appUrl}/dashboard/billing?status=pending`,
       },
       auto_return: "approved",
       notification_url: webhookUrl,
