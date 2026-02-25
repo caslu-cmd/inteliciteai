@@ -1,15 +1,32 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Shield, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -49,13 +66,7 @@ export default function LoginPage() {
             Digite suas credenciais para acessar o painel.
           </p>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.location.href = "/dashboard";
-            }}
-            className="mt-8 space-y-4"
-          >
+          <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <div className="relative">
@@ -96,8 +107,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button variant="gold" className="w-full" type="submit">
-              Entrar <ArrowRight className="ml-2 h-4 w-4" />
+            <Button variant="gold" className="w-full" type="submit" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
 
