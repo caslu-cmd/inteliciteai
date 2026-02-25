@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
         installments: 1,
       },
       back_urls: {
-        success: `${appUrl}/dashboard/billing?status=approved`,
+        success: `${appUrl}/dashboard/plano-ativado`,
         failure: `${appUrl}/dashboard/billing?status=rejected`,
         pending: `${appUrl}/dashboard/billing?status=pending`,
       },

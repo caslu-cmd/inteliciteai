@@ -18,6 +18,7 @@ import ValidatorPage from "./pages/ValidatorPage";
 import QuotationPage from "./pages/QuotationPage";
 import AdminPage from "./pages/AdminPage";
 import BillingPage from "./pages/BillingPage";
+import PlanActivatedPage from "./pages/PlanActivatedPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/dashboard/quotation" element={<DashboardRoute><QuotationPage /></DashboardRoute>} />
           <Route path="/dashboard/reports" element={<DashboardRoute><ReportsPage /></DashboardRoute>} />
           <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
+          <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
           <Route path="/admin" element={<DashboardRoute><AdminPage /></DashboardRoute>} />
           <Route path="*" element={<NotFound />} />

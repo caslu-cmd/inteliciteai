@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CreditCard, Check, Loader2, Tag, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export default function BillingPage() {
   const [couponApplied, setCouponApplied] = useState<any>(null);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -67,7 +69,9 @@ export default function BillingPage() {
     if (!status) return;
 
     if (status === "approved") {
-      toast({ title: "Pagamento aprovado!", description: "Sua assinatura será ativada em instantes." });
+      // Redirect to plan activated page
+      navigate("/dashboard/plano-ativado", { replace: true });
+      return;
     } else if (status === "rejected") {
       toast({ title: "Pagamento recusado", description: "Tente novamente ou use outro método.", variant: "destructive" });
     } else if (status === "pending" || status === "in_process") {
