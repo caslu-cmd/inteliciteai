@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import FloatingChat from "@/components/FloatingChat";
 
 interface Finding {
   severity: "alta" | "media" | "baixa";
@@ -92,7 +93,7 @@ export default function ValidatorPage() {
   const low = mockFindings.filter((f) => f.severity === "baixa").length;
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl relative">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Resultado da Análise</h1>
@@ -155,6 +156,7 @@ export default function ValidatorPage() {
           );
         })}
       </div>
+      <FloatingChat />
     </div>
   );
 }

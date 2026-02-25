@@ -4,6 +4,7 @@ import { CheckSquare, CheckCircle2, Circle, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import FloatingChat from "@/components/FloatingChat";
 
 interface CheckItem {
   id: string;
@@ -148,6 +149,7 @@ export default function ChecklistPage() {
           ))}
         </motion.div>
       )}
+      <FloatingChat />
     </div>
   );
 }
