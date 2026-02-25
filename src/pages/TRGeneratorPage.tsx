@@ -198,7 +198,29 @@ export default function TRGeneratorPage() {
                   Próximo <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button variant="gold"><Download className="mr-1 h-4 w-4" /> Gerar documento</Button>
+                <Button variant="gold" onClick={() => {
+                  import("@/lib/exportDocument").then(({ exportAsPdf }) => {
+                    exportAsPdf({
+                      documentTitle: "Termo de Referência",
+                      orgao: formData.orgao,
+                      legalBasis: "Lei nº 14.133/2021 — Art. 6º, XXIII",
+                      sections: [
+                        { title: "Objeto", content: formData.objeto },
+                        { title: "Justificativa", content: formData.justificativa },
+                        { title: "Especificações Técnicas", content: formData.especificacoes },
+                        { title: "Quantitativos", content: formData.quantitativos },
+                        { title: "Prazo de Execução", content: formData.prazoExecucao ? `${formData.prazoExecucao} dias` : "" },
+                        { title: "Local de Entrega", content: formData.localEntrega },
+                        { title: "Obrigações da Contratada", content: formData.obrigacoesContratada },
+                        { title: "Obrigações da Contratante", content: formData.obrigacoesContratante },
+                        { title: "Critérios de Aceitação", content: formData.criterioAceitacao },
+                        { title: "Sanções Administrativas", content: formData.sancoes },
+                      ],
+                    });
+                  });
+                }}>
+                  <Download className="mr-1 h-4 w-4" /> Gerar documento
+                </Button>
               )}
             </div>
           </div>

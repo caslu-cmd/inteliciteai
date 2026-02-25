@@ -142,7 +142,11 @@ export default function QuotationPage() {
             </div>
           </div>
 
-          <Button variant="gold" className="w-full">
+          <Button variant="gold" className="w-full" onClick={() => {
+            import("@/lib/exportDocument").then(({ exportQuotation }) => {
+              exportQuotation(items, margem, impostos, subtotal, total);
+            });
+          }}>
             <Download className="mr-2 h-4 w-4" /> Exportar proposta
           </Button>
           <Button variant="outline" className="w-full">

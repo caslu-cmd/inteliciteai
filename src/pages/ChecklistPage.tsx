@@ -109,7 +109,11 @@ export default function ChecklistPage() {
                 />
               </div>
             </div>
-            <Button variant="gold" size="sm" disabled={progress < 100}>
+            <Button variant="gold" size="sm" disabled={progress < 100} onClick={() => {
+              import("@/lib/exportDocument").then(({ exportChecklist }) => {
+                exportChecklist(tipo, items, checked);
+              });
+            }}>
               <Download className="mr-1 h-3.5 w-3.5" /> Exportar
             </Button>
           </div>
