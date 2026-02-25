@@ -121,7 +121,16 @@ export default function BillingPage() {
       });
 
       if (error) {
-        toast({ title: "Erro ao criar checkout", description: String(error), variant: "destructive" });
+        console.error("Checkout error:", error);
+        const errorMsg = typeof error === "object" && error?.message ? error.message : String(error);
+        toast({ title: "Erro ao criar checkout", description: errorMsg, variant: "destructive" });
+        setChangingPlan(null);
+        return;
+      }
+
+      if (data?.error) {
+        console.error("Checkout API error:", data);
+        toast({ title: "Erro no checkout", description: data.details?.message || data.error, variant: "destructive" });
         setChangingPlan(null);
         return;
       }
@@ -132,6 +141,7 @@ export default function BillingPage() {
         toast({ title: "Erro ao gerar link de pagamento", variant: "destructive" });
       }
     } catch (err) {
+      console.error("Unexpected checkout error:", err);
       toast({ title: "Erro inesperado", description: String(err), variant: "destructive" });
     }
     setChangingPlan(null);
