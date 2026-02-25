@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Shield, Mail, Lock, User, Building2, ArrowRight, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const trialBenefits = [
   "Assistente Jurídico IA ilimitado",
@@ -17,6 +19,29 @@ const trialBenefits = [
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [org, setOrg] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name, organization: org } },
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -64,26 +89,20 @@ export default function SignupPage() {
             Preencha seus dados para começar o período gratuito.
           </p>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.location.href = "/dashboard";
-            }}
-            className="mt-8 space-y-4"
-          >
+          <form onSubmit={handleSignup} className="mt-8 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="name" placeholder="Seu nome" className="pl-10" required />
+                  <Input id="name" placeholder="Seu nome" className="pl-10" required value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="org">Organização</Label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="org" placeholder="Órgão/Empresa" className="pl-10" />
+                  <Input id="org" placeholder="Órgão/Empresa" className="pl-10" value={org} onChange={(e) => setOrg(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -91,7 +110,7 @@ export default function SignupPage() {
               <Label htmlFor="email">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="seu@email.com" className="pl-10" required />
+                <Input id="email" type="email" placeholder="seu@email.com" className="pl-10" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
@@ -104,6 +123,8 @@ export default function SignupPage() {
                   placeholder="Mínimo 8 caracteres"
                   className="pl-10 pr-10"
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
@@ -127,8 +148,8 @@ export default function SignupPage() {
                 <a href="#" className="text-accent hover:underline">Política de Privacidade</a> (LGPD).
               </label>
             </div>
-            <Button variant="gold" className="w-full" type="submit" disabled={!agreed}>
-              Criar conta e iniciar trial <ArrowRight className="ml-2 h-4 w-4" />
+            <Button variant="gold" className="w-full" type="submit" disabled={!agreed || loading}>
+              {loading ? "Criando..." : "Criar conta e iniciar trial"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
 
