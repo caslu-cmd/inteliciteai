@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scale, ArrowRight, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Scale, ArrowRight, AlertTriangle, CheckCircle2, Info, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,14 +105,25 @@ export default function DiagnosticPage() {
             </Select>
           </div>
         </div>
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-3">
           <Button
             variant="gold"
-            onClick={() => setShowResult(true)}
+            onClick={() => { setShowResult(true); }}
             disabled={!valorEstimado || !urgencia || !tipoObjeto}
           >
             Diagnosticar <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
+          {showResult && (
+            <div>
+              <Button variant="outline" size="sm" onClick={() => {
+                import("@/lib/exportDocument").then(({ exportDiagnostic }) => {
+                  exportDiagnostic(result);
+                });
+              }}>
+                <Download className="mr-1 h-3.5 w-3.5" /> Exportar diagnóstico
+              </Button>
+            </div>
+          )}
         </div>
       </motion.div>
 

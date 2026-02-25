@@ -101,7 +101,11 @@ export default function ValidatorPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setState("upload")}>Nova análise</Button>
-          <Button variant="gold" size="sm"><FileText className="mr-1 h-3.5 w-3.5" /> Exportar relatório</Button>
+          <Button variant="gold" size="sm" onClick={() => {
+            import("@/lib/exportDocument").then(({ exportValidatorReport }) => {
+              exportValidatorReport(mockFindings);
+            });
+          }}><FileText className="mr-1 h-3.5 w-3.5" /> Exportar relatório</Button>
         </div>
       </div>
 

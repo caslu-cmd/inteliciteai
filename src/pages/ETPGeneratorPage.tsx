@@ -253,7 +253,25 @@ export default function ETPGeneratorPage() {
                   Próximo <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button variant="gold">
+                <Button variant="gold" onClick={() => {
+                  import("@/lib/exportDocument").then(({ exportAsPdf }) => {
+                    exportAsPdf({
+                      documentTitle: "Estudo Técnico Preliminar",
+                      orgao: formData.orgao,
+                      legalBasis: "Lei nº 14.133/2021 — Art. 18",
+                      sections: [
+                        { title: "Objeto", content: formData.objeto },
+                        { title: "Descrição da Necessidade", content: formData.descricaoNecessidade },
+                        { title: "Alinhamento Estratégico", content: formData.alinhamentoEstrategico },
+                        { title: "Requisitos de Negócio", content: formData.requisitosNegocio },
+                        { title: "Requisitos Técnicos", content: formData.requisitosTecnicos },
+                        { title: "Estimativa de Custo", content: formData.estimativaCusto ? `R$ ${formData.estimativaCusto}` : "" },
+                        { title: "Análise de Riscos", content: formData.riscosPrincipais },
+                        { title: "Medidas de Mitigação", content: formData.mitigacao },
+                      ],
+                    });
+                  });
+                }}>
                   <Download className="mr-1 h-4 w-4" /> Gerar documento
                 </Button>
               )}
