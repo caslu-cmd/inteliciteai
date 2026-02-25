@@ -63,25 +63,38 @@ export default function BillingPage() {
   // Check for payment status from URL (redirect back from Mercado Pago)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const status = params.get("status");
+    const status = params.get("status") || params.get("collection_status");
+    if (!status) return;
+
     if (status === "approved") {
       toast({ title: "Pagamento aprovado!", description: "Sua assinatura será ativada em instantes." });
-      // Reload subscription after a short delay for webhook to process
-      setTimeout(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
-          setSubscription(subData);
-        }
-      }, 3000);
-      window.history.replaceState({}, "", "/billing");
     } else if (status === "rejected") {
       toast({ title: "Pagamento recusado", description: "Tente novamente ou use outro método.", variant: "destructive" });
-      window.history.replaceState({}, "", "/billing");
-    } else if (status === "pending") {
+    } else if (status === "pending" || status === "in_process") {
       toast({ title: "Pagamento pendente", description: "Aguardando confirmação do pagamento." });
-      window.history.replaceState({}, "", "/billing");
     }
+
+    window.history.replaceState({}, "", "/dashboard/billing");
+
+    // Poll subscription status for up to 30 seconds
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
+        if (subData && subData.status === "active") {
+          setSubscription(subData);
+          clearInterval(interval);
+          toast({ title: "Assinatura ativada com sucesso!" });
+        } else if (subData) {
+          setSubscription(subData);
+        }
+      }
+      if (attempts >= 10) clearInterval(interval);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleChangePlan = async (planName: string) => {
@@ -117,6 +130,7 @@ export default function BillingPage() {
         body: {
           plan_id: plan.id,
           coupon_id: couponApplied?.id || null,
+          app_url: window.location.origin,
         },
       });
 
