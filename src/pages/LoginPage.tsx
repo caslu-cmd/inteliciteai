@@ -41,7 +41,7 @@ export default function LoginPage() {
 
           <img src={logoBlue} alt="Intelicite" className="mx-auto h-16 mb-6" />
           <h2 className="text-3xl font-bold text-primary-foreground">
-            Inteli
+
           </h2>
           <p className="mt-4 text-primary-foreground/60 text-lg">
             Plataforma de IA especializada na Lei 14.133/2021 para gestores públicos e empresas licitantes.
