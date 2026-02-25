@@ -4,6 +4,7 @@ import {
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell,
 } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       >
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
-          <Shield className="h-6 w-6 shrink-0 text-sidebar-primary" />
+          <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
           {!collapsed && (
             <span className="text-lg font-bold text-sidebar-foreground">
               Inteli<span className="text-sidebar-primary">cite</span>

@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
-  Shield,
   FileText,
   MessageSquare,
   Search,
@@ -13,6 +12,7 @@ import {
   Zap,
   Lock,
 } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -104,7 +104,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <Shield className="h-7 w-7 text-accent" />
+            <img src={logoWhite} alt="Intelicite" className="h-8" style={{ filter: "brightness(0) saturate(100%) invert(18%) sepia(68%) saturate(1200%) hue-rotate(190deg)" }} />
             <span className="text-xl font-bold tracking-tight text-foreground">
               Inteli<span className="text-gradient-gold">cite</span>
             </span>
@@ -356,7 +356,7 @@ export default function LandingPage() {
         <div className="container">
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-accent" />
+              <img src={logoWhite} alt="Intelicite" className="h-6" style={{ filter: "brightness(0) saturate(100%) invert(18%) sepia(68%) saturate(1200%) hue-rotate(190deg)" }} />
               <span className="font-bold">Intelicite</span>
             </div>
             <div className="flex gap-6 text-sm text-muted-foreground">
