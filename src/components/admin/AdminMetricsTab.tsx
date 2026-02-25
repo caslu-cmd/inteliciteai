@@ -62,11 +62,8 @@ export default function AdminMetricsTab() {
         <h3 className="font-semibold mb-4">Distribuição por Plano</h3>
         <div className="space-y-3">
           {[
-            { name: "Gratuito", key: "gratuito" },
-            { name: "Profissional", key: "profissional" },
-            { name: "Gestor Público", key: "gestor_publico" },
-            { name: "Empresa", key: "empresa" },
-            { name: "Institucional", key: "institucional" },
+            { name: "Gratuito (Trial)", key: "gratuito" },
+            { name: "Profissional (R$ 297)", key: "profissional" },
           ].map((plan) => (
             <PlanBar key={plan.key} name={plan.name} planKey={plan.key} total={metrics.totalUsers} />
           ))}
