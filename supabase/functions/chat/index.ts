@@ -12,49 +12,54 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, usuario_id } = await req.json();
-    const GPT_MAKER_WEBHOOK_URL = Deno.env.get("GPT_MAKER_WEBHOOK_URL");
-    if (!GPT_MAKER_WEBHOOK_URL) throw new Error("GPT_MAKER_WEBHOOK_URL is not configured");
+    const { messages } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user");
-    if (!lastUserMessage) throw new Error("No user message found");
-
-    const response = await fetch(GPT_MAKER_WEBHOOK_URL, {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        mensagem: lastUserMessage.content,
-        usuario_id: usuario_id || "",
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `Você é um assistente jurídico especializado em licitações públicas e na Lei 14.133/2021 (Nova Lei de Licitações e Contratos Administrativos do Brasil). 
+Responda sempre em português do Brasil, de forma clara, objetiva e fundamentada nos artigos da lei. 
+Quando relevante, cite os artigos específicos da Lei 14.133/2021.
+Ajude com: elaboração de ETP, Termos de Referência, análise de editais, diagnósticos de modalidade, checklists de conformidade e dúvidas gerais sobre licitações.`,
+          },
+          ...messages,
+        ],
+        stream: true,
       }),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Créditos de IA esgotados. Entre em contato com o suporte." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const t = await response.text();
-      console.error("GPT Maker webhook error:", response.status, t);
+      console.error("AI gateway error:", response.status, t);
       return new Response(
-        JSON.stringify({ error: `Erro no GPT Maker (${response.status}): ${t.substring(0, 200)}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Erro no serviço de IA. Tente novamente." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // GPT Maker pode retornar texto puro ou JSON
-    const contentType = response.headers.get("content-type") || "";
-    let reply: string;
-
-    if (contentType.includes("application/json")) {
-      const data = await response.json();
-      // Tenta extrair a resposta de campos comuns
-      reply = data.response || data.message || data.reply || data.output || data.text || JSON.stringify(data);
-    } else {
-      reply = await response.text();
-    }
-
-    // Retorna como SSE para manter compatibilidade com o frontend
-    const ssePayload = `data: ${JSON.stringify({
-      choices: [{ delta: { content: reply } }],
-    })}\n\ndata: [DONE]\n\n`;
-
-    return new Response(ssePayload, {
+    return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
