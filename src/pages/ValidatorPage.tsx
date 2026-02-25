@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FloatingChat, { FloatingChatRef } from "@/components/FloatingChat";
+import { extractPdfText } from "@/lib/pdfExtract";
+import { toast } from "sonner";
 
 interface Finding {
   severity: "alta" | "media" | "baixa";
@@ -10,15 +12,6 @@ interface Finding {
   description: string;
   article: string;
 }
-
-const mockFindings: Finding[] = [
-  { severity: "alta", title: "Ausência de ETP", description: "O edital não faz referência ao Estudo Técnico Preliminar, requisito obrigatório.", article: "Art. 18, §1º" },
-  { severity: "alta", title: "Critério de julgamento não especificado", description: "Não foi definido o critério de julgamento das propostas.", article: "Art. 33" },
-  { severity: "media", title: "Prazo recursal insuficiente", description: "O prazo para interposição de recursos está abaixo do mínimo legal.", article: "Art. 165" },
-  { severity: "media", title: "Cláusula de reequilíbrio ausente", description: "Não há previsão de reequilíbrio econômico-financeiro no contrato.", article: "Art. 124, II" },
-  { severity: "baixa", title: "Formatação da garantia", description: "A exigência de garantia está redigida de forma ambígua.", article: "Art. 96" },
-  { severity: "baixa", title: "Publicidade", description: "Verificar se o prazo mínimo de publicação foi respeitado.", article: "Art. 54" },
-];
 
 const severityConfig = {
   alta: { color: "text-destructive", bg: "bg-destructive/10", icon: XCircle, label: "Alta" },
@@ -30,26 +23,75 @@ export default function ValidatorPage() {
   const [state, setState] = useState<"upload" | "processing" | "results">("upload");
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [findings, setFindings] = useState<Finding[]>([]);
+  const [progressText, setProgressText] = useState("Extraindo texto do PDF...");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<FloatingChatRef>(null);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Por favor, selecione um arquivo PDF.");
       return;
     }
     setFileName(file.name);
     setState("processing");
-    setTimeout(() => {
+    setProgressText("Extraindo texto do PDF...");
+
+    try {
+      const text = await extractPdfText(file);
+
+      if (text.trim().length < 50) {
+        toast.error("O PDF parece estar vazio ou contém apenas imagens. Envie um PDF com texto legível.");
+        setState("upload");
+        return;
+      }
+
+      setProgressText("Analisando conformidade com a Lei 14.133/2021...");
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-edital`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text, fileName: file.name }),
+        }
+      );
+
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body.error || "Erro ao analisar o edital.");
+      }
+
+      const data = await resp.json();
+      const resultFindings: Finding[] = (data.findings || []).map((f: any) => ({
+        severity: f.severity || "baixa",
+        title: f.title || "Achado",
+        description: f.description || "",
+        article: f.article || "",
+      }));
+
+      setFindings(resultFindings);
       setState("results");
-      const summary = mockFindings
-        .map((f) => `[${f.severity.toUpperCase()}] ${f.title}: ${f.description} (${f.article})`)
-        .join("\n");
-      setTimeout(() => {
-        chatRef.current?.sendAutoMessage(
-          `Acabei de validar um edital e encontrei os seguintes achados de conformidade com a Lei 14.133/2021:\n\n${summary}\n\nPor favor, analise esses achados e me dê orientações sobre como corrigir as não-conformidades mais críticas.`
-        );
-      }, 500);
-    }, 3000);
+
+      // Auto-trigger assistant with real findings
+      if (resultFindings.length > 0) {
+        const summary = resultFindings
+          .map((f) => `[${f.severity.toUpperCase()}] ${f.title}: ${f.description} (${f.article})`)
+          .join("\n");
+        setTimeout(() => {
+          chatRef.current?.sendAutoMessage(
+            `Acabei de validar o edital "${file.name}" e encontrei os seguintes achados de conformidade com a Lei 14.133/2021:\n\n${summary}\n\nPor favor, analise esses achados e me dê orientações sobre como corrigir as não-conformidades mais críticas.`
+          );
+        }, 500);
+      }
+    } catch (err: any) {
+      console.error("Erro na análise:", err);
+      toast.error(err.message || "Erro ao processar o edital.");
+      setState("upload");
+    }
   };
 
   const handleClickUpload = () => {
@@ -115,35 +157,35 @@ export default function ValidatorPage() {
           <Loader2 className="absolute inset-0 m-auto h-8 w-8 text-accent animate-spin" />
         </div>
         <h2 className="mt-6 text-lg font-semibold">Analisando edital...</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Verificando conformidade com a Lei 14.133/2021</p>
+        <p className="mt-2 text-sm text-muted-foreground">{progressText}</p>
         <div className="mt-6 w-64 h-2 rounded-full bg-muted overflow-hidden">
           <motion.div
             className="h-full bg-gradient-gold rounded-full"
             initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 3, ease: "easeInOut" }}
+            animate={{ width: "90%" }}
+            transition={{ duration: 15, ease: "easeOut" }}
           />
         </div>
       </div>
     );
   }
 
-  const high = mockFindings.filter((f) => f.severity === "alta").length;
-  const med = mockFindings.filter((f) => f.severity === "media").length;
-  const low = mockFindings.filter((f) => f.severity === "baixa").length;
+  const high = findings.filter((f) => f.severity === "alta").length;
+  const med = findings.filter((f) => f.severity === "media").length;
+  const low = findings.filter((f) => f.severity === "baixa").length;
 
   return (
     <div className="max-w-4xl relative">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Resultado da Análise</h1>
-          <p className="text-sm text-muted-foreground mt-1">{fileName || "Edital"} — {mockFindings.length} achados</p>
+          <p className="text-sm text-muted-foreground mt-1">{fileName || "Edital"} — {findings.length} achados</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setState("upload")}>Nova análise</Button>
+          <Button variant="outline" size="sm" onClick={() => { setState("upload"); setFindings([]); }}>Nova análise</Button>
           <Button variant="gold" size="sm" onClick={() => {
             import("@/lib/exportDocument").then(({ exportValidatorReport }) => {
-              exportValidatorReport(mockFindings);
+              exportValidatorReport(findings);
             });
           }}><FileText className="mr-1 h-3.5 w-3.5" /> Exportar relatório</Button>
         </div>
@@ -170,36 +212,44 @@ export default function ValidatorPage() {
       </div>
 
       {/* Findings */}
-      <div className="space-y-3">
-        {mockFindings.map((finding, i) => {
-          const config = severityConfig[finding.severity];
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-              className="rounded-xl border border-border bg-card p-4 hover:shadow-navy transition-shadow"
-            >
-              <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${config.bg} shrink-0`}>
-                  <config.icon className={`h-4 w-4 ${config.color}`} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm">{finding.title}</h3>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${config.bg} ${config.color}`}>
-                      {config.label}
-                    </span>
+      {findings.length === 0 ? (
+        <div className="rounded-xl border border-success/30 bg-success/5 p-8 text-center">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-success mb-3" />
+          <h3 className="font-semibold">Nenhuma não-conformidade encontrada</h3>
+          <p className="text-sm text-muted-foreground mt-1">O edital parece estar em conformidade com a Lei 14.133/2021.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {findings.map((finding, i) => {
+            const config = severityConfig[finding.severity] || severityConfig.baixa;
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className="rounded-xl border border-border bg-card p-4 hover:shadow-navy transition-shadow"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${config.bg} shrink-0`}>
+                    <config.icon className={`h-4 w-4 ${config.color}`} />
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{finding.description}</p>
-                  <p className="mt-2 text-xs text-accent font-medium">{finding.article}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-sm">{finding.title}</h3>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${config.bg} ${config.color}`}>
+                        {config.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{finding.description}</p>
+                    <p className="mt-2 text-xs text-accent font-medium">{finding.article}</p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
       <FloatingChat ref={chatRef} />
     </div>
   );
