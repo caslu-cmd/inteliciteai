@@ -113,7 +113,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
           <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
           {!collapsed &&
           <span className="text-lg font-bold text-sidebar-foreground">
-              Inteli<span className="text-gradient-gold">cite</span>
+              Inteli
             </span>
           }
         </div>
