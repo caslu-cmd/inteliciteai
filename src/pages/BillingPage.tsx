@@ -92,8 +92,8 @@ export default function BillingPage() {
     const plan = plans.find((p) => p.name === planName);
     if (!plan) return;
 
-    // Free plan: update directly
-    if (plan.price_cents === 0) {
+    // Free plan: update directly (only gratuito)
+    if (plan.name === "gratuito") {
       const { error } = await supabase.from("subscriptions").update({
         plan: planName as any,
         status: "trial" as any,
