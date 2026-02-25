@@ -120,46 +120,31 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
                   {group.label}
                 </p>
               {group.items.map((item) => {
-              const active = location.pathname === item.path;
+              // If admin, replace Dashboard with Painel Admin
+              const isDashboardItem = item.path === "/dashboard";
+              const displayItem = (isAdmin && isDashboardItem)
+                ? { title: "Painel Admin", icon: Shield, path: "/admin" }
+                : item;
+              const active = location.pathname === displayItem.path;
               return (
                 <Link
-                  key={item.path}
-                  to={item.path}
+                  key={displayItem.path}
+                  to={displayItem.path}
                   className={cn(
                     "mx-2 mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     active ?
                     "bg-sidebar-accent text-sidebar-primary" :
                     "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                   )}
-                  title={collapsed ? item.title : undefined}>
+                  title={collapsed ? displayItem.title : undefined}>
 
-                    <item.icon className="h-4.5 w-4.5 shrink-0" />
-                    <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>{item.title}</span>
+                    <displayItem.icon className="h-4.5 w-4.5 shrink-0" />
+                    <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>{displayItem.title}</span>
                   </Link>);
 
             })}
             </div>
           )}
-
-          {/* Admin link */}
-          {isAdmin &&
-          <div className="mb-4">
-              <p className={cn("mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 h-0 mb-0" : "opacity-100")}>Admin</p>
-              <Link
-              to="/admin"
-              className={cn(
-                "mx-2 mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                location.pathname === "/admin" ?
-                "bg-sidebar-accent text-sidebar-primary" :
-                "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )}
-              title={collapsed ? "Admin" : undefined}>
-
-                <Shield className="h-4.5 w-4.5 shrink-0" />
-                <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>Painel Admin</span>
-              </Link>
-            </div>
-          }
         </nav>
 
         {/* Logout & Collapse */}
@@ -183,16 +168,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
       {/* Main content */}
       <div className={cn("flex-1 transition-all duration-300", collapsed ? "ml-16" : "ml-64")}>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-lg px-6">
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Link to="/admin">
-                <Button variant="outline" size="sm" className="gap-2 text-xs">
-                  <Shield className="h-3.5 w-3.5" />
-                  Painel Admin
-                </Button>
-              </Link>
-            )}
-          </div>
+          <div />
           <div className="flex items-center gap-3">
             {/* Notifications */}
             <Popover>
