@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,7 @@ export default function LoginPage() {
           transition={{ duration: 0.6 }}
           className="max-w-md text-center"
         >
-          <Shield className="mx-auto h-16 w-16 text-accent mb-6" />
+          <img src={logoWhite} alt="Intelicite" className="mx-auto h-16 mb-6" />
           <h2 className="text-3xl font-bold text-primary-foreground">
             Inteli<span className="text-gradient-gold">cite</span>
           </h2>
@@ -57,7 +58,7 @@ export default function LoginPage() {
           className="w-full max-w-sm"
         >
           <div className="mb-8 lg:hidden flex items-center gap-2 justify-center">
-            <Shield className="h-7 w-7 text-accent" />
+            <img src={logoWhite} alt="Intelicite" className="h-8" style={{ filter: "brightness(0) saturate(100%) invert(18%) sepia(68%) saturate(1200%) hue-rotate(190deg)" }} />
             <span className="text-xl font-bold">Inteli<span className="text-gradient-gold">cite</span></span>
           </div>
 
