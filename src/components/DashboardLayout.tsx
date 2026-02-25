@@ -112,7 +112,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 overflow-hidden">
           <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
           <span className={cn("text-lg font-bold text-sidebar-foreground whitespace-nowrap transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>
-            Inteli<span className="text-gradient-gold">cite</span>
+
           </span>
         </div>
 
