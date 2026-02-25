@@ -113,6 +113,10 @@ Deno.serve(async (req) => {
         email: profile?.email || user.email,
         name: profile?.full_name || "",
       },
+      payment_methods: {
+        excluded_payment_types: [],
+        installments: 1,
+      },
       back_urls: {
         success: `${appUrl}/billing?status=approved`,
         failure: `${appUrl}/billing?status=rejected`,
