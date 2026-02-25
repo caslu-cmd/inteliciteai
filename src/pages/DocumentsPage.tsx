@@ -24,15 +24,20 @@ const riskColors = {
 };
 
 export default function DocumentsPage() {
+  const [docs, setDocs] = useState(mockDocs);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [viewDoc, setViewDoc] = useState<typeof mockDocs[0] | null>(null);
 
-  const filtered = mockDocs.filter((d) => {
+  const filtered = docs.filter((d) => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase());
     const matchType = typeFilter === "all" || d.type === typeFilter;
     return matchSearch && matchType;
   });
+
+  const handleDelete = (id: string) => {
+    setDocs((prev) => prev.filter((d) => d.id !== id));
+  };
 
   const handleDownload = (doc: typeof mockDocs[0]) => {
     exportAsPdf({
@@ -55,7 +60,7 @@ export default function DocumentsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold">Meus Documentos</h1>
-            <p className="text-sm text-muted-foreground">{mockDocs.length} documentos</p>
+            <p className="text-sm text-muted-foreground">{docs.length} documentos</p>
           </div>
         </div>
       </div>
@@ -123,7 +128,7 @@ export default function DocumentsPage() {
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)} title="Baixar PDF">
                 <Download className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(doc.id)} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
             </div>
           </motion.div>
         ))}
