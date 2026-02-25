@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, Check, ArrowRight, Loader2, Tag } from "lucide-react";
+import { CreditCard, Check, Loader2, Tag, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
-
-const gatewayOptions = [
-  { value: "mercado_pago", label: "Mercado Pago" },
-  { value: "gerencianet", label: "Gerencianet (Efí)" },
-  { value: "pagar_me", label: "Pagar.me" },
-];
 
 export default function BillingPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -23,7 +14,6 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState<any>(null);
-  const [gateway, setGateway] = useState("mercado_pago");
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -70,6 +60,30 @@ export default function BillingPage() {
     toast({ title: `Cupom aplicado: ${data.discount_percent}% de desconto!` });
   };
 
+  // Check for payment status from URL (redirect back from Mercado Pago)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status === "approved") {
+      toast({ title: "Pagamento aprovado!", description: "Sua assinatura será ativada em instantes." });
+      // Reload subscription after a short delay for webhook to process
+      setTimeout(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
+          setSubscription(subData);
+        }
+      }, 3000);
+      window.history.replaceState({}, "", "/billing");
+    } else if (status === "rejected") {
+      toast({ title: "Pagamento recusado", description: "Tente novamente ou use outro método.", variant: "destructive" });
+      window.history.replaceState({}, "", "/billing");
+    } else if (status === "pending") {
+      toast({ title: "Pagamento pendente", description: "Aguardando confirmação do pagamento." });
+      window.history.replaceState({}, "", "/billing");
+    }
+  }, []);
+
   const handleChangePlan = async (planName: string) => {
     setChangingPlan(planName);
     const { data: { user } } = await supabase.auth.getUser();
@@ -78,30 +92,47 @@ export default function BillingPage() {
     const plan = plans.find((p) => p.name === planName);
     if (!plan) return;
 
-    let finalPrice = plan.price_cents;
-    if (couponApplied) {
-      finalPrice = Math.round(finalPrice * (1 - couponApplied.discount_percent / 100));
+    // Free plan: update directly
+    if (plan.price_cents === 0) {
+      const { error } = await supabase.from("subscriptions").update({
+        plan: planName as any,
+        status: "trial" as any,
+        price_cents: 0,
+        gateway: null,
+        coupon_id: null,
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }).eq("user_id", user.id);
+      if (!error) {
+        toast({ title: `Plano alterado para ${plan.display_name}!` });
+        const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
+        setSubscription(subData);
+      }
+      setChangingPlan(null);
+      return;
     }
 
-    const { error } = await supabase.from("subscriptions").update({
-      plan: planName as any,
-      status: "active" as any,
-      price_cents: finalPrice,
-      gateway: gateway as any,
-      coupon_id: couponApplied?.id || null,
-      current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    }).eq("user_id", user.id);
+    // Paid plan: create Mercado Pago checkout
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          plan_id: plan.id,
+          coupon_id: couponApplied?.id || null,
+        },
+      });
 
-    if (error) {
-      toast({ title: "Erro ao trocar plano", description: error.message, variant: "destructive" });
-    } else {
-      if (couponApplied) {
-        await supabase.from("coupons").update({ used_count: couponApplied.used_count + 1 }).eq("id", couponApplied.id);
+      if (error) {
+        toast({ title: "Erro ao criar checkout", description: String(error), variant: "destructive" });
+        setChangingPlan(null);
+        return;
       }
-      toast({ title: `Plano alterado para ${plan.display_name}!` });
-      const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
-      setSubscription(subData);
+
+      if (data?.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        toast({ title: "Erro ao gerar link de pagamento", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Erro inesperado", description: String(err), variant: "destructive" });
     }
     setChangingPlan(null);
   };
@@ -145,7 +176,7 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Coupon & Gateway */}
+      {/* Coupon & Payment */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-3">
@@ -158,16 +189,12 @@ export default function BillingPage() {
           </div>
           {couponApplied && <p className="text-xs text-success mt-2">{couponApplied.discount_percent}% de desconto aplicado!</p>}
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className="text-sm font-medium mb-3">Forma de pagamento</p>
-          <Select value={gateway} onValueChange={setGateway}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {gatewayOptions.map((g) => (
-                <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="rounded-xl border border-border bg-card p-5 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <CreditCard className="h-4 w-4 text-accent" />
+            <p className="text-sm font-medium">Pagamento via Mercado Pago</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Aceita cartão de crédito, débito, PIX e boleto.</p>
         </div>
       </div>
 
