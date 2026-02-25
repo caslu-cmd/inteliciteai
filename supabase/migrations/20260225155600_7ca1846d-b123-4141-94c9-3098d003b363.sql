@@ -1,0 +1,1 @@
+UPDATE subscriptions SET plan = 'profissional', status = 'active', price_cents = 0, trial_ends_at = NULL, current_period_end = '2099-12-31'::timestamptz WHERE user_id = '2ad179b6-7b26-4240-95f1-c2fb414c73e5';
