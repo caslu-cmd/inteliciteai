@@ -29,13 +29,18 @@ const severityConfig = {
 export default function ValidatorPage() {
   const [state, setState] = useState<"upload" | "processing" | "results">("upload");
   const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<FloatingChatRef>(null);
 
-  const handleUpload = () => {
+  const handleFile = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      return;
+    }
+    setFileName(file.name);
     setState("processing");
     setTimeout(() => {
       setState("results");
-      // Auto-trigger the legal assistant with findings context
       const summary = mockFindings
         .map((f) => `[${f.severity.toUpperCase()}] ${f.title}: ${f.description} (${f.article})`)
         .join("\n");
@@ -45,6 +50,22 @@ export default function ValidatorPage() {
         );
       }, 500);
     }, 3000);
+  };
+
+  const handleClickUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
   };
 
   if (state === "upload") {
@@ -60,16 +81,23 @@ export default function ValidatorPage() {
           </p>
         </div>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={handleFileInput}
+        />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); handleUpload(); }}
+          onDrop={handleDrop}
           className={`rounded-2xl border-2 border-dashed p-12 text-center transition-all cursor-pointer ${
             dragOver ? "border-accent bg-accent/5 shadow-gold" : "border-border hover:border-accent/40 hover:bg-secondary/30"
           }`}
-          onClick={handleUpload}
+          onClick={handleClickUpload}
         >
           <Upload className={`mx-auto h-10 w-10 mb-4 ${dragOver ? "text-accent" : "text-muted-foreground"}`} />
           <p className="font-medium">Arraste o edital aqui ou clique para selecionar</p>
@@ -109,7 +137,7 @@ export default function ValidatorPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Resultado da Análise</h1>
-          <p className="text-sm text-muted-foreground mt-1">Edital_PE_023_2026.pdf — {mockFindings.length} achados</p>
+          <p className="text-sm text-muted-foreground mt-1">{fileName || "Edital"} — {mockFindings.length} achados</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setState("upload")}>Nova análise</Button>
