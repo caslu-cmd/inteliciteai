@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronRight, Bell } from
 "lucide-react";
 import { useState, useEffect } from "react";
+import logoWhite from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,10 +110,10 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
         )}>
 
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
-          <Shield className="h-6 w-6 shrink-0 text-sidebar-primary" />
+          <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
           {!collapsed &&
           <span className="text-lg font-bold text-sidebar-foreground">
-              Inteli
+              Inteli<span className="text-gradient-gold">cite</span>
             </span>
           }
         </div>
