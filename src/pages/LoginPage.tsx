@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
-import logoWhite from "@/assets/logo-white.png";
+import { Shield, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,11 +36,11 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="max-w-md text-center"
-        >
-          <img src={logoWhite} alt="Intelicite" className="mx-auto h-16 mb-6" />
+          className="max-w-md text-center">
+
+          <Shield className="mx-auto h-16 w-16 text-accent mb-6" />
           <h2 className="text-3xl font-bold text-primary-foreground">
-            Inteli<span className="text-gradient-gold">cite</span>
+            Inteli
           </h2>
           <p className="mt-4 text-primary-foreground/60 text-lg">
             Plataforma de IA especializada na Lei 14.133/2021 para gestores públicos e empresas licitantes.
@@ -55,10 +54,10 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="w-full max-w-sm"
-        >
+          className="w-full max-w-sm">
+
           <div className="mb-8 lg:hidden flex items-center gap-2 justify-center">
-            <img src={logoWhite} alt="Intelicite" className="h-8" style={{ filter: "brightness(0) saturate(100%) invert(18%) sepia(68%) saturate(1200%) hue-rotate(190deg)" }} />
+            <Shield className="h-7 w-7 text-accent" />
             <span className="text-xl font-bold">Inteli<span className="text-gradient-gold">cite</span></span>
           </div>
 
@@ -79,8 +78,8 @@ export default function LoginPage() {
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                  required />
+
               </div>
             </div>
             <div className="space-y-2">
@@ -97,13 +96,13 @@ export default function LoginPage() {
                   className="pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                  required />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -121,6 +120,6 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
