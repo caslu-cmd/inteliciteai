@@ -109,23 +109,19 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
           collapsed ? "w-16" : "w-64"
         )}>
 
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
+        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 overflow-hidden">
           <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
-          {!collapsed &&
-          <span className="text-lg font-bold text-sidebar-foreground">
-              Inteli
-            </span>
-          }
+          <span className={cn("text-lg font-bold text-sidebar-foreground whitespace-nowrap transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>
+            Inteli<span className="text-gradient-gold">cite</span>
+          </span>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4">
           {navGroups.map((group) =>
           <div key={group.label} className="mb-4">
-              {!collapsed &&
-            <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              <p className={cn("mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 h-0 mb-0" : "opacity-100")}>
                   {group.label}
                 </p>
-            }
               {group.items.map((item) => {
               const active = location.pathname === item.path;
               return (
@@ -141,7 +137,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
                   title={collapsed ? item.title : undefined}>
 
                     <item.icon className="h-4.5 w-4.5 shrink-0" />
-                    {!collapsed && <span>{item.title}</span>}
+                    <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>{item.title}</span>
                   </Link>);
 
             })}
@@ -151,9 +147,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
           {/* Admin link */}
           {isAdmin &&
           <div className="mb-4">
-              {!collapsed &&
-            <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">Admin</p>
-            }
+              <p className={cn("mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 h-0 mb-0" : "opacity-100")}>Admin</p>
               <Link
               to="/admin"
               className={cn(
@@ -165,7 +159,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
               title={collapsed ? "Admin" : undefined}>
 
                 <Shield className="h-4.5 w-4.5 shrink-0" />
-                {!collapsed && <span>Painel Admin</span>}
+                <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>Painel Admin</span>
               </Link>
             </div>
           }
@@ -178,7 +172,7 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
             className="flex w-full items-center gap-3 rounded-lg p-2 text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors">
 
             <LogOut className="h-4 w-4" />
-            {!collapsed && <span className="text-sm">Sair</span>}
+            <span className={cn("text-sm whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>Sair</span>
           </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
