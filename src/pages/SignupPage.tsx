@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, User, Building2, ArrowRight, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, Building2, ArrowRight, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,21 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const passwordRules = useMemo(() => [
+    { label: "Mínimo 8 caracteres", valid: password.length >= 8 },
+    { label: "Letra maiúscula", valid: /[A-Z]/.test(password) },
+    { label: "Número", valid: /[0-9]/.test(password) },
+    { label: "Caractere especial (!@#$...)", valid: /[^A-Za-z0-9]/.test(password) },
+  ], [password]);
+
+  const passwordValid = passwordRules.every((r) => r.valid);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!passwordValid) {
+      toast({ title: "Senha fraca", description: "A senha não atende todos os requisitos.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -113,6 +126,20 @@ export default function SignupPage() {
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input id="email" type="email" placeholder="seu@email.com" className="pl-10" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
+              {password.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {passwordRules.map((r) => (
+                    <div key={r.label} className="flex items-center gap-2 text-xs">
+                      {r.valid ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-destructive" />
+                      )}
+                      <span className={r.valid ? "text-success" : "text-muted-foreground"}>{r.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
@@ -149,7 +176,7 @@ export default function SignupPage() {
                 <a href="#" className="text-accent hover:underline">Política de Privacidade</a> (LGPD).
               </label>
             </div>
-            <Button variant="gold" className="w-full" type="submit" disabled={!agreed || loading}>
+            <Button variant="gold" className="w-full" type="submit" disabled={!agreed || !passwordValid || loading}>
               {loading ? "Criando..." : "Criar conta e iniciar trial"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
