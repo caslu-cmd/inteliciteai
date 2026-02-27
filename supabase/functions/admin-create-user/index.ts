@@ -65,7 +65,19 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("admin-create-user error:", error);
+    
+    let userMessage = "Erro ao criar usuário. Tente novamente.";
+    const msg = error?.message || "";
+    if (msg.includes("duplicate") || msg.includes("already")) {
+      userMessage = "Um usuário com este email já existe.";
+    } else if (msg.includes("Not an admin")) {
+      userMessage = "Acesso não autorizado.";
+    } else if (msg.includes("Not authenticated")) {
+      userMessage = "Autenticação necessária.";
+    }
+    
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
