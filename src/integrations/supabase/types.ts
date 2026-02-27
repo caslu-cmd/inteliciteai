@@ -77,6 +77,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gateway_configs: {
+        Row: {
+          config_data: Json
+          created_at: string
+          gateway_id: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config_data?: Json
+          created_at?: string
+          gateway_id: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config_data?: Json
+          created_at?: string
+          gateway_id?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

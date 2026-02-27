@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.analyze-edital]
 verify_jwt = false
+
+[functions.save-gateway-config]
+verify_jwt = false
