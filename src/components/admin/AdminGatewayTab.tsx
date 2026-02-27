@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-
 const gateways = [
   {
     id: "mercado_pago",
@@ -62,12 +62,20 @@ export default function AdminGatewayTab() {
 
   const handleSave = async () => {
     setSaving(true);
-    // In production, these would be saved as Supabase secrets via edge function
-    // For now, show confirmation
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke('save-gateway-config', {
+        body: { gateway: selectedGateway, config: currentConfig },
+      });
+      if (error) {
+        toast({ title: "Erro ao salvar", description: error.message || "Tente novamente.", variant: "destructive" });
+      } else {
+        toast({ title: "Configuração salva", description: `Gateway ${gateway.name} configurado com sucesso.` });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro", description: "Falha na comunicação com o servidor.", variant: "destructive" });
+    } finally {
       setSaving(false);
-      toast({ title: "Configuração salva", description: `Gateway ${gateway.name} configurado com sucesso.` });
-    }, 1000);
+    }
   };
 
   const isConfigured = gateway.fields.every((f) => currentConfig[f.key]?.length > 0);
