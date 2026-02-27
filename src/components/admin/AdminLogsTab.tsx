@@ -11,7 +11,7 @@ export default function AdminLogsTab() {
     (async () => {
       const { data } = await supabase
         .from("activity_logs")
-        .select("*")
+        .select("id, user_email, action, details, created_at")
         .order("created_at", { ascending: false })
         .limit(50);
       setLogs(data || []);

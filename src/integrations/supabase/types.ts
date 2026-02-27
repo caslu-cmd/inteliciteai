@@ -315,7 +315,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      activity_logs_safe: {
+        Row: {
+          action: string | null
+          created_at: string | null
+          details: string | null
+          id: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string | null
+          details?: string | null
+          id?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string | null
+          details?: string | null
+          id?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

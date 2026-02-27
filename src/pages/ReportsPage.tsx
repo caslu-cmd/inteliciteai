@@ -43,7 +43,7 @@ export default function ReportsPage() {
       if (!user) return;
 
       const [logsRes, paymentsRes, subRes, profileRes] = await Promise.all([
-        supabase.from("activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100),
+        supabase.from("activity_logs").select("id, action, details, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100),
         supabase.from("payments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
