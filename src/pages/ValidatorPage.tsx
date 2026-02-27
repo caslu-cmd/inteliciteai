@@ -4,6 +4,7 @@ import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Loader2, Search
 import { Button } from "@/components/ui/button";
 import FloatingChat, { FloatingChatRef } from "@/components/FloatingChat";
 import { extractPdfText } from "@/lib/pdfExtract";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Finding {
@@ -48,13 +49,21 @@ export default function ValidatorPage() {
 
       setProgressText("Analisando conformidade com a Lei 14.133/2021...");
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        toast.error("Você precisa estar logado para usar esta funcionalidade.");
+        setState("upload");
+        return;
+      }
+
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-edital`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ text, fileName: file.name }),
         }
