@@ -22,17 +22,17 @@ export default function Header() {
           : "bg-transparent"
       }`}
     >
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <img
             src={logoWhite}
             alt="Intelicite"
-            className="h-8 brightness-0 invert"
+            className="h-10 brightness-0 invert"
           />
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-10 md:flex">
           <a
             href="#funcionalidades"
             className="text-sm font-medium text-landing-text-muted transition-colors hover:text-landing-cyan"
@@ -46,13 +46,13 @@ export default function Header() {
             Planos
           </a>
           <Link to="/login">
-            <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface-2">
+            <Button variant="ghost" size="default" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface-2">
               Entrar
             </Button>
           </Link>
           <Link to="/signup">
-            <Button size="sm" className="bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
-              Teste grátis <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            <Button size="default" className="bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold px-6">
+              Teste grátis <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </Link>
         </nav>
@@ -62,7 +62,7 @@ export default function Header() {
           className="md:hidden text-landing-text"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
