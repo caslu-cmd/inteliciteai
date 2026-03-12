@@ -14,24 +14,28 @@ const fadeUp = {
 
 export default function CtaSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-hero py-24 md:py-32">
-      <div className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, hsl(var(--accent)) 1px, transparent 0)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-      <div className="container relative text-center">
+    <section className="relative overflow-hidden py-24 md:py-32 bg-landing-bg">
+      {/* Glow background */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-landing-cyan/5 blur-[150px]" />
+      <div className="absolute top-1/2 left-1/3 w-[400px] h-[300px] rounded-full bg-landing-purple/5 blur-[120px]" />
+
+      {/* Grid */}
+      <div className="absolute inset-0 grid-tech" />
+
+      {/* Top line */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-px bg-gradient-to-r from-transparent via-landing-cyan/20 to-transparent" />
+
+      <div className="container relative z-10 text-center">
         <motion.h2
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeUp}
           custom={0}
-          className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-primary-foreground md:text-4xl"
+          className="mx-auto max-w-2xl font-display text-3xl font-bold tracking-tight text-landing-text md:text-4xl"
         >
-          Pronto para modernizar suas licitações?
+          Pronto para modernizar suas{" "}
+          <span className="text-gradient-cyan-purple">licitações</span>?
         </motion.h2>
         <motion.p
           initial="hidden"
@@ -39,7 +43,7 @@ export default function CtaSection() {
           viewport={{ once: true }}
           variants={fadeUp}
           custom={1}
-          className="mx-auto mt-5 max-w-xl text-primary-foreground/60"
+          className="mx-auto mt-5 max-w-xl text-landing-text-muted"
         >
           Junte-se a gestores públicos e empresas que já utilizam a Intelicite
           para garantir conformidade e agilidade nos processos licitatórios.
@@ -53,7 +57,7 @@ export default function CtaSection() {
           className="mt-10"
         >
           <Link to="/signup">
-            <Button variant="gold" size="lg" className="text-base px-10 h-13">
+            <Button size="lg" className="text-base px-10 h-13 bg-gradient-cyber text-white glow-cyan hover:opacity-90 font-semibold">
               Começar agora — é grátis
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
