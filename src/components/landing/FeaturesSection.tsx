@@ -65,8 +65,9 @@ const features: { icon: LucideIcon; title: string; description: string; glow: "c
 ];
 
 export default function FeaturesSection() {
+  const { ref: parallaxRef, offset } = useParallax(0.08);
   return (
-    <section id="funcionalidades" className="relative py-24 md:py-32 bg-landing-bg overflow-hidden">
+    <section ref={parallaxRef} id="funcionalidades" className="relative py-24 md:py-32 bg-landing-bg overflow-hidden">
       {/* Background elements */}
       <div className="absolute inset-0 grid-tech" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[1px] bg-gradient-to-r from-transparent via-landing-cyan/20 to-transparent" />
