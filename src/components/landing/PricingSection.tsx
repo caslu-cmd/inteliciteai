@@ -165,7 +165,7 @@ export default function PricingSection() {
               <Link to="/signup" className="mt-6 block">
                 <Button
                   variant={plan.highlighted ? "gold" : "default"}
-                  className="w-full h-11"
+                  className="w-full h-13 text-base font-semibold"
                 >
                   Começar teste grátis
                 </Button>
