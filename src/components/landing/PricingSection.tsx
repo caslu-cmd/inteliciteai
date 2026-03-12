@@ -14,11 +14,10 @@ const fadeUp = {
   }),
 };
 
-function AnimatedPrice({ value, prefix = "R$ " }: { value: number; prefix?: string }) {
-  const { count, ref } = useCountUp(value, 1200);
+function StaticPrice({ value, prefix = "R$ " }: { value: number }) {
   return (
-    <span ref={ref as React.Ref<HTMLSpanElement>} className="text-4xl font-extrabold tracking-tight">
-      {prefix}{count}
+    <span className="text-4xl font-extrabold tracking-tight">
+      {prefix}{value}
     </span>
   );
 }
