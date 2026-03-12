@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useParallax } from "@/hooks/useParallax";
 import {
   MessageSquare,
   FileText,
