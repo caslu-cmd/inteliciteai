@@ -156,7 +156,7 @@ export default function PricingSection() {
                 {plan.description}
               </p>
               <div className="mt-6 flex items-baseline gap-1">
-                <AnimatedPrice value={plan.priceValue} />
+                <StaticPrice value={plan.priceValue} />
                 <span className="text-sm text-muted-foreground">
                   {plan.period}
                 </span>
