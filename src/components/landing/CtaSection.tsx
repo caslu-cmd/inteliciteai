@@ -57,7 +57,7 @@ export default function CtaSection() {
           className="mt-10"
         >
           <Link to="/signup">
-            <Button size="lg" className="text-base px-10 h-13 bg-gradient-cyber text-white glow-cyan hover:opacity-90 font-semibold">
+            <Button size="lg" className="text-base px-10 h-14 bg-gradient-cyber text-white glow-cyan hover:opacity-90 font-semibold">
               Começar agora — é grátis
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

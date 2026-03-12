@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Lock, Shield, Sparkles } from "lucide-react";
 import heroMockup from "@/assets/hero-mockup.png";
+import { useParallax } from "@/hooks/useParallax";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -14,8 +15,9 @@ const fadeUp = {
 };
 
 export default function HeroSection() {
+  const { ref: parallaxRef, offset } = useParallax(0.12);
   return (
-    <section className="relative overflow-hidden pt-36 pb-20 md:pt-48 md:pb-32 bg-gradient-hero">
+    <section ref={parallaxRef} className="relative overflow-hidden pt-36 pb-20 md:pt-48 md:pb-32 bg-gradient-hero">
       {/* Grid overlay */}
       <div className="absolute inset-0 grid-tech" />
 
@@ -76,7 +78,7 @@ export default function HeroSection() {
               className="mt-10 flex flex-col gap-3 sm:flex-row"
             >
               <Link to="/signup">
-                <Button size="lg" className="text-base px-8 h-13 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
+                 <Button size="lg" className="text-base px-10 h-14 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
                   Comece grátis por 7 dias
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -85,7 +87,7 @@ export default function HeroSection() {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="text-base px-8 h-13 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
+                  className="text-base px-10 h-14 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
                 >
                   Ver funcionalidades
                 </Button>
@@ -115,6 +117,7 @@ export default function HeroSection() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
             className="relative hidden lg:block"
+            style={{ transform: `translateY(${offset * 0.5}px)` }}
           >
             <div className="relative rounded-2xl glass-card p-2 shadow-cyan-glow">
               <img

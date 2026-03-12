@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useRef, useEffect, useState } from "react";
+import { useParallax } from "@/hooks/useParallax";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -14,11 +15,10 @@ const fadeUp = {
   }),
 };
 
-function AnimatedPrice({ value, prefix = "R$ " }: { value: number; prefix?: string }) {
-  const { count, ref } = useCountUp(value, 1200);
+function StaticPrice({ value, prefix = "R$ " }: { value: number; prefix?: string }) {
   return (
-    <span ref={ref as React.Ref<HTMLSpanElement>} className="text-4xl font-extrabold tracking-tight">
-      {prefix}{count}
+    <span className="text-4xl font-extrabold tracking-tight">
+      {prefix}{value}
     </span>
   );
 }
@@ -157,7 +157,7 @@ export default function PricingSection() {
                 {plan.description}
               </p>
               <div className="mt-6 flex items-baseline gap-1">
-                <AnimatedPrice value={plan.priceValue} />
+                <StaticPrice value={plan.priceValue} />
                 <span className="text-sm text-muted-foreground">
                   {plan.period}
                 </span>
@@ -165,7 +165,7 @@ export default function PricingSection() {
               <Link to="/signup" className="mt-6 block">
                 <Button
                   variant={plan.highlighted ? "gold" : "default"}
-                  className="w-full h-11"
+                  className="w-full h-13 text-base font-semibold"
                 >
                   Começar teste grátis
                 </Button>
