@@ -15,7 +15,7 @@ const fadeUp = {
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pt-32 pb-20 md:pt-44 md:pb-32 bg-gradient-hero">
+    <section className="relative overflow-hidden pt-36 pb-20 md:pt-48 md:pb-32 bg-gradient-hero">
       {/* Grid overlay */}
       <div className="absolute inset-0 grid-tech" />
 

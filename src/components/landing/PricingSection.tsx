@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
+import { useCountUp } from "@/hooks/useCountUp";
+import { useRef, useEffect, useState } from "react";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -12,10 +14,19 @@ const fadeUp = {
   }),
 };
 
+function AnimatedPrice({ value, prefix = "R$ " }: { value: number; prefix?: string }) {
+  const { count, ref } = useCountUp(value, 1200);
+  return (
+    <span ref={ref as React.Ref<HTMLSpanElement>} className="text-4xl font-extrabold tracking-tight">
+      {prefix}{count}
+    </span>
+  );
+}
+
 const plans = [
   {
     name: "Gratuito",
-    price: "R$ 0",
+    priceValue: 0,
     period: "/ 7 dias",
     description: "Teste todas as funcionalidades por 7 dias",
     features: [
@@ -29,7 +40,7 @@ const plans = [
   },
   {
     name: "Profissional",
-    price: "R$ 297",
+    priceValue: 297,
     period: "/mês",
     description: "Acesso completo e ilimitado a todos os recursos",
     features: [
@@ -46,6 +57,54 @@ const plans = [
     highlighted: true,
   },
 ];
+
+function MetricsBar() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const metrics = [
+    { value: 500, suffix: "+", label: "Usuários ativos" },
+    { value: 10000, suffix: "+", label: "Documentos gerados" },
+    { value: 98, suffix: "%", label: "Satisfação" },
+    { value: 75, suffix: "%", label: "Economia de tempo" },
+  ];
+
+  return (
+    <div ref={containerRef} className="mx-auto mt-20 grid max-w-4xl grid-cols-2 gap-6 md:grid-cols-4">
+      {metrics.map((m, i) => (
+        <motion.div
+          key={m.label}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: i * 0.1, duration: 0.5 }}
+          className="flex flex-col items-center gap-1 rounded-xl glass-card p-5 text-center"
+        >
+          <span className="text-3xl font-extrabold text-gradient-cyan-purple md:text-4xl">
+            {visible ? <CountUpSpan end={m.value} /> : "0"}{m.suffix}
+          </span>
+          <span className="text-xs text-landing-text-muted">{m.label}</span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function CountUpSpan({ end }: { end: number }) {
+  const { count, ref } = useCountUp(end, 1500);
+  return <span ref={ref as React.Ref<HTMLSpanElement>}>{count.toLocaleString("pt-BR")}</span>;
+}
 
 export default function PricingSection() {
   return (
@@ -98,9 +157,7 @@ export default function PricingSection() {
                 {plan.description}
               </p>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">
-                  {plan.price}
-                </span>
+                <AnimatedPrice value={plan.priceValue} />
                 <span className="text-sm text-muted-foreground">
                   {plan.period}
                 </span>
@@ -127,6 +184,9 @@ export default function PricingSection() {
             </motion.div>
           ))}
         </div>
+
+        {/* Metrics */}
+        <MetricsBar />
       </div>
     </section>
   );
