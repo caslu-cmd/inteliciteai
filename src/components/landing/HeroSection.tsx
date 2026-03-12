@@ -76,7 +76,7 @@ export default function HeroSection() {
               className="mt-10 flex flex-col gap-3 sm:flex-row"
             >
               <Link to="/signup">
-                <Button size="lg" className="text-base px-8 h-13 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
+                 <Button size="lg" className="text-base px-10 h-14 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
                   Comece grátis por 7 dias
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
