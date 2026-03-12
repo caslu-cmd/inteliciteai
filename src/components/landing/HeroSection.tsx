@@ -85,7 +85,7 @@ export default function HeroSection() {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="text-base px-8 h-13 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
+                  className="text-base px-10 h-14 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
                 >
                   Ver funcionalidades
                 </Button>

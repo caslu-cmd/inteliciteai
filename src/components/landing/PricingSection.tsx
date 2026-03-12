@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useRef, useEffect, useState } from "react";
+import { useParallax } from "@/hooks/useParallax";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
