@@ -15,7 +15,7 @@ const fadeUp = {
   }),
 };
 
-function StaticPrice({ value, prefix = "R$ " }: { value: number }) {
+function StaticPrice({ value, prefix = "R$ " }: { value: number; prefix?: string }) {
   return (
     <span className="text-4xl font-extrabold tracking-tight">
       {prefix}{value}
