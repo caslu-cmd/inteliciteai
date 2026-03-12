@@ -94,7 +94,7 @@ export default function FeaturesSection() {
           </p>
         </motion.div>
 
-        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" style={{ transform: `translateY(${offset * 0.3}px)` }}>
           {features.map((f, i) => (
             <motion.div
               key={f.title}

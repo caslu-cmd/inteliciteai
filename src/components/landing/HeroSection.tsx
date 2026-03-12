@@ -117,6 +117,7 @@ export default function HeroSection() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
             className="relative hidden lg:block"
+            style={{ transform: `translateY(${offset * 0.5}px)` }}
           >
             <div className="relative rounded-2xl glass-card p-2 shadow-cyan-glow">
               <img
