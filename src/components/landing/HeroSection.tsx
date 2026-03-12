@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Lock, Shield, Sparkles } from "lucide-react";
 import heroMockup from "@/assets/hero-mockup.png";
+import { useParallax } from "@/hooks/useParallax";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
