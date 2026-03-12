@@ -15,6 +15,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Space Grotesk", "system-ui", "sans-serif"],
+        futuristic: ["Orbitron", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -63,6 +65,17 @@ export default {
           DEFAULT: "hsl(var(--navy))",
           light: "hsl(var(--navy-light))",
           dark: "hsl(var(--navy-dark))",
+        },
+        landing: {
+          bg: "hsl(var(--landing-bg))",
+          surface: "hsl(var(--landing-surface))",
+          "surface-2": "hsl(var(--landing-surface-2))",
+          border: "hsl(var(--landing-border))",
+          text: "hsl(var(--landing-text))",
+          "text-muted": "hsl(var(--landing-text-muted))",
+          cyan: "hsl(var(--landing-cyan))",
+          purple: "hsl(var(--landing-purple))",
+          blue: "hsl(var(--landing-blue))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

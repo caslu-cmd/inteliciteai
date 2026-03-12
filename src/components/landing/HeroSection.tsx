@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, Lock, Shield } from "lucide-react";
+import { ArrowRight, Lock, Shield, Sparkles } from "lucide-react";
 import heroMockup from "@/assets/hero-mockup.png";
 
 const fadeUp = {
@@ -15,20 +15,20 @@ const fadeUp = {
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pt-32 pb-20 md:pt-44 md:pb-32">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-hero" />
-      {/* Subtle grid */}
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(hsl(var(--accent) / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--accent) / 0.3) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
-      {/* Glow orb */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-accent/5 blur-[120px]" />
+    <section className="relative overflow-hidden pt-32 pb-20 md:pt-44 md:pb-32 bg-gradient-hero">
+      {/* Grid overlay */}
+      <div className="absolute inset-0 grid-tech" />
+
+      {/* Glow orbs */}
+      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-landing-cyan/5 blur-[150px]" />
+      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-landing-purple/8 blur-[120px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-landing-blue/3 blur-[200px]" />
+
+      {/* Floating particles */}
+      <div className="absolute top-20 left-[10%] w-1 h-1 rounded-full bg-landing-cyan/60" style={{ animation: "float 4s ease-in-out infinite" }} />
+      <div className="absolute top-40 right-[15%] w-1.5 h-1.5 rounded-full bg-landing-purple/50" style={{ animation: "float 5s ease-in-out infinite 1s" }} />
+      <div className="absolute bottom-32 left-[20%] w-1 h-1 rounded-full bg-landing-cyan/40" style={{ animation: "float 6s ease-in-out infinite 2s" }} />
+      <div className="absolute top-60 right-[30%] w-0.5 h-0.5 rounded-full bg-landing-purple/70" style={{ animation: "float 3.5s ease-in-out infinite 0.5s" }} />
 
       <div className="container relative z-10">
         <div className="grid items-center gap-16 lg:grid-cols-2">
@@ -39,9 +39,9 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={0}
-              className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent"
+              className="mb-5 inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-landing-cyan"
             >
-              <Shield className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" />
               Plataforma de IA para licitações
             </motion.div>
 
@@ -50,11 +50,10 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={1}
-              className="text-4xl font-extrabold leading-[1.08] tracking-tight text-primary-foreground md:text-5xl lg:text-6xl"
+              className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-landing-text md:text-5xl lg:text-6xl"
             >
-              Conformidade com a{" "}
-              <span className="text-gradient-gold">Lei&nbsp;14.133</span>{" "}
-              simplificada por IA
+              Plataforma de IA para{" "}
+              <span className="text-gradient-cyan-purple">Licitações</span>
             </motion.h1>
 
             <motion.p
@@ -62,11 +61,11 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={2}
-              className="mt-6 max-w-lg text-base leading-relaxed text-primary-foreground/60 md:text-lg"
+              className="mt-6 max-w-lg text-base leading-relaxed text-landing-text-muted md:text-lg"
             >
+              Conformidade com a Lei 14.133 simplificada por Inteligência Artificial.
               Gere ETPs, Termos de Referência, valide editais e consulte a
-              legislação com inteligência artificial. Reduza riscos legais e
-              economize horas de trabalho.
+              legislação com IA. Reduza riscos legais e economize horas de trabalho.
             </motion.p>
 
             <motion.div
@@ -77,16 +76,16 @@ export default function HeroSection() {
               className="mt-10 flex flex-col gap-3 sm:flex-row"
             >
               <Link to="/signup">
-                <Button variant="gold" size="lg" className="text-base px-8 h-13">
+                <Button size="lg" className="text-base px-8 h-13 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
                   Comece grátis por 7 dias
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <a href="#funcionalidades">
                 <Button
-                  variant="hero-outline"
+                  variant="outline"
                   size="lg"
-                  className="text-base px-8 h-13 text-primary-foreground/70 border-primary-foreground/15 hover:bg-primary-foreground/5"
+                  className="text-base px-8 h-13 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
                 >
                   Ver funcionalidades
                 </Button>
@@ -98,13 +97,15 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={4}
-              className="mt-6 flex items-center gap-5 text-xs text-primary-foreground/40"
+              className="mt-6 flex items-center gap-5 text-xs text-landing-text-muted"
             >
               <span className="flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5" /> Dados protegidos (LGPD)
+                <Lock className="h-3.5 w-3.5 text-landing-cyan" /> Dados protegidos (LGPD)
               </span>
-              <span className="h-3 w-px bg-primary-foreground/20" />
-              <span>Sem cartão de crédito</span>
+              <span className="h-3 w-px bg-landing-border" />
+              <span className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-landing-purple" /> Sem cartão de crédito
+              </span>
             </motion.div>
           </div>
 
@@ -115,17 +116,21 @@ export default function HeroSection() {
             transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
             className="relative hidden lg:block"
           >
-            <div className="relative rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-2 shadow-2xl shadow-black/30 backdrop-blur-sm">
+            <div className="relative rounded-2xl glass-card p-2 shadow-cyan-glow">
               <img
                 src={heroMockup}
                 alt="Interface do Intelicite — assistente jurídico de IA"
                 className="w-full rounded-xl"
                 loading="eager"
               />
+              {/* Scan line effect */}
+              <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
+                <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-landing-cyan/30 to-transparent" style={{ animation: "float 3s ease-in-out infinite", top: "30%" }} />
+              </div>
             </div>
-            {/* Floating accent element */}
-            <div className="absolute -bottom-4 -left-4 h-24 w-24 rounded-2xl bg-gradient-gold opacity-20 blur-2xl" />
-            <div className="absolute -top-4 -right-4 h-32 w-32 rounded-full bg-accent/10 blur-3xl" />
+            {/* Glow elements */}
+            <div className="absolute -bottom-6 -left-6 h-32 w-32 rounded-full bg-landing-cyan/10 blur-3xl" />
+            <div className="absolute -top-6 -right-6 h-40 w-40 rounded-full bg-landing-purple/10 blur-3xl" />
           </motion.div>
         </div>
       </div>
