@@ -21,7 +21,7 @@ const verticals = [
     accent: "190 95% 50%",
     accent2: "190 95% 65%",
     description:
-      "A plataforma definitiva para a Administração Pública. Automatize ETPs, Termos de Referência e checklists com inteligência artificial em conformidade total com a Nova Lei de Licitações.",
+      "A plataforma definitiva para o Setor Público. Automatize ETPs, Termos de Referência e checklists com inteligência artificial em conformidade total com a Nova Lei de Licitações.",
     icon: Building2,
     features: [
       { icon: FileText, title: "Gerador de ETP", desc: "Estudos Técnicos Preliminares completos em minutos." },
@@ -464,6 +464,8 @@ function Pricing() {
       desc: "Para conhecer toda a plataforma sem compromisso.",
       features: ["Acesso completo por 7 dias", "Todas as ferramentas IA", "Sem cartão de crédito", "Suporte por email"],
       cta: "Começar grátis",
+      href: "https://wa.me/5585985547362",
+      external: true,
       highlight: false,
     },
     {
@@ -480,6 +482,8 @@ function Pricing() {
         "Suporte prioritário",
       ],
       cta: "Assinar Pro",
+      href: "/signup",
+      external: false,
       highlight: true,
     },
     {
@@ -496,6 +500,8 @@ function Pricing() {
         "Gestor de conta",
       ],
       cta: "Falar com vendas",
+      href: "/signup",
+      external: false,
       highlight: false,
     },
   ];
@@ -534,17 +540,33 @@ function Pricing() {
                   <span className="font-display text-4xl font-bold text-white">{p.price}</span>
                   {p.period && <span className="text-sm text-white/45">{p.period}</span>}
                 </div>
-                <Link
-                  to="/signup"
-                  className={cn(
-                    "mt-7 inline-flex items-center justify-center rounded-full px-5 h-12 text-sm font-semibold transition-all",
-                    p.highlight
-                      ? "bg-cyan-400 text-black hover:bg-cyan-300 shadow-[0_0_28px_-6px_hsl(190_95%_50%/0.6)]"
-                      : "border border-white/15 text-white hover:bg-white/[0.06]"
-                  )}
-                >
-                  {p.cta}
-                </Link>
+                {p.external ? (
+                  <a
+                    href={p.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "mt-7 inline-flex items-center justify-center rounded-full px-5 h-12 text-sm font-semibold transition-all",
+                      p.highlight
+                        ? "bg-cyan-400 text-black hover:bg-cyan-300 shadow-[0_0_28px_-6px_hsl(190_95%_50%/0.6)]"
+                        : "border border-white/15 text-white hover:bg-white/[0.06]"
+                    )}
+                  >
+                    {p.cta}
+                  </a>
+                ) : (
+                  <Link
+                    to={p.href}
+                    className={cn(
+                      "mt-7 inline-flex items-center justify-center rounded-full px-5 h-12 text-sm font-semibold transition-all",
+                      p.highlight
+                        ? "bg-cyan-400 text-black hover:bg-cyan-300 shadow-[0_0_28px_-6px_hsl(190_95%_50%/0.6)]"
+                        : "border border-white/15 text-white hover:bg-white/[0.06]"
+                    )}
+                  >
+                    {p.cta}
+                  </Link>
+                )}
                 <ul className="mt-8 space-y-3">
                   {p.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-white/70">
@@ -678,7 +700,7 @@ function Footer() {
           <p className="text-xs text-white/40">
             © {new Date().getFullYear()} Intelicite. Todos os direitos reservados.
           </p>
-          <p className="text-xs text-white/40">Feito no Brasil para a Administração Pública.</p>
+          <p className="text-xs text-white/40">Feito no Brasil para o Setor Público.</p>
         </div>
       </div>
     </footer>
