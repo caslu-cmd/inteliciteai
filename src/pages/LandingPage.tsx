@@ -7,6 +7,7 @@ import {
   BarChart3, MessageSquare, Lock, FileSearch, Handshake, CreditCard,
   AlertTriangle, Award, Sparkles, Star,
 } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 
 const cn = (...c: (string | boolean | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -132,13 +133,8 @@ function Navbar() {
       )}
     >
       <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="relative h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center shadow-[0_0_24px_-4px_hsl(190_95%_50%/0.6)]">
-            <Sparkles className="h-4.5 w-4.5 text-black/80" strokeWidth={2.5} />
-          </div>
-          <span className="font-display text-lg font-bold tracking-tight text-white">
-            Intelicite
-          </span>
+        <Link to="/" className="flex items-center">
+          <img src={logoWhite} alt="Intelicite" className="h-10 w-auto" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-9 text-sm text-white/65">
@@ -670,11 +666,8 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid gap-10 lg:grid-cols-6">
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center">
-                <Sparkles className="h-4.5 w-4.5 text-black/80" strokeWidth={2.5} />
-              </div>
-              <span className="font-display text-lg font-bold text-white">Intelicite</span>
+            <div className="flex items-center">
+              <img src={logoWhite} alt="Intelicite" className="h-9 w-auto" />
             </div>
             <p className="mt-5 text-sm text-white/50 max-w-xs leading-relaxed">
               O ecossistema completo de licitações com inteligência artificial.
