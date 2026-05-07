@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
-  ChevronLeft, ChevronRight, Bell } from
+  ChevronLeft, ChevronRight, Bell, BookMarked } from
 "lucide-react";
 import { useState, useEffect } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -18,6 +18,7 @@ const navGroups = [
   items: [
   { title: "Dashboard", icon: BarChart3, path: "/dashboard" },
   { title: "Assistente Jurídico", icon: MessageSquare, path: "/dashboard/chat" },
+  { title: "Notebook IA", icon: BookMarked, path: "/dashboard/notebook" },
   { title: "Meus Documentos", icon: FolderOpen, path: "/dashboard/documents" }]
 
 },

@@ -21,6 +21,7 @@ import BillingPage from "./pages/BillingPage";
 import PlanActivatedPage from "./pages/PlanActivatedPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
+import NotebookPage from "./pages/NotebookPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/dashboard/validator" element={<DashboardRoute><ValidatorPage /></DashboardRoute>} />
           <Route path="/dashboard/quotation" element={<DashboardRoute><QuotationPage /></DashboardRoute>} />
           <Route path="/dashboard/reports" element={<DashboardRoute><ReportsPage /></DashboardRoute>} />
+          <Route path="/dashboard/notebook" element={<DashboardRoute><NotebookPage /></DashboardRoute>} />
           <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
           <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
