@@ -2,71 +2,92 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
-  ChevronLeft, ChevronRight, Bell, BookMarked } from
-"lucide-react";
-import { useState, useEffect } from "react";
+  ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
+  Zap, ChevronDown, Command,
+} from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import logoWhite from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIsAdmin } from "@/lib/adminAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { motion, AnimatePresence } from "framer-motion";
 
-const navGroups = [
-{
-  label: "Principal",
-  items: [
-  { title: "Dashboard", icon: BarChart3, path: "/dashboard" },
-  { title: "Assistente Jurídico", icon: MessageSquare, path: "/dashboard/chat" },
-  { title: "Notebook IA", icon: BookMarked, path: "/dashboard/notebook" },
-  { title: "Meus Documentos", icon: FolderOpen, path: "/dashboard/documents" }]
+// ── Nav structure ─────────────────────────────────────────────
+const NAV = [
+  {
+    items: [
+      { title: "Dashboard",       icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Assistente IA",   icon: MessageSquare,   path: "/dashboard/chat" },
+      { title: "Notebook IA",     icon: BookMarked,      path: "/dashboard/notebook", badge: "Novo" },
+      { title: "Documentos",      icon: FolderOpen,      path: "/dashboard/documents" },
+    ],
+  },
+  {
+    label: "Geradores",
+    items: [
+      { title: "Gerador de ETP",  icon: FileText,  path: "/dashboard/etp" },
+      { title: "Gerador de TR",   icon: FileText,  path: "/dashboard/tr" },
+      { title: "Checklist",       icon: CheckSquare, path: "/dashboard/checklist" },
+    ],
+  },
+  {
+    label: "Ferramentas",
+    items: [
+      { title: "Diagnóstico",     icon: Scale,      path: "/dashboard/diagnostic" },
+      { title: "Validador",       icon: Search,     path: "/dashboard/validator" },
+      { title: "Cotação",         icon: Calculator, path: "/dashboard/quotation" },
+    ],
+  },
+  {
+    label: "Conta",
+    items: [
+      { title: "Relatórios",      icon: BarChart3,  path: "/dashboard/reports" },
+      { title: "Billing",         icon: CreditCard, path: "/dashboard/billing" },
+      { title: "Configurações",   icon: Settings,   path: "/dashboard/settings" },
+    ],
+  },
+];
 
-},
-{
-  label: "Geradores",
-  items: [
-  { title: "Gerador de ETP", icon: FileText, path: "/dashboard/etp" },
-  { title: "Gerador de TR", icon: FileText, path: "/dashboard/tr" },
-  { title: "Checklist", icon: CheckSquare, path: "/dashboard/checklist" }]
+// ── Page titles ───────────────────────────────────────────────
+const PAGE_TITLES: Record<string, string> = {
+  "/dashboard": "Dashboard",
+  "/dashboard/chat": "Assistente Jurídico",
+  "/dashboard/notebook": "Notebook IA",
+  "/dashboard/documents": "Meus Documentos",
+  "/dashboard/etp": "Gerador de ETP",
+  "/dashboard/tr": "Gerador de TR",
+  "/dashboard/checklist": "Checklist",
+  "/dashboard/diagnostic": "Diagnóstico de Modalidade",
+  "/dashboard/validator": "Validador de Editais",
+  "/dashboard/quotation": "Cotação Inteligente",
+  "/dashboard/reports": "Relatórios",
+  "/dashboard/billing": "Billing",
+  "/dashboard/settings": "Configurações",
+  "/admin": "Super Admin",
+};
 
-},
-{
-  label: "Ferramentas",
-  items: [
-  { title: "Diagnóstico", icon: Scale, path: "/dashboard/diagnostic" },
-  { title: "Validador de Editais", icon: Search, path: "/dashboard/validator" },
-  { title: "Cotação Inteligente", icon: Calculator, path: "/dashboard/quotation" }]
-
-},
-{
-  label: "Conta",
-  items: [
-  { title: "Relatórios", icon: BarChart3, path: "/dashboard/reports" },
-  { title: "Billing", icon: CreditCard, path: "/dashboard/billing" },
-  { title: "Configurações", icon: Settings, path: "/dashboard/settings" }]
-
-}];
-
-
-export default function DashboardLayout({ children }: {children: React.ReactNode;}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {navigate("/login");return;}
-
+      if (!user) { navigate("/login"); return; }
       const [profileRes, subRes, notifRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      supabase.from("subscriptions").select("*").eq("user_id", user.id).single(),
-      supabase.from("notifications").select("*").eq("user_id", user.id).eq("read", false).order("created_at", { ascending: false }).limit(5)]
-      );
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        supabase.from("subscriptions").select("*").eq("user_id", user.id).single(),
+        supabase.from("notifications").select("*").eq("user_id", user.id).eq("read", false)
+          .order("created_at", { ascending: false }).limit(5),
+      ]);
       setProfile(profileRes.data);
       setSubscription(subRes.data);
       setNotifications(notifRes.data || []);
@@ -87,129 +108,361 @@ export default function DashboardLayout({ children }: {children: React.ReactNode
     }
   };
 
-  const getTrialInfo = () => {
-    if (!subscription) return null;
-    if (subscription.status === "trial" && subscription.trial_ends_at) {
-      const days = Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-      return { text: `Trial — ${days} dias restantes`, class: days <= 2 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success" };
-    }
-    if (subscription.status === "active") return { text: "Plano ativo", class: "bg-success/10 text-success" };
-    if (subscription.status === "blocked") return { text: "Conta bloqueada", class: "bg-destructive/10 text-destructive" };
-    return null;
+  const getTrialDays = () => {
+    if (!subscription || subscription.status !== "trial" || !subscription.trial_ends_at) return null;
+    return Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000));
   };
 
-  const trialInfo = getTrialInfo();
-  const userInitial = profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || "U";
+  const trialDays = getTrialDays();
+  const planLabel =
+    subscription?.status === "active" ? "Pro" :
+    subscription?.status === "trial" ? `Trial · ${trialDays}d` :
+    subscription?.status === "blocked" ? "Bloqueado" : "Free";
+  const planColor =
+    subscription?.status === "active" ? "text-emerald-400" :
+    subscription?.status === "trial" ? "text-amber-400" :
+    subscription?.status === "blocked" ? "text-red-400" : "text-muted-foreground";
 
-  return (
-    <div className="flex min-h-screen w-full">
-      {/* Sidebar */}
-      <aside
+  const userInitials = (profile?.full_name || profile?.email || "U")
+    .split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const pageTitle = PAGE_TITLES[location.pathname] || "";
+
+  // ── Sidebar content ───────────────────────────────────────
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
-          collapsed ? "w-16" : "w-64"
-        )}>
-
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 overflow-hidden">
-          <img src={logoWhite} alt="Intelicite" className="h-8 shrink-0" />
+          "flex items-center gap-3 px-4 border-b transition-all duration-300",
+          collapsed ? "h-14 justify-center" : "h-14"
+        )}
+        style={{ borderColor: "hsl(var(--sidebar-border))" }}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+          <img src={logoWhite} alt="Intelicite" className="h-full w-full object-contain" />
         </div>
+        <AnimatePresence>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: "auto" }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden whitespace-nowrap"
+            >
+              <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
+                Intelicite
+              </span>
+              <span className="ml-1 text-[10px] font-semibold px-1 py-0.5 rounded"
+                style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
+                AI
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-        <nav className="flex-1 overflow-y-auto py-4">
-          {navGroups.map((group) =>
-          <div key={group.label} className="mb-4">
-              <p className={cn("mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 h-0 mb-0" : "opacity-100")}>
-                  {group.label}
-                </p>
-              {group.items.map((item) => {
-              // If admin, replace Dashboard with Painel Admin
-              const isDashboardItem = item.path === "/dashboard";
-              const displayItem = (isAdmin && isDashboardItem)
-                ? { title: "Painel Admin", icon: Shield, path: "/admin" }
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2 scrollbar-thin">
+        {NAV.map((group, gi) => (
+          <div key={gi} className={gi > 0 ? "pt-3" : ""}>
+            {/* Section label */}
+            {group.label && !collapsed && (
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color: "hsl(var(--sidebar-foreground) / 0.35)" }}>
+                {group.label}
+              </p>
+            )}
+            {group.label && collapsed && gi > 0 && (
+              <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />
+            )}
+            {group.items.map((item) => {
+              const isAdminDash = item.path === "/dashboard" && isAdmin;
+              const displayItem = isAdminDash
+                ? { title: "Admin", icon: Shield, path: "/admin", badge: undefined }
                 : item;
               const active = location.pathname === displayItem.path;
+
               return (
                 <Link
                   key={displayItem.path}
                   to={displayItem.path}
+                  title={collapsed ? displayItem.title : undefined}
                   className={cn(
-                    "mx-2 mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active ?
-                    "bg-sidebar-accent text-sidebar-primary" :
-                    "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                    active
+                      ? "text-white"
+                      : "hover:text-white"
                   )}
-                  title={collapsed ? displayItem.title : undefined}>
+                  style={{
+                    color: active ? "white" : "hsl(var(--sidebar-foreground))",
+                    background: active ? "hsl(var(--sidebar-accent))" : "transparent",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) e.currentTarget.style.background = "hsl(var(--sidebar-accent) / 0.5)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {/* Active indicator */}
+                  {active && (
+                    <motion.span
+                      layoutId="sidebar-active"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
+                      style={{ background: "hsl(var(--sidebar-primary))" }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
 
-                    <displayItem.icon className="h-4.5 w-4.5 shrink-0" />
-                    <span className={cn("whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>{displayItem.title}</span>
-                  </Link>);
+                  <displayItem.icon
+                    className="h-4 w-4 shrink-0 transition-colors"
+                    style={{ color: active ? "hsl(var(--sidebar-primary))" : "hsl(var(--sidebar-foreground) / 0.7)" }}
+                  />
 
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="truncate"
+                      >
+                        {displayItem.title}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Badge */}
+                  {!collapsed && (displayItem as any).badge && (
+                    <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
+                      {(displayItem as any).badge}
+                    </span>
+                  )}
+                </Link>
+              );
             })}
-            </div>
-          )}
-        </nav>
+          </div>
+        ))}
+      </nav>
 
-        {/* Logout & Collapse */}
-        <div className="border-t border-sidebar-border p-3 space-y-1">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg p-2 text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors">
+      {/* Bottom: plan + user */}
+      <div className="shrink-0 border-t px-2 py-3 space-y-1"
+        style={{ borderColor: "hsl(var(--sidebar-border))" }}>
 
-            <LogOut className="h-4 w-4" />
-            <span className={cn("text-sm whitespace-nowrap overflow-hidden transition-opacity duration-200", collapsed ? "opacity-0 w-0" : "opacity-100")}>Sair</span>
-          </button>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex w-full items-center justify-center rounded-lg p-2 text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors">
+        {/* Plan badge */}
+        {!collapsed && subscription && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-1"
+            style={{ background: "hsl(var(--sidebar-accent) / 0.4)" }}>
+            <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: "hsl(var(--sidebar-primary))" }} />
+            <span className={cn("text-xs font-semibold flex-1", planColor)}>{planLabel}</span>
+            {subscription.status === "trial" && (
+              <Link to="/dashboard/billing" className="text-[10px] px-2 py-0.5 rounded-md font-medium transition-colors"
+                style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
+                Upgrade
+              </Link>
+            )}
+          </div>
+        )}
 
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </button>
-        </div>
+        {/* User */}
+        <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className={cn(
+                "w-full flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all text-left",
+                collapsed && "justify-center"
+              )}
+              style={{ color: "hsl(var(--sidebar-foreground))" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "hsl(var(--sidebar-accent) / 0.5)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                style={{ background: "hsl(var(--sidebar-primary) / 0.2)", color: "hsl(var(--sidebar-primary))" }}>
+                {userInitials}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
+                      {profile?.full_name || "Usuário"}
+                    </p>
+                    <p className="text-[10px] truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.5)" }}>
+                      {profile?.email || ""}
+                    </p>
+                  </div>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "hsl(var(--sidebar-foreground) / 0.4)" }} />
+                </>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-52 p-1.5"
+            side="top"
+            align={collapsed ? "center" : "end"}
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+          >
+            <Link to="/dashboard/settings"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-secondary transition-colors"
+              onClick={() => setUserMenuOpen(false)}>
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              Configurações
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors text-muted-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
+          </PopoverContent>
+        </Popover>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-center p-2 rounded-lg transition-colors"
+          style={{ color: "hsl(var(--sidebar-foreground) / 0.4)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(var(--sidebar-foreground))")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(var(--sidebar-foreground) / 0.4)")}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          {collapsed
+            ? <ChevronRight className="h-4 w-4" />
+            : <ChevronLeft className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-screen w-full" style={{ background: "hsl(var(--background))" }}>
+      {/* ── Desktop sidebar ──────────────────────────── */}
+      <aside
+        className={cn(
+          "hidden md:flex fixed left-0 top-0 z-40 h-screen flex-col transition-all duration-300",
+          collapsed ? "w-16" : "w-60"
+        )}
+        style={{ background: "hsl(var(--sidebar-background))", borderRight: "1px solid hsl(var(--sidebar-border))" }}
+      >
+        <SidebarContent />
       </aside>
 
-      {/* Main content */}
-      <div className={cn("flex-1 transition-all duration-300", collapsed ? "ml-16" : "ml-64")}>
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-lg px-6">
-          <div />
-          <div className="flex items-center gap-3">
+      {/* ── Mobile sidebar overlay ────────────────────── */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 md:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -240 }}
+              animate={{ x: 0 }}
+              exit={{ x: -240 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed left-0 top-0 z-50 h-screen w-60 flex flex-col md:hidden"
+              style={{ background: "hsl(var(--sidebar-background))", borderRight: "1px solid hsl(var(--sidebar-border))" }}
+            >
+              <SidebarContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Main area ─────────────────────────────────── */}
+      <div className={cn("flex flex-1 flex-col min-w-0 transition-all duration-300", collapsed ? "md:ml-16" : "md:ml-60")}>
+        {/* Header */}
+        <header
+          className="sticky top-0 z-30 flex h-14 items-center justify-between px-6 gap-4"
+          style={{
+            background: "hsl(var(--background) / 0.85)",
+            borderBottom: "1px solid hsl(var(--border))",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+          }}
+        >
+          {/* Left: hamburger (mobile) + page title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              className="md:hidden p-1.5 rounded-lg hover:bg-secondary transition-colors"
+              onClick={() => setMobileOpen(true)}
+            >
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+            {pageTitle && (
+              <h1 className="text-sm font-semibold text-foreground truncate">{pageTitle}</h1>
+            )}
+          </div>
+
+          {/* Right: search hint + notifications + user */}
+          <div className="flex items-center gap-2">
+            {/* Cmd+K search hint */}
+            <button
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground transition-colors"
+              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+              onClick={() => {/* future: open command palette */}}
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Buscar…</span>
+              <kbd className="ml-2 flex items-center gap-0.5 opacity-60">
+                <Command className="h-3 w-3" />
+                <span>K</span>
+              </kbd>
+            </button>
+
             {/* Notifications */}
             <Popover>
               <PopoverTrigger asChild>
-                <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors" onClick={markNotificationsRead}>
-                  <Bell className="h-4.5 w-4.5 text-muted-foreground" />
-                  {notifications.length > 0 &&
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-                  }
+                <button
+                  className="relative flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-secondary"
+                  onClick={markNotificationsRead}
+                >
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                  )}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <p className="font-semibold text-sm mb-2">Notificações</p>
-                {notifications.length === 0 ?
-                <p className="text-xs text-muted-foreground">Nenhuma notificação</p> :
-
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {notifications.map((n) =>
-                  <div key={n.id} className="rounded-lg bg-secondary/50 p-2">
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="px-4 py-3 border-b border-border">
+                  <p className="text-sm font-semibold">Notificações</p>
+                </div>
+                <div className="p-2 max-h-60 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">Nenhuma notificação</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="rounded-lg p-3 hover:bg-secondary transition-colors">
                         <p className="text-xs font-medium">{n.title}</p>
-                        <p className="text-[10px] text-muted-foreground">{n.message}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{n.message}</p>
                       </div>
+                    ))
                   )}
-                  </div>
-                }
+                </div>
               </PopoverContent>
             </Popover>
 
-            {trialInfo &&
-            <div className={cn("flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium", trialInfo.class)}>
-                {trialInfo.text}
-              </div>
-            }
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-              {userInitial}
+            {/* User avatar */}
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0"
+              style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--accent))" }}
+            >
+              {userInitials}
             </div>
           </div>
         </header>
-        <main className="p-6">{children}</main>
-      </div>
-    </div>);
 
+        {/* Page content */}
+        <main className="flex-1 p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
 }

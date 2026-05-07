@@ -148,25 +148,101 @@ Instruções:
 - Use markdown para formatar respostas longas`;
 };
 
-// ── Supabase function URL helper ──────────────────────────────
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+// ── Web helpers (client-side, no edge function needed) ────────
 
-async function callEdgeFunction(name: string, body: object) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<\/(p|div|h[1-6]|li|tr|section|article)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/ {2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function extractTitle(html: string): string {
+  return html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "";
+}
+
+// Fetch a URL via allorigins CORS proxy (no server needed)
+async function fetchUrlContent(url: string): Promise<{ title: string; text: string; charCount: number }> {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+  // 1. Try edge function first (if deployed)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/notebook-fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ url }),
+    });
+    if (res.ok) return res.json();
+  } catch { /* fall through */ }
+
+  // 2. Fallback: allorigins.win CORS proxy
+  const proxy = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+  if (!proxy.ok) throw new Error(`Não foi possível acessar a URL (HTTP ${proxy.status})`);
+  const json = await proxy.json();
+  if (!json.contents) throw new Error("A página não retornou conteúdo legível");
+  const title = extractTitle(json.contents) || new URL(url).hostname;
+  const text = htmlToText(json.contents).slice(0, 50000);
+  return { title, text, charCount: text.length };
+}
+
+// Search via DuckDuckGo JSON API (CORS-enabled, no key needed)
+async function searchWeb(query: string): Promise<{ results: SearchResult[]; instantAnswer: string }> {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+  // 1. Try edge function first (if deployed)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/notebook-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ query }),
+    });
+    if (res.ok) return res.json();
+  } catch { /* fall through */ }
+
+  // 2. Fallback: DuckDuckGo JSON API (supports CORS from browsers)
+  const res = await fetch(
+    `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+    { headers: { Accept: "application/json" } }
+  );
+  if (!res.ok) throw new Error("Erro ao buscar na web");
+  const data = await res.json();
+
+  const instantAnswer: string = data.AbstractText || data.Answer || "";
+
+  const results: SearchResult[] = [];
+  for (const topic of (data.RelatedTopics || []).slice(0, 8)) {
+    if (topic.FirstURL && topic.Text) {
+      try {
+        const hostname = new URL(topic.FirstURL).hostname.replace("www.", "");
+        results.push({
+          title: topic.Text.split(" - ")[0]?.slice(0, 100) || topic.Text.slice(0, 80),
+          url: topic.FirstURL,
+          snippet: topic.Text,
+          source: hostname,
+        });
+      } catch { /* skip */ }
+    }
   }
-  return res.json();
+  for (const r of (data.Results || []).slice(0, 5)) {
+    if (r.FirstURL && r.Text) {
+      try {
+        const hostname = new URL(r.FirstURL).hostname.replace("www.", "");
+        results.push({ title: r.Text.slice(0, 100), url: r.FirstURL, snippet: r.Text, source: hostname });
+      } catch { /* skip */ }
+    }
+  }
+
+  return { results, instantAnswer };
 }
 
 // ── Source Card ───────────────────────────────────────────────
@@ -268,7 +344,7 @@ const AddSourceModal = ({
     if (!urlInput.trim()) return;
     setLoading(true);
     try {
-      const data = await callEdgeFunction("notebook-fetch", { url: urlInput.trim() });
+      const data = await fetchUrlContent(urlInput.trim());
       setTitle(data.title || urlInput);
       setContent(data.text);
       toast.success(`Página importada: ${data.charCount.toLocaleString()} caracteres`);
@@ -285,11 +361,11 @@ const AddSourceModal = ({
     setSearchResults([]);
     setInstantAnswer("");
     try {
-      const data = await callEdgeFunction("notebook-search", { query: searchQuery.trim() });
+      const data = await searchWeb(searchQuery.trim());
       setSearchResults(data.results || []);
       setInstantAnswer(data.instantAnswer || "");
       if (!data.results?.length && !data.instantAnswer) {
-        toast.info("Nenhum resultado encontrado. Tente outra busca.");
+        toast.info("Nenhum resultado encontrado. Tente termos mais específicos.");
       }
     } catch (err) {
       toast.error(`Erro na busca: ${err instanceof Error ? err.message : String(err)}`);
@@ -301,8 +377,7 @@ const AddSourceModal = ({
   const addSearchResult = async (result: SearchResult) => {
     setLoading(true);
     try {
-      // Try to fetch full content; fall back to snippet
-      const data = await callEdgeFunction("notebook-fetch", { url: result.url });
+      const data = await fetchUrlContent(result.url);
       onAdd({
         title: result.title || result.source,
         content: data.text,
@@ -311,9 +386,8 @@ const AddSourceModal = ({
         charCount: data.charCount,
         sourceUrl: result.url,
       });
-      toast.success("Resultado adicionado como fonte!");
+      toast.success("Página importada como fonte!");
     } catch {
-      // fallback: add snippet only
       onAdd({
         title: result.title || result.source,
         content: `${result.snippet}\n\nFonte: ${result.url}`,
@@ -322,7 +396,7 @@ const AddSourceModal = ({
         charCount: result.snippet.length,
         sourceUrl: result.url,
       });
-      toast.success("Resultado adicionado (trecho)");
+      toast.success("Trecho adicionado como fonte");
     } finally {
       setLoading(false);
     }

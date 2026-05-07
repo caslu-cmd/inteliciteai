@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.save-gateway-config]
 verify_jwt = false
+
+[functions.notebook-search]
+verify_jwt = false
+
+[functions.notebook-fetch]
+verify_jwt = false
