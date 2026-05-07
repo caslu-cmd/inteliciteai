@@ -24,9 +24,25 @@ export default function LoginPage() {
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
       return;
     }
-    const role = data.user?.user_metadata?.role || "gestor";
-    if (role === "licitante") navigate("/licitante");
-    else if (role === "consultor") navigate("/consultor");
+
+    // Check account approval status
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("account_status, platform_role")
+      .eq("id", data.user!.id)
+      .single();
+
+    const acctStatus = profile?.account_status;
+    if (acctStatus === "pending") { navigate("/pending"); return; }
+    if (acctStatus === "rejected") {
+      await supabase.auth.signOut();
+      toast({ title: "Acesso negado", description: "Seu cadastro não foi aprovado.", variant: "destructive" });
+      return;
+    }
+
+    const platformRole = profile?.platform_role || data.user?.user_metadata?.role || "gestor";
+    if (platformRole === "licitante") navigate("/licitante");
+    else if (platformRole === "consultor") navigate("/consultor");
     else navigate("/dashboard");
   };
 

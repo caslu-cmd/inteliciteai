@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardHome from "./pages/DashboardHome";
 import ChatPage from "./pages/ChatPage";
@@ -25,11 +26,20 @@ import NotebookPage from "./pages/NotebookPage";
 import LicitantePage from "./pages/LicitantePage";
 import ConsultorPage from "./pages/ConsultorPage";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const DashboardRoute = ({ children }: { children: React.ReactNode }) => (
-  <DashboardLayout>{children}</DashboardLayout>
+  <ProtectedRoute>
+    <DashboardLayout>{children}</DashboardLayout>
+  </ProtectedRoute>
+);
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute requireAdmin>
+    <DashboardLayout>{children}</DashboardLayout>
+  </ProtectedRoute>
 );
 
 const App = () => (
@@ -39,9 +49,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Public */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/pending" element={<PendingApprovalPage />} />
+
+          {/* Protected — Gestor */}
           <Route path="/dashboard" element={<DashboardRoute><DashboardHome /></DashboardRoute>} />
           <Route path="/dashboard/chat" element={<DashboardRoute><ChatPage /></DashboardRoute>} />
           <Route path="/dashboard/documents" element={<DashboardRoute><DocumentsPage /></DashboardRoute>} />
@@ -56,9 +70,16 @@ const App = () => (
           <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
           <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
-          <Route path="/admin" element={<DashboardRoute><AdminPage /></DashboardRoute>} />
-          <Route path="/licitante" element={<LicitantePage />} />
-          <Route path="/consultor" element={<ConsultorPage />} />
+
+          {/* Protected — Licitante */}
+          <Route path="/licitante" element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
+
+          {/* Protected — Consultor */}
+          <Route path="/consultor" element={<ProtectedRoute><ConsultorPage /></ProtectedRoute>} />
+
+          {/* Admin only */}
+          <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
