@@ -226,7 +226,7 @@ function Hero() {
         <Reveal delay={0.1}>
           <h1 className="mt-8 mx-auto max-w-5xl font-display text-5xl md:text-7xl lg:text-[5.5rem] font-bold leading-[1.02] tracking-tight">
             <span className="text-white">A inteligência que</span>{" "}
-            <span className="bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(190_95%_55%),hsl(265_90%_65%)_55%,hsl(38_95%_60%))]">
+            <span className="bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(210_95%_60%),hsl(230_90%_65%))]">
               une todo o ciclo
             </span>{" "}
             <span className="text-white">de licitações.</span>
