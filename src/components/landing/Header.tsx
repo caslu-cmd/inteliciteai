@@ -27,7 +27,7 @@ export default function Header() {
           <img
             src={logoWhite}
             alt="Intelicite"
-            className="h-10 brightness-0 invert"
+            className="h-10"
           />
         </Link>
 

@@ -9,7 +9,7 @@ export default function Footer() {
             <img
               src={logoWhite}
               alt="Intelicite"
-              className="h-6 brightness-0 invert opacity-70"
+              className="h-6 opacity-70"
             />
           </div>
           <div className="flex gap-6 text-sm text-landing-text-muted">
