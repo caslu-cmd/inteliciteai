@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")!;
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -25,6 +24,23 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Read MP token: prefer Supabase secret, fall back to gateway_configs table
+    let mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || "";
+    if (!mpAccessToken) {
+      const { data: gwConfig } = await supabase
+        .from("gateway_configs")
+        .select("config_data")
+        .eq("gateway_id", "mercado_pago")
+        .maybeSingle();
+      mpAccessToken = gwConfig?.config_data?.access_token || "";
+    }
+    if (!mpAccessToken) {
+      return new Response(JSON.stringify({ error: "Mercado Pago não configurado. Configure o token no painel admin → Gateway." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get user from JWT
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
