@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Clock, Scale, LogOut, Mail } from "lucide-react";
+import { Clock, LogOut, Mail } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -28,13 +29,8 @@ export default function PendingApprovalPage() {
         className="relative z-10 max-w-md w-full text-center"
       >
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-12">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
-            <Scale className="w-4 h-4 text-[#080D14]" />
-          </div>
-          <span className="font-bold tracking-widest uppercase text-sm text-white" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>
-            Intelicite
-          </span>
+        <div className="flex items-center justify-center mb-12">
+          <img src={logoWhite} alt="Intelicite" className="h-10 w-auto" />
         </div>
 
         {/* Icon */}

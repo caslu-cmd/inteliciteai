@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Scale } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,13 +63,8 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="relative z-10 w-full max-w-sm"
       >
-        <div className="flex items-center justify-center gap-2 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
-            <Scale className="w-4 h-4 text-[#080D14]" />
-          </div>
-          <span className="text-white font-bold tracking-widest uppercase text-sm" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>
-            Intelicite
-          </span>
+        <div className="flex items-center justify-center mb-10">
+          <img src={logoWhite} alt="Intelicite" className="h-10 w-auto" />
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>

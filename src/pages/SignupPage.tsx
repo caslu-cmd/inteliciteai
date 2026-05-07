@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail, Lock, User, Building2, ArrowRight, Eye, EyeOff,
-  CheckCircle2, XCircle, Briefcase, Handshake, Scale, ChevronLeft,
+  CheckCircle2, XCircle, Briefcase, Handshake, ChevronLeft,
 } from "lucide-react";
+import logoWhite from "@/assets/logo-white.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -133,13 +134,8 @@ export default function SignupPage() {
 
       <div className="relative z-10 w-full max-w-4xl">
         {/* Header */}
-        <div className="flex items-center justify-center gap-2 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
-            <Scale className="w-4 h-4 text-[#080D14]" />
-          </div>
-          <span className="text-white font-bold tracking-widest uppercase text-sm" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>
-            Intelicite
-          </span>
+        <div className="flex items-center justify-center mb-10">
+          <img src={logoWhite} alt="Intelicite" className="h-10 w-auto" />
         </div>
 
         <AnimatePresence mode="wait">
