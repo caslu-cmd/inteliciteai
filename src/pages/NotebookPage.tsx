@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   BookOpen, Plus, Trash2, FileText, Send, Bot, User, Copy, RotateCcw,
-  Sparkles, X, Eye, EyeOff, Wand2, FileQuestion, ClipboardList,
-  AlertTriangle, Calendar, Scale, HelpCircle, Loader2, CheckCheck,
-  Upload, PenLine, Newspaper, Download, ChevronRight, MessageSquare,
-  BookMarked, Paperclip, Search, Layers,
+  Sparkles, X, Eye, EyeOff, Wand2, AlertTriangle, Calendar,
+  Loader2, CheckCheck, Upload, PenLine, Newspaper, Download,
+  ChevronRight, MessageSquare, BookMarked, Search, Layers, Globe,
+  Link2, ExternalLink, HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { streamChat } from "@/lib/streamChat";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { exportAsPdf } from "@/lib/exportDocument";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -21,9 +22,10 @@ interface Source {
   id: string;
   title: string;
   content: string;
-  type: "text" | "pdf";
+  type: "text" | "pdf" | "url" | "search";
   active: boolean;
   charCount: number;
+  sourceUrl?: string;
   createdAt: string;
 }
 
@@ -34,13 +36,8 @@ interface ChatMessage {
   timestamp: string;
 }
 
-type GeneratorType =
-  | "summary"
-  | "checklist"
-  | "prazos"
-  | "riscos"
-  | "perguntas"
-  | "modalidade";
+// removed: checklist (ChecklistPage) and modalidade (DiagnosticPage)
+type GeneratorType = "summary" | "prazos" | "riscos" | "perguntas";
 
 interface GeneratedOutput {
   type: GeneratorType;
@@ -48,9 +45,15 @@ interface GeneratedOutput {
   generatedAt: string;
 }
 
+interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+  source: string;
+}
+
 // ── Constants ─────────────────────────────────────────────────
 const SOURCES_KEY = "intelicite_notebook_sources";
-
 const uid = () => Math.random().toString(36).slice(2, 10);
 const nowStr = () =>
   new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -66,25 +69,16 @@ const GENERATORS: {
   {
     type: "summary",
     label: "Resumo Jurídico",
-    description: "Síntese executiva dos documentos",
+    description: "Síntese executiva: objeto, valor, requisitos",
     icon: Newspaper,
     color: "text-blue-600",
     prompt:
-      "Com base nos documentos fornecidos, redija um **Resumo Jurídico Executivo** completo cobrindo: (1) objeto da contratação, (2) valor estimado, (3) modalidade aplicável, (4) requisitos essenciais e (5) principais obrigações das partes. Use markdown com títulos e bullets. Seja preciso e cite artigos da Lei 14.133/2021 quando pertinente.",
-  },
-  {
-    type: "checklist",
-    label: "Checklist de Conformidade",
-    description: "Verificação com a Lei 14.133/2021",
-    icon: ClipboardList,
-    color: "text-emerald-600",
-    prompt:
-      "Analise os documentos e gere um **Checklist de Conformidade** com a Lei 14.133/2021, estruturado por fases: Planejamento, Instrução do Processo, Edital/TR, e Execução. Para cada item informe: ✅ Conforme, ⚠️ Parcialmente conforme, ❌ Não conforme ou ❓ Informação ausente. Cite os artigos específicos da lei para cada item.",
+      "Com base nos documentos fornecidos, redija um **Resumo Jurídico Executivo** completo cobrindo: (1) objeto da contratação, (2) valor estimado, (3) modalidade aplicável, (4) requisitos essenciais e (5) principais obrigações das partes. Use markdown com títulos e bullets. Cite artigos da Lei 14.133/2021 quando pertinente.",
   },
   {
     type: "prazos",
     label: "Mapa de Prazos",
-    description: "Todos os prazos e obrigações extraídos",
+    description: "Todos os prazos e obrigações em tabela",
     icon: Calendar,
     color: "text-amber-600",
     prompt:
@@ -93,29 +87,20 @@ const GENERATORS: {
   {
     type: "riscos",
     label: "Análise de Riscos",
-    description: "Riscos jurídicos e pontos de atenção",
+    description: "Riscos jurídicos com nível de criticidade",
     icon: AlertTriangle,
     color: "text-red-600",
     prompt:
-      "Realize uma **Análise de Riscos Jurídicos** dos documentos. Para cada risco identificado informe: Descrição do risco, Probabilidade (Alta/Média/Baixa), Impacto (Alto/Médio/Baixo), Base legal pertinente e Recomendação de mitigação. Organize por nível de criticidade, do mais crítico ao menos crítico. Destaque cláusulas potencialmente nulas ou ilegais.",
+      "Realize uma **Análise de Riscos Jurídicos** dos documentos. Para cada risco: Descrição, Probabilidade (Alta/Média/Baixa), Impacto (Alto/Médio/Baixo), Base legal e Recomendação de mitigação. Organize do mais crítico ao menos crítico. Destaque cláusulas potencialmente nulas ou ilegais.",
   },
   {
     type: "perguntas",
     label: "Pedido de Esclarecimentos",
-    description: "Perguntas para enviar ao órgão licitante",
+    description: "Perguntas técnicas para o órgão licitante",
     icon: HelpCircle,
     color: "text-purple-600",
     prompt:
-      "Com base nos documentos, elabore um **Pedido de Esclarecimentos** completo para envio ao órgão licitante. Liste pontos ambíguos, contraditórios, restritivos à competitividade ou que precisam de fundamentação adicional. Formule cada pergunta de forma técnica e objetiva, numeradas e referenciando o item/cláusula do documento. Inclua sugestão de como o órgão deveria responder.",
-  },
-  {
-    type: "modalidade",
-    label: "Diagnóstico de Modalidade",
-    description: "Qual modalidade aplicar e por quê",
-    icon: Scale,
-    color: "text-cyan-600",
-    prompt:
-      "Analise os documentos e elabore um **Diagnóstico de Modalidade de Licitação** completo: (1) identifique o objeto e valor estimado, (2) determine a modalidade correta conforme Lei 14.133/2021 Arts. 28-32, (3) justifique a escolha com artigos específicos, (4) alerte se a modalidade usada estiver incorreta, (5) indique os procedimentos obrigatórios para a modalidade correta, (6) avalie cabimento de dispensa/inexigibilidade (Arts. 74-76).",
+      "Elabore um **Pedido de Esclarecimentos** completo para envio ao órgão licitante. Liste pontos ambíguos, contraditórios ou restritivos à competitividade. Formule cada pergunta de forma técnica, numeradas e referenciando o item/cláusula do documento. Inclua sugestão de como o órgão deveria responder.",
   },
 ];
 
@@ -123,12 +108,20 @@ const QUICK_ACTIONS = [
   "Qual a modalidade correta para este objeto?",
   "Liste todos os prazos recursais",
   "Há cláusulas restritivas à competitividade?",
-  "O valor estimado está correto?",
+  "O valor estimado está adequado ao mercado?",
   "Quais documentos de habilitação são exigidos?",
   "Esta dispensa tem fundamentação adequada?",
 ];
 
-// ── Build system prompt from sources ─────────────────────────
+// ── Source type icons & labels ─────────────────────────────────
+const SOURCE_TYPE_CONFIG = {
+  text: { icon: PenLine, label: "Texto", color: "text-blue-500" },
+  pdf: { icon: FileText, label: "PDF", color: "text-red-500" },
+  url: { icon: Link2, label: "URL", color: "text-green-500" },
+  search: { icon: Search, label: "Busca", color: "text-purple-500" },
+};
+
+// ── Build system prompt ───────────────────────────────────────
 const buildSystemPrompt = (sources: Source[]) => {
   const active = sources.filter((s) => s.active);
   if (!active.length) return undefined;
@@ -136,24 +129,45 @@ const buildSystemPrompt = (sources: Source[]) => {
   const docs = active
     .map(
       (s, i) =>
-        `### [Fonte ${i + 1}] ${s.title} (${s.type === "pdf" ? "PDF" : "Texto"})\n\n${s.content}`
+        `### [Fonte ${i + 1}] ${s.title} (${SOURCE_TYPE_CONFIG[s.type].label}${s.sourceUrl ? ` · ${s.sourceUrl}` : ""})\n\n${s.content}`
     )
     .join("\n\n---\n\n");
 
-  return `Você é um assistente jurídico especializado em licitações públicas e na Lei 14.133/2021 (Nova Lei de Licitações). Responda sempre em português do Brasil.
+  return `Você é um assistente jurídico especializado em licitações públicas e na Lei 14.133/2021. Responda sempre em português do Brasil.
 
-O usuário carregou os seguintes documentos para análise. Use-os como referência principal:
+O usuário carregou os seguintes documentos/fontes para análise:
 
 ${docs}
 
 ---
 
 Instruções:
-- Cite as fontes pelo número ([Fonte 1], [Fonte 2], etc.) ao referenciar informações
-- Quando relevante, cite os artigos da Lei 14.133/2021
-- Seja preciso, técnico e objetivo
+- Cite as fontes pelo número ([Fonte 1], [Fonte 2], etc.)
+- Cite artigos da Lei 14.133/2021 quando pertinente
+- Para dados de preços/mercado encontrados nas fontes, destaque-os com valores e referências
 - Use markdown para formatar respostas longas`;
 };
+
+// ── Supabase function URL helper ──────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
+async function callEdgeFunction(name: string, body: object) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
 // ── Source Card ───────────────────────────────────────────────
 const SourceCard = ({
@@ -164,66 +178,56 @@ const SourceCard = ({
   source: Source;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
-}) => (
-  <motion.div
-    layout
-    initial={{ opacity: 0, y: 6 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, x: -16, transition: { duration: 0.15 } }}
-    className={cn(
-      "group relative rounded-xl border p-3 transition-all cursor-default",
-      source.active
-        ? "border-accent/30 bg-accent/5"
-        : "border-border bg-secondary/30 opacity-60"
-    )}
-  >
-    <div className="flex items-start gap-2.5">
-      <div
-        className={cn(
-          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-          source.active ? "bg-accent/10" : "bg-secondary"
-        )}
-      >
-        {source.type === "pdf" ? (
-          <FileText
-            className={cn("h-4 w-4", source.active ? "text-accent" : "text-muted-foreground")}
-          />
-        ) : (
-          <BookOpen
-            className={cn("h-4 w-4", source.active ? "text-accent" : "text-muted-foreground")}
-          />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold truncate text-foreground">{source.title}</p>
-        <p className="text-[10px] mt-0.5 text-muted-foreground">
-          {source.type === "pdf" ? "PDF · " : "Texto · "}
-          {source.charCount.toLocaleString("pt-BR")} caracteres
-        </p>
-      </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => onToggle(source.id)}
-          className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-          title={source.active ? "Desativar" : "Ativar"}
-        >
-          {source.active ? (
-            <Eye className="h-3.5 w-3.5 text-accent" />
-          ) : (
-            <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+}) => {
+  const cfg = SOURCE_TYPE_CONFIG[source.type];
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -16, transition: { duration: 0.15 } }}
+      className={cn(
+        "group relative rounded-xl border p-3 transition-all",
+        source.active ? "border-accent/30 bg-accent/5" : "border-border bg-secondary/30 opacity-55"
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", source.active ? "bg-accent/10" : "bg-secondary")}>
+          <cfg.icon className={cn("h-4 w-4", source.active ? cfg.color : "text-muted-foreground")} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold truncate text-foreground">{source.title}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={cn("text-[10px] font-medium", cfg.color)}>{cfg.label}</span>
+            <span className="text-[10px] text-muted-foreground">·</span>
+            <span className="text-[10px] text-muted-foreground">
+              {source.charCount.toLocaleString("pt-BR")} chars
+            </span>
+          </div>
+          {source.sourceUrl && (
+            <a
+              href={source.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[10px] text-accent hover:underline mt-0.5 truncate"
+            >
+              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+              {source.sourceUrl.slice(0, 40)}…
+            </a>
           )}
-        </button>
-        <button
-          onClick={() => onDelete(source.id)}
-          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
-          title="Remover"
-        >
-          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-        </button>
+        </div>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onToggle(source.id)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title={source.active ? "Desativar" : "Ativar"}>
+            {source.active ? <Eye className="h-3.5 w-3.5 text-accent" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
+          </button>
+          <button onClick={() => onDelete(source.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Remover">
+            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+          </button>
+        </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 // ── Add Source Modal ──────────────────────────────────────────
 const AddSourceModal = ({
@@ -233,39 +237,127 @@ const AddSourceModal = ({
   onAdd: (source: Omit<Source, "id" | "createdAt">) => void;
   onClose: () => void;
 }) => {
-  const [tab, setTab] = useState<"text" | "pdf">("text");
+  type Tab = "text" | "pdf" | "url" | "search";
+  const [tab, setTab] = useState<Tab>("text");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [instantAnswer, setInstantAnswer] = useState("");
+  const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+    setLoading(true);
     try {
       const text = await extractPdfText(file);
-      setTitle(file.name.replace(".pdf", ""));
+      setTitle(file.name.replace(/\.pdf$/i, ""));
       setContent(text);
       toast.success(`PDF extraído: ${text.length.toLocaleString()} caracteres`);
     } catch {
       toast.error("Erro ao extrair PDF. Tente colar o texto manualmente.");
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
-  const handleAdd = () => {
+  const handleFetchUrl = async () => {
+    if (!urlInput.trim()) return;
+    setLoading(true);
+    try {
+      const data = await callEdgeFunction("notebook-fetch", { url: urlInput.trim() });
+      setTitle(data.title || urlInput);
+      setContent(data.text);
+      toast.success(`Página importada: ${data.charCount.toLocaleString()} caracteres`);
+    } catch (err) {
+      toast.error(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setLoading(true);
+    setSearchResults([]);
+    setInstantAnswer("");
+    try {
+      const data = await callEdgeFunction("notebook-search", { query: searchQuery.trim() });
+      setSearchResults(data.results || []);
+      setInstantAnswer(data.instantAnswer || "");
+      if (!data.results?.length && !data.instantAnswer) {
+        toast.info("Nenhum resultado encontrado. Tente outra busca.");
+      }
+    } catch (err) {
+      toast.error(`Erro na busca: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addSearchResult = async (result: SearchResult) => {
+    setLoading(true);
+    try {
+      // Try to fetch full content; fall back to snippet
+      const data = await callEdgeFunction("notebook-fetch", { url: result.url });
+      onAdd({
+        title: result.title || result.source,
+        content: data.text,
+        type: "url",
+        active: true,
+        charCount: data.charCount,
+        sourceUrl: result.url,
+      });
+      toast.success("Resultado adicionado como fonte!");
+    } catch {
+      // fallback: add snippet only
+      onAdd({
+        title: result.title || result.source,
+        content: `${result.snippet}\n\nFonte: ${result.url}`,
+        type: "search",
+        active: true,
+        charCount: result.snippet.length,
+        sourceUrl: result.url,
+      });
+      toast.success("Resultado adicionado (trecho)");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addInstantAnswer = () => {
+    if (!instantAnswer) return;
+    onAdd({
+      title: `Busca: ${searchQuery}`,
+      content: instantAnswer,
+      type: "search",
+      active: true,
+      charCount: instantAnswer.length,
+    });
+    toast.success("Resposta imediata adicionada!");
+  };
+
+  const handleAddManual = () => {
     if (!content.trim()) return;
     onAdd({
       title: title.trim() || "Documento sem título",
       content: content.trim(),
-      type: tab,
+      type: tab === "pdf" ? "pdf" : "text",
       active: true,
       charCount: content.trim().length,
     });
     onClose();
   };
+
+  const TABS: { key: Tab; label: string; icon: any }[] = [
+    { key: "text", label: "Texto", icon: PenLine },
+    { key: "pdf", label: "PDF", icon: FileText },
+    { key: "url", label: "Importar URL", icon: Link2 },
+    { key: "search", label: "Buscar na Web", icon: Search },
+  ];
 
   return (
     <motion.div
@@ -279,14 +371,13 @@ const AddSourceModal = ({
         initial={{ scale: 0.95, y: 12 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 12 }}
-        className="w-full max-w-xl rounded-2xl bg-card border border-border shadow-2xl"
+        className="w-full max-w-2xl rounded-2xl bg-card border border-border shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="font-semibold flex items-center gap-2">
-            <Plus className="h-4 w-4 text-accent" />
-            Adicionar Fonte
+            <Plus className="h-4 w-4 text-accent" /> Adicionar Fonte
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
             <X className="h-4 w-4" />
@@ -294,87 +385,218 @@ const AddSourceModal = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-4 pb-0">
-          {(["text", "pdf"] as const).map((t) => (
+        <div className="flex gap-1 px-5 pt-4 pb-0 shrink-0 flex-wrap">
+          {TABS.map((t) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={t.key}
+              onClick={() => setTab(t.key)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                tab === t
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                tab === t.key
                   ? "bg-accent/10 text-accent border border-accent/20"
-                  : "text-muted-foreground hover:bg-secondary"
+                  : "text-muted-foreground hover:bg-secondary border border-transparent"
               )}
             >
-              {t === "pdf" ? <FileText className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
-              {t === "pdf" ? "Upload de PDF" : "Colar Texto"}
+              <t.icon className="h-3.5 w-3.5" />
+              {t.label}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-4">
-          {tab === "pdf" && (
-            <div
-              onClick={() => fileRef.current?.click()}
-              className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border hover:border-accent/40 bg-secondary/30 hover:bg-accent/5 transition-all cursor-pointer p-8"
-            >
-              <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handlePdf} />
-              {uploading ? (
-                <Loader2 className="h-8 w-8 text-accent animate-spin mb-2" />
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-              )}
-              <p className="text-sm font-medium text-foreground">
-                {uploading ? "Extraindo texto do PDF…" : "Clique para selecionar um PDF"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Extraímos o texto automaticamente (até 50 páginas)
-              </p>
-            </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* TEXT tab */}
+          {tab === "text" && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Título</label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Edital PE 023/2026, TR — Serviços de TI..." />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Conteúdo</label>
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Cole aqui o texto do edital, termo de referência, ETP, contrato ou qualquer documento jurídico..."
+                  rows={10}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all resize-none"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">{content.length.toLocaleString("pt-BR")} caracteres</p>
+              </div>
+            </>
           )}
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">
-              Título do documento
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Edital PE 023/2026, TR — Serviços de TI..."
-            />
-          </div>
+          {/* PDF tab */}
+          {tab === "pdf" && (
+            <>
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border hover:border-accent/40 bg-secondary/30 hover:bg-accent/5 transition-all cursor-pointer p-8"
+              >
+                <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handlePdf} />
+                {loading ? <Loader2 className="h-8 w-8 text-accent animate-spin mb-2" /> : <Upload className="h-8 w-8 text-muted-foreground mb-2" />}
+                <p className="text-sm font-medium">{loading ? "Extraindo texto…" : "Clique para selecionar um PDF"}</p>
+                <p className="text-xs text-muted-foreground mt-1">Extração automática de até 50 páginas</p>
+              </div>
+              {content && (
+                <>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1.5">Título</label>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1.5">Texto extraído (editável)</label>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      rows={8}
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">{content.length.toLocaleString("pt-BR")} caracteres</p>
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">
-              Conteúdo {tab === "pdf" && content ? "(extraído do PDF)" : ""}
-            </label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Cole aqui o texto do edital, termo de referência, ETP, contrato ou qualquer documento jurídico..."
-              rows={10}
-              className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all resize-none"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {content.length.toLocaleString("pt-BR")} caracteres
-            </p>
-          </div>
+          {/* URL tab */}
+          {tab === "url" && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  URL do site ou documento
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleFetchUrl()}
+                    placeholder="https://pncp.gov.br/... ou qualquer site"
+                    className="flex-1"
+                  />
+                  <Button variant="gold" size="sm" onClick={handleFetchUrl} disabled={!urlInput.trim() || loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                    Importar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Funciona com PNCP, ComprasNet, sites de fornecedores, tabelas de preços, portais públicos, etc.
+                </p>
+              </div>
+
+              {content && (
+                <>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1.5">Título importado</label>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1.5">Conteúdo extraído</label>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      rows={8}
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">{content.length.toLocaleString("pt-BR")} caracteres</p>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* SEARCH tab */}
+          {tab === "search" && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  Buscar preços, fornecedores, referências
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    placeholder='Ex: "preço notebook Dell 2025", "licitação manutenção predial SP"'
+                    className="flex-1"
+                  />
+                  <Button variant="gold" size="sm" onClick={handleSearch} disabled={!searchQuery.trim() || loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    Buscar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Pesquisa na web via DuckDuckGo. Clique em "Adicionar" nos resultados relevantes para incluí-los como fontes.
+                </p>
+              </div>
+
+              {/* Instant answer */}
+              {instantAnswer && (
+                <div className="rounded-xl border border-accent/20 bg-accent/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-accent mb-1">Resposta imediata</p>
+                      <p className="text-sm text-foreground leading-relaxed">{instantAnswer}</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={addInstantAnswer}>
+                      <Plus className="h-3.5 w-3.5" /> Add
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Search results */}
+              {searchResults.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">{searchResults.length} resultado{searchResults.length > 1 ? "s" : ""} encontrado{searchResults.length > 1 ? "s" : ""}</p>
+                  {searchResults.map((result, i) => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-3 hover:border-accent/20 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{result.title}</p>
+                          <p className="text-[11px] text-accent mb-1">{result.source}</p>
+                          {result.snippet && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{result.snippet}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <a href={result.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Abrir link">
+                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                          </a>
+                          <Button variant="outline" size="sm" className="text-xs h-7 px-2" onClick={() => addSearchResult(result)} disabled={loading}>
+                            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && searchResults.length === 0 && !instantAnswer && searchQuery && (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Nenhum resultado. Tente termos diferentes ou importe uma URL diretamente.
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button
-            variant="gold"
-            size="sm"
-            onClick={handleAdd}
-            disabled={!content.trim()}
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar Fonte
-          </Button>
-        </div>
+        {/* Footer — show Add button for text/pdf/url tabs only */}
+        {(tab === "text" || tab === "pdf" || (tab === "url" && content)) && (
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border shrink-0">
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="gold" size="sm" onClick={handleAddManual} disabled={!content.trim()}>
+              <Plus className="h-4 w-4" /> Adicionar Fonte
+            </Button>
+          </div>
+        )}
+        {tab === "search" && (
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border shrink-0">
+            <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -410,46 +632,22 @@ const OutputCard = ({
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card overflow-hidden"
-    >
+    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
         <div className="flex items-center gap-2">
           <gen.icon className={cn("h-4 w-4", gen.color)} />
           <span className="text-sm font-semibold">{gen.label}</span>
-          {isRegenerating && (
-            <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
-          )}
+          {isRegenerating && <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />}
         </div>
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-muted-foreground mr-1">{output.generatedAt}</span>
-          <button
-            onClick={handleCopy}
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-            title="Copiar"
-          >
-            {copied ? (
-              <CheckCheck className="h-3.5 w-3.5 text-accent" />
-            ) : (
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
+          <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Copiar">
+            {copied ? <CheckCheck className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
-          <button
-            onClick={handleExport}
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-            title="Exportar PDF"
-          >
+          <button onClick={handleExport} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Exportar PDF">
             <Download className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
-          <button
-            onClick={() => onRegenerate(output.type)}
-            disabled={isRegenerating}
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-40"
-            title="Regenerar"
-          >
+          <button onClick={() => onRegenerate(output.type)} disabled={isRegenerating} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-40" title="Regenerar">
             <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </div>
@@ -463,7 +661,7 @@ const OutputCard = ({
   );
 };
 
-// ── Studio Panel (right) ──────────────────────────────────────
+// ── Studio Panel ──────────────────────────────────────────────
 const StudioPanel = ({
   sources,
   outputs,
@@ -484,56 +682,44 @@ const StudioPanel = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Wand2 className="h-4 w-4 text-accent" />
           <span className="text-sm font-semibold">Estúdio de Análise</span>
         </div>
         <div className="flex gap-1">
-          <button
-            onClick={() => setView("buttons")}
-            className={cn(
-              "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
-              view === "buttons" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-secondary"
-            )}
-          >
-            Gerar
-          </button>
-          <button
-            onClick={() => setView("outputs")}
-            className={cn(
-              "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors relative",
-              view === "outputs" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-secondary"
-            )}
-          >
-            Resultados
-            {outputs.length > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full bg-accent text-white text-[9px] font-bold">
-                {outputs.length}
-              </span>
-            )}
-          </button>
+          {(["buttons", "outputs"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors relative",
+                view === v ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-secondary"
+              )}
+            >
+              {v === "buttons" ? "Gerar" : "Resultados"}
+              {v === "outputs" && outputs.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full bg-accent text-white text-[9px] font-bold">
+                  {outputs.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           {view === "buttons" ? (
-            <motion.div
-              key="buttons"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="p-4 space-y-2"
-            >
+            <motion.div key="buttons" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-2">
               {activeCount === 0 && (
                 <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-4 text-center mb-3">
-                  <p className="text-xs text-muted-foreground">
-                    Adicione e ative fontes no painel ao lado para gerar análises
-                  </p>
+                  <p className="text-xs text-muted-foreground">Adicione e ative fontes para gerar análises</p>
                 </div>
               )}
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pb-1">
+                Análises exclusivas do Notebook
+              </p>
               {GENERATORS.map((gen) => {
                 const isGen = generating === gen.type;
                 const done = outputs.find((o) => o.type === gen.type);
@@ -544,67 +730,63 @@ const StudioPanel = ({
                     disabled={activeCount === 0 || !!generating}
                     className={cn(
                       "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all border group",
-                      isGen
-                        ? "border-accent/40 bg-accent/5"
-                        : done
-                        ? "border-accent/20 bg-accent/3 hover:border-accent/30"
-                        : "border-border hover:border-accent/20 hover:bg-secondary/50",
+                      isGen ? "border-accent/40 bg-accent/5" : done ? "border-accent/20 hover:border-accent/30" : "border-border hover:border-accent/20 hover:bg-secondary/50",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >
-                    <div
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-                        isGen ? "bg-accent/20" : "bg-secondary group-hover:bg-accent/10"
-                      )}
-                    >
-                      {isGen ? (
-                        <Loader2 className="h-4 w-4 text-accent animate-spin" />
-                      ) : (
-                        <gen.icon className={cn("h-4 w-4", gen.color)} />
-                      )}
+                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors", isGen ? "bg-accent/20" : "bg-secondary group-hover:bg-accent/10")}>
+                      {isGen ? <Loader2 className="h-4 w-4 text-accent animate-spin" /> : <gen.icon className={cn("h-4 w-4", gen.color)} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">{gen.label}</p>
                       <p className="text-xs text-muted-foreground truncate">{gen.description}</p>
                     </div>
-                    {done && !isGen && (
+                    {done && !isGen ? (
                       <CheckCheck className="h-4 w-4 text-accent shrink-0" />
-                    )}
-                    {!done && !isGen && (
+                    ) : !isGen ? (
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    )}
+                    ) : null}
                   </button>
                 );
               })}
+
+              {/* Shortcut links to pages with overlapping tools */}
+              <div className="mt-4 pt-4 border-t border-border space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pb-1">
+                  Ferramentas dedicadas
+                </p>
+                {[
+                  { label: "Checklist de Conformidade", path: "/dashboard/checklist", desc: "Checklist interativo por tipo de contratação" },
+                  { label: "Diagnóstico de Modalidade", path: "/dashboard/diagnostic", desc: "Formulário guiado para identificar a modalidade" },
+                  { label: "Validador de Editais", path: "/dashboard/validator", desc: "Análise automática de PDFs de editais" },
+                ].map((link) => (
+                  <a
+                    key={link.path}
+                    href={link.path}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 border border-border hover:border-accent/20 hover:bg-secondary/50 transition-all group"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-accent transition-colors shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground">{link.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{link.desc}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
             </motion.div>
           ) : (
-            <motion.div
-              key="outputs"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="p-4 space-y-4"
-            >
+            <motion.div key="outputs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 space-y-4">
               {outputs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Sparkles className="h-10 w-10 text-accent/20 mb-3" />
                   <p className="text-sm text-muted-foreground">Nenhuma análise gerada ainda</p>
-                  <button
-                    onClick={() => setView("buttons")}
-                    className="mt-3 text-xs text-accent hover:underline"
-                  >
+                  <button onClick={() => setView("buttons")} className="mt-3 text-xs text-accent hover:underline">
                     Ir para Gerar →
                   </button>
                 </div>
               ) : (
                 [...outputs].reverse().map((output) => (
-                  <OutputCard
-                    key={output.type}
-                    output={output}
-                    onRegenerate={onGenerate}
-                    isRegenerating={generating === output.type}
-                  />
+                  <OutputCard key={output.type} output={output} onRegenerate={onGenerate} isRegenerating={generating === output.type} />
                 ))
               )}
             </motion.div>
@@ -615,14 +797,14 @@ const StudioPanel = ({
   );
 };
 
-// ── Chat Panel (center) ───────────────────────────────────────
+// ── Chat Panel ────────────────────────────────────────────────
 const ChatPanel = ({ sources }: { sources: Source[] }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: uid(),
       role: "assistant",
       content:
-        "Olá! Sou seu assistente jurídico no modo Notebook.\n\nCarregue documentos no painel esquerdo (editais, TRs, ETPs, contratos) e posso ajudar com:\n\n- **Interpretação** de cláusulas e artigos\n- **Comparação** entre documentos\n- **Dúvidas** sobre a Lei 14.133/2021\n- **Análise** de pontos específicos\n\nCite `[Fonte 1]` ou `[Fonte 2]` para referenciar um documento específico.",
+        "Olá! Sou seu assistente jurídico no modo Notebook.\n\nCarregue documentos, importe URLs ou faça buscas na web para adicionar fontes — e me faça perguntas sobre elas.\n\nPosso ajudar com:\n- **Interpretação** de cláusulas e artigos\n- **Análise de preços** e referências de mercado\n- **Dúvidas** sobre a Lei 14.133/2021\n- **Comparação** entre documentos",
       timestamp: nowStr(),
     },
   ]);
@@ -631,12 +813,9 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    import("@/integrations/supabase/client").then(({ supabase }) => {
-      supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || ""));
-    });
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || ""));
   }, []);
 
   useEffect(() => {
@@ -656,11 +835,13 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
 
     const aiId = uid();
     let accumulated = "";
-
-    // Build messages with system context injected as first user message if sources exist
     const systemPrompt = buildSystemPrompt(sources);
     const chatMessages = systemPrompt
-      ? [{ role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${systemPrompt}` }, { role: "assistant" as const, content: "Entendido. Li todos os documentos fornecidos e estou pronto para responder com base neles." }, ...newHistory]
+      ? [
+          { role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${systemPrompt}` },
+          { role: "assistant" as const, content: "Entendido. Li todos os documentos/fontes e estou pronto." },
+          ...newHistory,
+        ]
       : newHistory;
 
     streamChat({
@@ -668,15 +849,9 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
       usuarioId: userEmail,
       onDelta: (chunk) => {
         accumulated += chunk;
-        const botMsg: ChatMessage = {
-          id: aiId,
-          role: "assistant",
-          content: accumulated,
-          timestamp: nowStr(),
-        };
         setMessages((prev) => {
-          const withoutStreaming = prev.filter((m) => m.id !== aiId);
-          return [...withoutStreaming, botMsg];
+          const without = prev.filter((m) => m.id !== aiId);
+          return [...without, { id: aiId, role: "assistant", content: accumulated, timestamp: nowStr() }];
         });
       },
       onDone: () => {
@@ -690,94 +865,50 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
-  };
-
+  const copyMsg = (content: string) => { navigator.clipboard.writeText(content); toast.success("Copiado!"); };
   const clearChat = () => {
-    setMessages([
-      {
-        id: uid(),
-        role: "assistant",
-        content: "Conversa reiniciada. Como posso ajudar com os documentos?",
-        timestamp: nowStr(),
-      },
-    ]);
+    setMessages([{ id: uid(), role: "assistant", content: "Conversa reiniciada. Como posso ajudar?", timestamp: nowStr() }]);
     setHistory([]);
   };
 
-  const copyMsg = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast.success("Copiado!");
-  };
-
-  const activeCount = sources.filter((s) => s.active).length;
-
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-accent" />
           <span className="text-sm font-semibold">Chat Jurídico</span>
-          {activeCount > 0 && (
+          {sources.filter((s) => s.active).length > 0 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent/10 text-accent">
-              {activeCount} doc{activeCount > 1 ? "s" : ""} ativo{activeCount > 1 ? "s" : ""}
+              {sources.filter((s) => s.active).length} fonte{sources.filter((s) => s.active).length > 1 ? "s" : ""} ativa{sources.filter((s) => s.active).length > 1 ? "s" : ""}
             </span>
           )}
         </div>
-        <button
-          onClick={clearChat}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Limpar
+        <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <RotateCcw className="h-3.5 w-3.5" /> Limpar
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <AnimatePresence mode="popLayout">
           {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
-            >
+            <motion.div key={msg.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 mt-0.5">
                   <Bot className="h-4 w-4 text-accent" />
                 </div>
               )}
               <div className={cn("max-w-[78%] space-y-1.5", msg.role === "user" ? "items-end" : "items-start")}>
-                <div
-                  className={cn(
-                    "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-secondary text-foreground rounded-bl-md"
-                  )}
-                >
+                <div className={cn("rounded-2xl px-4 py-3 text-sm leading-relaxed", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-foreground rounded-bl-md")}>
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1 [&>ol]:mt-1">
+                    <div className="prose prose-sm max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
-                  ) : (
-                    msg.content
-                  )}
+                  ) : msg.content}
                 </div>
                 <div className={cn("flex items-center gap-1", msg.role === "user" ? "justify-end" : "justify-start")}>
                   <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
                   {msg.role === "assistant" && (
-                    <button
-                      onClick={() => copyMsg(msg.content)}
-                      className="p-1 rounded hover:bg-secondary transition-colors"
-                    >
+                    <button onClick={() => copyMsg(msg.content)} className="p-1 rounded hover:bg-secondary transition-colors">
                       <Copy className="h-3 w-3 text-muted-foreground/60" />
                     </button>
                   )}
@@ -800,11 +931,7 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
             <div className="rounded-2xl bg-secondary px-4 py-3 rounded-bl-md">
               <div className="flex gap-1">
                 {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce"
-                    style={{ animationDelay: `${i * 150}ms` }}
-                  />
+                  <span key={i} className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                 ))}
               </div>
             </div>
@@ -813,52 +940,31 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick actions */}
       {messages.length <= 1 && (
         <div className="px-4 pb-3 flex flex-wrap gap-1.5">
           {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action}
-              onClick={() => sendMessage(action)}
-              className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-accent/30 hover:bg-accent/5 text-muted-foreground hover:text-accent transition-all"
-            >
+            <button key={action} onClick={() => sendMessage(action)} className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-accent/30 hover:bg-accent/5 text-muted-foreground hover:text-accent transition-all">
               {action}
             </button>
           ))}
         </div>
       )}
 
-      {/* Input */}
       <div className="border-t border-border p-4 shrink-0">
         <div className="flex items-end gap-2 rounded-xl border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-accent/20 focus-within:border-accent/40 transition-all">
           <textarea
-            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Pergunte sobre os documentos... (Enter para enviar, Shift+Enter para nova linha)"
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+            placeholder="Pergunte sobre os documentos ou dados de preço… (Enter para enviar)"
             disabled={isTyping}
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 py-1"
             style={{ maxHeight: 120 }}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = "auto";
-              el.style.height = Math.min(el.scrollHeight, 120) + "px";
-            }}
+            onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 120) + "px"; }}
           />
-          <Button
-            variant="gold"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isTyping}
-          >
-            {isTyping ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+          <Button variant="gold" size="icon" className="h-8 w-8 shrink-0" onClick={() => sendMessage(input)} disabled={!input.trim() || isTyping}>
+            {isTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -869,37 +975,25 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
 // ── Main Page ─────────────────────────────────────────────────
 export default function NotebookPage() {
   const [sources, setSources] = useState<Source[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(SOURCES_KEY) ?? "[]");
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(SOURCES_KEY) ?? "[]"); } catch { return []; }
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [generating, setGenerating] = useState<GeneratorType | null>(null);
   const [notebookTitle, setNotebookTitle] = useState("Notebook Jurídico");
   const [editingTitle, setEditingTitle] = useState(false);
-  const [rightTab, setRightTab] = useState<"studio" | "none">("studio");
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    import("@/integrations/supabase/client").then(({ supabase }) => {
-      supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || ""));
-    });
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || ""));
   }, []);
 
-  // Persist sources
   useEffect(() => {
     localStorage.setItem(SOURCES_KEY, JSON.stringify(sources));
   }, [sources]);
 
   const addSource = (data: Omit<Source, "id" | "createdAt">) => {
-    setSources((prev) => [
-      ...prev,
-      { ...data, id: uid(), createdAt: new Date().toISOString() },
-    ]);
-    toast.success("Fonte adicionada!");
+    setSources((prev) => [...prev, { ...data, id: uid(), createdAt: new Date().toISOString() }]);
   };
 
   const toggleSource = (id: string) =>
@@ -913,10 +1007,7 @@ export default function NotebookPage() {
   const generateAnalysis = useCallback(
     async (type: GeneratorType) => {
       const activeSources = sources.filter((s) => s.active);
-      if (!activeSources.length) {
-        toast.error("Ative pelo menos uma fonte para gerar análises");
-        return;
-      }
+      if (!activeSources.length) { toast.error("Ative pelo menos uma fonte"); return; }
 
       const gen = GENERATORS.find((g) => g.type === type)!;
       setGenerating(type);
@@ -943,27 +1034,24 @@ export default function NotebookPage() {
             return [...filtered, { type, content: accumulated, generatedAt }];
           });
         },
-        onDone: () => {
-          setGenerating(null);
-          toast.success(`${gen.label} gerado!`);
-        },
-        onError: (err) => {
-          toast.error(`Erro: ${err}`);
-          setGenerating(null);
-        },
+        onDone: () => { setGenerating(null); toast.success(`${gen.label} gerado!`); },
+        onError: (err) => { toast.error(`Erro: ${err}`); setGenerating(null); },
       });
     },
     [sources, userEmail]
   );
 
   const activeCount = sources.filter((s) => s.active).length;
-  const totalChars = sources
-    .filter((s) => s.active)
-    .reduce((a, s) => a + s.charCount, 0);
+  const totalChars = sources.filter((s) => s.active).reduce((a, s) => a + s.charCount, 0);
+
+  const sourceTypeCounts = sources.reduce((acc, s) => {
+    acc[s.type] = (acc[s.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] -mt-2 gap-0">
-      {/* Page header */}
+    <div className="flex flex-col h-[calc(100vh-7rem)] -mt-2">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/20">
@@ -981,26 +1069,32 @@ export default function NotebookPage() {
                 style={{ width: Math.max(200, notebookTitle.length * 12) + "px" }}
               />
             ) : (
-              <button
-                onClick={() => setEditingTitle(true)}
-                className="flex items-center gap-2 group text-left"
-              >
+              <button onClick={() => setEditingTitle(true)} className="flex items-center gap-2 group text-left">
                 <h1 className="text-xl font-bold text-foreground">{notebookTitle}</h1>
                 <PenLine className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             )}
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {sources.length} fonte{sources.length !== 1 ? "s" : ""} ·{" "}
-              {activeCount} ativa{activeCount !== 1 ? "s" : ""} ·{" "}
-              {(totalChars / 1000).toFixed(1)}k caracteres em contexto
-            </p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-muted-foreground">
+                {activeCount} de {sources.length} fonte{sources.length !== 1 ? "s" : ""} ativa{activeCount !== 1 ? "s" : ""}
+              </span>
+              {Object.entries(sourceTypeCounts).map(([type, count]) => {
+                const cfg = SOURCE_TYPE_CONFIG[type as keyof typeof SOURCE_TYPE_CONFIG];
+                return (
+                  <span key={type} className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary", cfg.color)}>
+                    {count} {cfg.label}
+                  </span>
+                );
+              })}
+              {totalChars > 0 && (
+                <span className="text-[10px] text-muted-foreground">· {(totalChars / 1000).toFixed(1)}k chars em contexto</span>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/5 border border-accent/10 text-xs text-accent font-medium">
-            <Sparkles className="h-3.5 w-3.5" />
-            Análise com IA · Lei 14.133/2021
-          </div>
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/5 border border-accent/10 text-xs text-accent font-medium">
+          <Sparkles className="h-3.5 w-3.5" />
+          IA Jurídica · Lei 14.133/2021
         </div>
       </div>
 
@@ -1013,9 +1107,7 @@ export default function NotebookPage() {
               <Layers className="h-4 w-4 text-accent" />
               <span className="text-sm font-semibold">Fontes</span>
               {sources.length > 0 && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">
-                  {sources.length}
-                </span>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">{sources.length}</span>
               )}
             </div>
             <Button variant="gold" size="sm" className="h-7 px-3 text-xs" onClick={() => setShowAddModal(true)}>
@@ -1026,25 +1118,16 @@ export default function NotebookPage() {
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             <AnimatePresence mode="popLayout">
               {sources.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center py-12 text-center px-4"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-dashed border-border mb-4">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-10 text-center px-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-dashed border-border mb-3">
                     <FileText className="h-6 w-6 text-muted-foreground/40" />
                   </div>
-                  <p className="text-sm font-medium text-muted-foreground">Nenhuma fonte</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1 leading-relaxed">
-                    Adicione editais, TRs, ETPs ou qualquer documento jurídico
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Nenhuma fonte</p>
+                  <p className="text-xs text-muted-foreground/60 leading-relaxed mb-3">
+                    Adicione editais, TRs, ETPs, importe URLs ou busque dados de preços na web
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    <Upload className="h-3.5 w-3.5" /> Adicionar documento
+                  <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                    <Plus className="h-3.5 w-3.5" /> Adicionar fonte
                   </Button>
                 </motion.div>
               ) : (
@@ -1057,16 +1140,10 @@ export default function NotebookPage() {
 
           {sources.length > 0 && (
             <div className="border-t border-border px-4 py-3 flex justify-between shrink-0">
-              <button
-                onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: true })))}
-                className="text-[11px] text-muted-foreground hover:text-accent transition-colors font-medium"
-              >
+              <button onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: true })))} className="text-[11px] text-muted-foreground hover:text-accent transition-colors font-medium">
                 Ativar todas
               </button>
-              <button
-                onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: false })))}
-                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <button onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: false })))} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
                 Desativar todas
               </button>
             </div>
@@ -1080,20 +1157,12 @@ export default function NotebookPage() {
 
         {/* Right: Studio */}
         <div className="w-80 shrink-0 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-          <StudioPanel
-            sources={sources}
-            outputs={outputs}
-            generating={generating}
-            onGenerate={generateAnalysis}
-          />
+          <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis} />
         </div>
       </div>
 
-      {/* Add source modal */}
       <AnimatePresence>
-        {showAddModal && (
-          <AddSourceModal onAdd={addSource} onClose={() => setShowAddModal(false)} />
-        )}
+        {showAddModal && <AddSourceModal onAdd={addSource} onClose={() => setShowAddModal(false)} />}
       </AnimatePresence>
     </div>
   );
