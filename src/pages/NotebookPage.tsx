@@ -701,7 +701,6 @@ const OutputCard = ({
       documentTitle: gen.label,
       legalBasis: "Lei 14.133/2021",
       sections: [{ title: gen.label, content: output.content }],
-      format: "pdf",
     });
   };
 
