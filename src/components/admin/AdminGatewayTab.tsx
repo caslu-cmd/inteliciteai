@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Settings, ExternalLink, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,22 @@ export default function AdminGatewayTab() {
   const [selectedGateway, setSelectedGateway] = useState("mercado_pago");
   const [configs, setConfigs] = useState<Record<string, Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("gateway_configs")
+        .select("gateway_id, config_data");
+      if (data) {
+        const loaded: Record<string, Record<string, string>> = {};
+        data.forEach((row: any) => { loaded[row.gateway_id] = row.config_data || {}; });
+        setConfigs(loaded);
+      }
+      setLoading(false);
+    })();
+  }, []);
 
   const gateway = gateways.find((g) => g.id === selectedGateway)!;
   const currentConfig = configs[selectedGateway] || {};
@@ -79,6 +94,8 @@ export default function AdminGatewayTab() {
   };
 
   const isConfigured = gateway.fields.every((f) => currentConfig[f.key]?.length > 0);
+
+  if (loading) return <div className="flex justify-center py-16"><div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
