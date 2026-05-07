@@ -428,24 +428,35 @@ function VerticalSection({ v, index }: { v: typeof verticals[number]; index: num
 
 function StatsBar() {
   const stats = [
-    { value: 2847, label: "Gestores ativos" },
-    { value: 12340, label: "Licitações analisadas" },
-    { value: 4, label: "Em contratos", prefix: "R$ ", suffix: "B+" },
-    { value: 98, label: "Satisfação", suffix: "%" },
+    { value: 8, label: "Bilhões em gastos irregulares evitados pelos TCEs com IA (1º sem/2025)", prefix: "R$ ", suffix: "B" },
+    { value: 3400, label: "Licitações analisadas pela IA do TCE/SC só no 1º trimestre de 2025" },
+    { value: 2, label: "Bilhões economizados pelo TCDF em análises de licitações com IA", prefix: "R$ ", suffix: "B+" },
+    { value: 70, label: "Redução média de tempo na elaboração de ETPs e TRs com IA", suffix: "%" },
   ];
   return (
     <section className="relative py-20 border-y border-white/[0.06] bg-white/[0.015]">
-      <div className="mx-auto max-w-7xl px-6 grid grid-cols-2 lg:grid-cols-4 gap-10">
-        {stats.map((s, i) => (
-          <Reveal key={s.label} delay={i * 0.08}>
-            <div>
-              <div className="font-display text-4xl md:text-5xl font-bold text-white tracking-tight">
-                <Counter to={s.value} prefix={s.prefix} suffix={s.suffix} />
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="max-w-2xl mb-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/80">Impacto real</p>
+          <h2 className="mt-4 font-display text-3xl md:text-4xl font-bold tracking-tight text-white">
+            A IA já está transformando as licitações públicas no Brasil.
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10">
+          {stats.map((s, i) => (
+            <Reveal key={s.label} delay={i * 0.08}>
+              <div>
+                <div className="font-display text-4xl md:text-5xl font-bold text-white tracking-tight">
+                  <Counter to={s.value} prefix={s.prefix} suffix={s.suffix} />
+                </div>
+                <div className="mt-3 text-sm text-white/55 leading-relaxed">{s.label}</div>
               </div>
-              <div className="mt-2 text-sm text-white/50">{s.label}</div>
-            </div>
-          </Reveal>
-        ))}
+            </Reveal>
+          ))}
+        </div>
+        <p className="mt-10 text-xs text-white/35">
+          Fontes: TCE/SC, TCDF, TCE-MG e estudos de produtividade de IA aplicada a contratações públicas (2024–2025).
+        </p>
       </div>
     </section>
   );
