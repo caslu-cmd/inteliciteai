@@ -34,10 +34,9 @@ export default function LoginPage() {
       .single();
 
     const acctStatus = profile?.account_status;
-    if (acctStatus === "pending") { navigate("/pending"); return; }
     if (acctStatus === "rejected") {
       await supabase.auth.signOut();
-      toast({ title: "Acesso negado", description: "Seu cadastro não foi aprovado.", variant: "destructive" });
+      toast({ title: "Acesso negado", description: "Sua conta foi desativada.", variant: "destructive" });
       return;
     }
 

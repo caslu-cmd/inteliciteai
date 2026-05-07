@@ -42,11 +42,6 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Props
         return;
       }
 
-      if (acctStatus === "pending") {
-        navigate("/pending", { replace: true });
-        return;
-      }
-
       // Enforce trial/subscription on dashboard paths (skip for free accounts, billing, and admins)
       const isDashboard = location.pathname.startsWith("/dashboard");
       const isBillingExempt = BILLING_EXEMPT.includes(location.pathname);
