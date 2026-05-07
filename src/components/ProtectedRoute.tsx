@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 type AccountStatus = "pending" | "approved" | "rejected" | "free" | null;
@@ -9,9 +9,12 @@ interface Props {
   requireAdmin?: boolean;
 }
 
+const BILLING_EXEMPT = ["/dashboard/billing", "/dashboard/plano-ativado"];
+
 export default function ProtectedRoute({ children, requireAdmin = false }: Props) {
   const [status, setStatus] = useState<"loading" | "ok" | "redirect">("loading");
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +47,31 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Props
         return;
       }
 
+      // Enforce trial/subscription on dashboard paths (skip for free accounts and billing page)
+      const isDashboard = location.pathname.startsWith("/dashboard");
+      const isBillingExempt = BILLING_EXEMPT.includes(location.pathname);
+
+      if (acctStatus !== "free" && isDashboard && !isBillingExempt) {
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("status, trial_ends_at")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (sub && !cancelled) {
+          const trialExpired =
+            sub.status === "trial" &&
+            sub.trial_ends_at !== null &&
+            new Date(sub.trial_ends_at) < new Date();
+          const isBlocked = sub.status === "expired" || sub.status === "blocked";
+
+          if (trialExpired || isBlocked) {
+            navigate("/dashboard/billing?expired=1", { replace: true });
+            return;
+          }
+        }
+      }
+
       if (requireAdmin) {
         const { data: roleRow } = await supabase
           .from("user_roles")
@@ -62,7 +90,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Props
     })();
 
     return () => { cancelled = true; };
-  }, [navigate, requireAdmin]);
+  }, [navigate, requireAdmin, location.pathname]);
 
   if (status === "loading") {
     return (

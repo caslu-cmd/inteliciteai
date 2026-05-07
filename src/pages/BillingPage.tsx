@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CreditCard, Check, Loader2, Tag, ExternalLink } from "lucide-react";
+import { CreditCard, Check, Loader2, Tag, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -165,6 +165,12 @@ export default function BillingPage() {
     setChangingPlan(null);
   };
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const isAccessExpired = urlParams.get("expired") === "1";
+  const isBlocked =
+    subscription?.status === "expired" || subscription?.status === "blocked";
+  const showExpiredBanner = isAccessExpired || isBlocked;
+
   if (loading) return <div className="flex items-center justify-center py-32"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
 
   return (
@@ -178,6 +184,23 @@ export default function BillingPage() {
           <p className="text-sm text-muted-foreground">Gerencie seu plano e pagamentos</p>
         </div>
       </div>
+
+      {/* Expired / blocked banner */}
+      {showExpiredBanner && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-destructive/40 bg-destructive/10 p-5 mb-6 flex items-start gap-4"
+        >
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-destructive">Acesso bloqueado — Trial expirado</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Seu período gratuito de 7 dias encerrou. Assine um plano abaixo para continuar usando a plataforma.
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Current plan */}
       {subscription && (
@@ -194,7 +217,11 @@ export default function BillingPage() {
                 subscription.status === "trial" ? "bg-accent/10 text-accent" :
                 "bg-destructive/10 text-destructive"
               )}>
-                {subscription.status === "active" ? "Ativo" : subscription.status === "trial" ? "Trial" : subscription.status}
+                {subscription.status === "active" ? "Ativo" :
+                 subscription.status === "trial" ? "Trial" :
+                 subscription.status === "expired" ? "Expirado" :
+                 subscription.status === "blocked" ? "Bloqueado" :
+                 subscription.status}
               </span>
             </div>
           </div>
