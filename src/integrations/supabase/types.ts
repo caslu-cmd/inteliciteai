@@ -207,6 +207,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
           avatar_url: string | null
           city: string | null
           country: string | null
@@ -216,10 +217,12 @@ export type Database = {
           id: string
           organization: string | null
           phone: string | null
+          platform_role: string
           state: string | null
           updated_at: string
         }
         Insert: {
+          account_status?: string
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -229,10 +232,12 @@ export type Database = {
           id: string
           organization?: string | null
           phone?: string | null
+          platform_role?: string
           state?: string | null
           updated_at?: string
         }
         Update: {
+          account_status?: string
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -242,6 +247,7 @@ export type Database = {
           id?: string
           organization?: string | null
           phone?: string | null
+          platform_role?: string
           state?: string | null
           updated_at?: string
         }
