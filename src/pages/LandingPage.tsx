@@ -464,8 +464,8 @@ function Pricing() {
       desc: "Para conhecer toda a plataforma sem compromisso.",
       features: ["Acesso completo por 7 dias", "Todas as ferramentas IA", "Sem cartão de crédito", "Suporte por email"],
       cta: "Começar grátis",
-      href: "https://wa.me/5585985547362",
-      external: true,
+      href: "/signup",
+      external: false,
       highlight: false,
     },
     {
