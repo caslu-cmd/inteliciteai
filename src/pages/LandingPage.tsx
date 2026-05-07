@@ -292,8 +292,7 @@ import { useState, useEffect, useRef } from "react";
             O ecossistema{" "}
             <span
               className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(135deg, hsl(190 95% 50%) 0%, hsl(265 90% 60%) 50%, hsl(190 95%
-  50%) 100%)" }}
+              style={{ backgroundImage: "linear-gradient(135deg, hsl(190 95% 50%) 0%, hsl(265 90% 60%) 50%, hsl(190 95% 50%) 100%)" }}
             >
               completo
             </span>
