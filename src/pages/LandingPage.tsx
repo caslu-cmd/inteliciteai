@@ -22,7 +22,7 @@ const verticals = [
     accent: "190 95% 50%",
     accent2: "190 95% 65%",
     description:
-      "A plataforma definitiva para o Setor Público. Automatize ETPs, Termos de Referência e checklists com inteligência artificial em conformidade total com a Nova Lei de Licitações.",
+      "A plataforma definitiva para o Setor Público. Automatize ETPs, Termos de Referência e checklists com inteligência artificial em conformidade total com a Lei nº 14.133/2021.",
     icon: Building2,
     features: [
       { icon: FileText, title: "Gerador de ETP", desc: "Estudos Técnicos Preliminares completos em minutos." },

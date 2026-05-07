@@ -82,7 +82,7 @@ const mockConversations: Conversation[] = [
   {
     id: "3",
     title: "Prazo recursal",
-    lastMessage: "O prazo recursal na nova lei...",
+    lastMessage: "O prazo recursal na Lei nº 14.133/2021...",
     date: "3 dias atrás",
     messages: [],
   },
