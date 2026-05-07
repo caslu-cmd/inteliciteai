@@ -47,27 +47,37 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Props
         return;
       }
 
-      // Enforce trial/subscription on dashboard paths (skip for free accounts and billing page)
+      // Enforce trial/subscription on dashboard paths (skip for free accounts, billing, and admins)
       const isDashboard = location.pathname.startsWith("/dashboard");
       const isBillingExempt = BILLING_EXEMPT.includes(location.pathname);
 
       if (acctStatus !== "free" && isDashboard && !isBillingExempt) {
-        const { data: sub } = await supabase
-          .from("subscriptions")
-          .select("status, trial_ends_at")
+        // Check admin role first — admins have permanent access
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("role")
           .eq("user_id", user.id)
+          .eq("role", "admin")
           .maybeSingle();
 
-        if (sub && !cancelled) {
-          const trialExpired =
-            sub.status === "trial" &&
-            sub.trial_ends_at !== null &&
-            new Date(sub.trial_ends_at) < new Date();
-          const isBlocked = sub.status === "expired" || sub.status === "blocked";
+        if (!adminRole) {
+          const { data: sub } = await supabase
+            .from("subscriptions")
+            .select("status, trial_ends_at")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-          if (trialExpired || isBlocked) {
-            navigate("/dashboard/billing?expired=1", { replace: true });
-            return;
+          if (sub && !cancelled) {
+            const trialExpired =
+              sub.status === "trial" &&
+              sub.trial_ends_at !== null &&
+              new Date(sub.trial_ends_at) < new Date();
+            const isBlocked = sub.status === "expired" || sub.status === "blocked";
+
+            if (trialExpired || isBlocked) {
+              navigate("/dashboard/billing?expired=1", { replace: true });
+              return;
+            }
           }
         }
       }
