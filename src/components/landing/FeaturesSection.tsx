@@ -90,7 +90,7 @@ export default function FeaturesSection() {
           </h2>
           <p className="mt-4 text-landing-text-muted">
             Cada módulo foi desenvolvido especificamente para atender às
-            exigências da Nova Lei de Licitações.
+            exigências da Lei nº 14.133/2021.
           </p>
         </motion.div>
 
