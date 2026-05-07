@@ -5,7 +5,7 @@ import {
   ArrowRight, CheckCircle2, Menu, X, Shield, FileText, Search, TrendingUp,
   Users, Scale, DollarSign, BookOpen, Building2, Briefcase, ClipboardList,
   BarChart3, MessageSquare, Lock, FileSearch, Handshake, CreditCard,
-  AlertTriangle, Award, Sparkles,
+  AlertTriangle, Award, Sparkles, Star,
 } from "lucide-react";
 
 const cn = (...c: (string | boolean | undefined)[]) => c.filter(Boolean).join(" ");
@@ -119,8 +119,6 @@ function Counter({ to, suffix = "", prefix = "" }: { to: number; suffix?: string
   }, [inView, to]);
   return <span ref={ref}>{prefix}{n.toLocaleString("pt-BR")}{suffix}</span>;
 }
-
-import { Star } from "lucide-react";
 
 /* ─────────────── Components ─────────────── */
 function Navbar() {
