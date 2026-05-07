@@ -189,8 +189,7 @@ import { useState, useEffect, useRef } from "react";
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center
-  justify-center">
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
               <Scale className="w-4 h-4 text-[#080D14]" />
             </div>
             <span className="font-futuristic text-sm font-bold tracking-widest text-white uppercase">
@@ -216,8 +215,7 @@ import { useState, useEffect, useRef } from "react";
             </Link>
             <Link
               to="/signup"
-              className="text-sm font-medium bg-cyan-400 hover:bg-cyan-300 text-[#080D14] px-5 py-2 rounded-lg
-  transition-all duration-200 shadow-[0_0_20px_-4px_hsl(190_95%_50%/0.5)]"
+              className="text-sm font-medium bg-cyan-400 hover:bg-cyan-300 text-[#080D14] px-5 py-2 rounded-lg transition-all duration-200 shadow-[0_0_20px_-4px_hsl(190_95%_50%/0.5)]"
             >
               Começar grátis
             </Link>
@@ -232,8 +230,7 @@ import { useState, useEffect, useRef } from "react";
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden bg-[#080D14]/95 backdrop-blur-xl border-b border-white/[0.06] px-6 py-6 flex flex-col
-  gap-4"
+            className="md:hidden bg-[#080D14]/95 backdrop-blur-xl border-b border-white/[0.06] px-6 py-6 flex flex-col gap-4"
           >
             {["Plataforma", "Soluções", "Preços"].map((item) => (
               <a key={item} href={`#${item.toLowerCase()}`} className="text-sm text-white/60 hover:text-white"
@@ -243,8 +240,7 @@ import { useState, useEffect, useRef } from "react";
             ))}
             <div className="flex flex-col gap-2 pt-2 border-t border-white/[0.06]">
               <Link to="/login" className="text-sm text-white/60 py-2">Entrar</Link>
-              <Link to="/signup" className="text-sm font-medium text-center bg-cyan-400 text-[#080D14] px-5 py-2.5
-  rounded-lg">
+              <Link to="/signup" className="text-sm font-medium text-center bg-cyan-400 text-[#080D14] px-5 py-2.5 rounded-lg">
                 Começar grátis
               </Link>
             </div>
@@ -266,8 +262,7 @@ import { useState, useEffect, useRef } from "react";
           <div
             className="absolute inset-0 opacity-[0.025]"
             style={{
-              backgroundImage: `linear-gradient(hsl(190 95% 50%) 1px, transparent 1px), linear-gradient(90deg, hsl(190
-  95% 50%) 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(hsl(190 95% 50%) 1px, transparent 1px), linear-gradient(90deg, hsl(190 95% 50%) 1px, transparent 1px)`,
               backgroundSize: "60px 60px",
             }}
           />
@@ -275,8 +270,7 @@ import { useState, useEffect, useRef } from "react";
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/20
-  bg-cyan-400/5 text-cyan-400 text-xs font-medium tracking-widest uppercase mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/5 text-cyan-400 text-xs font-medium tracking-widest uppercase mb-8">
               <Zap className="w-3 h-3" />
               Ecossistema de Licitações Públicas
             </div>
@@ -321,8 +315,7 @@ import { useState, useEffect, useRef } from "react";
                 <a
                   key={v.id}
                   href={`#${v.id}`}
-                  className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-medium
-  transition-all duration-200", s.buttonOutline)}
+                  className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200", s.buttonOutline)}
                 >
                   <v.icon className="w-4 h-4" />
                   {v.name}
@@ -340,16 +333,14 @@ import { useState, useEffect, useRef } from "react";
           >
             <Link
               to="/signup"
-              className="group flex items-center gap-2 px-8 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300
-  text-[#080D14] font-semibold text-sm transition-all duration-200 shadow-[0_0_30px_-6px_hsl(190_95%_50%/0.6)]"
+              className="group flex items-center gap-2 px-8 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#080D14] font-semibold text-sm transition-all duration-200 shadow-[0_0_30px_-6px_hsl(190_95%_50%/0.6)]"
             >
               Começar gratuitamente
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link
               to="/login"
-              className="px-8 py-3.5 rounded-xl border border-white/10 text-white/70 hover:text-white
-  hover:border-white/20 text-sm font-medium transition-all duration-200"
+              className="px-8 py-3.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 text-sm font-medium transition-all duration-200"
             >
               Já tenho uma conta
             </Link>
@@ -364,8 +355,7 @@ import { useState, useEffect, useRef } from "react";
             <div className="flex items-center gap-1.5">
               <div className="flex -space-x-1">
                 {["C", "M", "A", "R", "L"].map((l, i) => (
-                  <div key={i} className="w-6 h-6 rounded-full border border-[#0B0E14] bg-gradient-to-br
-  from-cyan-500/40 to-violet-500/40 flex items-center justify-center text-[9px] text-white font-medium">
+                  <div key={i} className="w-6 h-6 rounded-full border border-[#0B0E14] bg-gradient-to-br from-cyan-500/40 to-violet-500/40 flex items-center justify-center text-[9px] text-white font-medium">
                     {l}
                   </div>
                 ))}
@@ -412,8 +402,7 @@ import { useState, useEffect, useRef } from "react";
               style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
             >
               Escolha sua posição no{" "}
-              <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, hsl(190
-   95% 50%), hsl(265 90% 60%))" }}>
+              <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, hsl(190 95% 50%), hsl(265 90% 60%))" }}>
                 ecossistema
               </span>
             </h2>
@@ -424,8 +413,7 @@ import { useState, useEffect, useRef } from "react";
               const s = verticalStyles[v.color as keyof typeof verticalStyles];
               return (
                 <AnimatedSection key={v.id} delay={i * 0.1}>
-                  <div className={cn("relative group rounded-2xl border p-8 transition-all duration-300
-  hover:-translate-y-1", s.border, s.bg)}>
+                  <div className={cn("relative group rounded-2xl border p-8 transition-all duration-300 hover:-translate-y-1", s.border, s.bg)}>
                     <div className={cn("absolute top-0 left-8 right-8 h-px bg-gradient-to-r opacity-60", s.gradient)} />
                     <div className={cn("inline-flex px-3 py-1 rounded-full text-xs font-medium mb-6",
   s.badgeBg)}>{v.badge}</div>
@@ -433,8 +421,7 @@ import { useState, useEffect, useRef } from "react";
   s.border)}>
                       <v.icon className={cn("w-6 h-6", s.text)} />
                     </div>
-                    <h3 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', system-ui,
-   sans-serif" }}>
+                    <h3 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
                       {v.name}
                     </h3>
                     <p className={cn("text-xs font-medium mb-4", s.text)}>{v.role}</p>
@@ -450,8 +437,7 @@ import { useState, useEffect, useRef } from "react";
                     </ul>
                     <a
                       href={v.id === "intelicite" ? "/signup" : `#${v.id}`}
-                      className={cn("flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium
-  transition-all duration-200", s.button)}
+                      className={cn("flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium transition-all duration-200", s.button)}
                     >
                       {v.ctaLabel}
                       <ArrowRight className="w-4 h-4" />
@@ -495,8 +481,7 @@ import { useState, useEffect, useRef } from "react";
               <p className="text-base text-white/50 leading-relaxed mb-10">{vertical.tagline}</p>
               <a
                 href={vertical.id === "intelicite" ? "/signup" : vertical.href}
-                className={cn("inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all
-  duration-200", s.button)}
+                className={cn("inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200", s.button)}
               >
                 {vertical.ctaLabel}
                 <ArrowRight className="w-4 h-4" />
@@ -512,8 +497,7 @@ import { useState, useEffect, useRef } from "react";
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.4, delay: i * 0.07 }}
-                    className={cn("rounded-xl border p-5 transition-all duration-200", s.border, "bg-white/[0.02]
-  hover:bg-white/[0.04]")}
+                    className={cn("rounded-xl border p-5 transition-all duration-200", s.border, "bg-white/[0.02] hover:bg-white/[0.04]")}
                   >
                     <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center mb-3", s.bg, "border",
   s.border)}>
@@ -537,21 +521,18 @@ import { useState, useEffect, useRef } from "react";
         <div className="max-w-7xl mx-auto">
           <div
             className="rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-16"
-            style={{ backgroundImage: "radial-gradient(ellipse 80% 60% at 50% 100%, hsl(190 95% 50% / 0.05),
-  transparent)" }}
+            style={{ backgroundImage: "radial-gradient(ellipse 80% 60% at 50% 100%, hsl(190 95% 50% / 0.05), transparent)" }}
           >
             <AnimatedSection className="text-center mb-16">
               <p className="text-xs text-white/30 tracking-widest uppercase font-medium mb-3">Números que comprovam</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: "'Space Grotesk',
-  system-ui, sans-serif" }}>
+              <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
                 Resultados reais para gestores reais
               </h2>
             </AnimatedSection>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
               {STATS.map((s, i) => (
                 <AnimatedSection key={s.label} delay={i * 0.1} className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk',
-   system-ui, sans-serif" }}>
+                  <div className="text-4xl md:text-5xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
                     {s.suffix === "B+" ? <>R$<AnimatedCounter target={s.value} />{s.suffix}</> : <><AnimatedCounter
   target={s.value} />{s.suffix}</>}
                   </div>
@@ -581,8 +562,7 @@ import { useState, useEffect, useRef } from "react";
       price: "R$ 297",
       period: "/mês",
       desc: "Para órgãos com volume moderado de licitações",
-      features: ["Geradores ilimitados (ETP, TR)", "Notebook IA completo", "Validador de minutas", "Cotação de preços
-  IA", "Diagnóstico de modalidade", "Suporte prioritário"],
+      features: ["Geradores ilimitados (ETP, TR)", "Notebook IA completo", "Validador de minutas", "Cotação de preços IA", "Diagnóstico de modalidade", "Suporte prioritário"],
       cta: "Começar Pro",
       href: "/signup?plan=pro",
       highlight: true,
@@ -592,8 +572,7 @@ import { useState, useEffect, useRef } from "react";
       price: "Sob consulta",
       period: "",
       desc: "Para prefeituras e órgãos de grande porte",
-      features: ["Tudo do Pro", "Multi-usuário e equipes", "Integração com PNCP", "Relatórios executivos", "SLA
-  garantido", "Gerente de conta dedicado"],
+      features: ["Tudo do Pro", "Multi-usuário e equipes", "Integração com PNCP", "Relatórios executivos", "SLA garantido", "Gerente de conta dedicado"],
       cta: "Falar com vendas",
       href: "mailto:vendas@intelicite.com.br",
       highlight: false,
@@ -606,11 +585,9 @@ import { useState, useEffect, useRef } from "react";
         <div className="max-w-7xl mx-auto">
           <AnimatedSection className="text-center mb-20">
             <p className="text-xs text-white/30 tracking-widest uppercase font-medium mb-4">Planos e preços</p>
-            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4" style={{ fontFamily: "'Space
-  Grotesk', system-ui, sans-serif" }}>
+            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
               Simples de entender,{" "}
-              <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, hsl(190
-   95% 50%), hsl(265 90% 60%))" }}>
+              <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, hsl(190 95% 50%), hsl(265 90% 60%))" }}>
                 fácil de justificar
               </span>
             </h2>
@@ -625,17 +602,14 @@ import { useState, useEffect, useRef } from "react";
   "border-white/[0.07] bg-white/[0.02]")}>
                   {plan.highlight && (
                     <>
-                      <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-cyan-400/0 via-cyan-400
-  to-cyan-400/0" />
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-cyan-400
-  text-[#080D14] text-xs font-semibold">Mais popular</div>
+                      <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-cyan-400/0 via-cyan-400 to-cyan-400/0" />
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-cyan-400 text-[#080D14] text-xs font-semibold">Mais popular</div>
                     </>
                   )}
                   <div className="mb-8">
                     <p className="text-sm font-semibold text-white/60 mb-4">{plan.name}</p>
                     <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-4xl font-bold text-white" style={{ fontFamily: "'Space Grotesk', system-ui,
-  sans-serif" }}>{plan.price}</span>
+                      <span className="text-4xl font-bold text-white" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>{plan.price}</span>
                       {plan.period && <span className="text-white/40 text-sm">{plan.period}</span>}
                     </div>
                     <p className="text-sm text-white/40">{plan.desc}</p>
@@ -650,10 +624,7 @@ import { useState, useEffect, useRef } from "react";
                   </ul>
                   <a
                     href={plan.href}
-                    className={cn("flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold
-  transition-all duration-200", plan.highlight ? "bg-cyan-400 hover:bg-cyan-300 text-[#080D14]
-  shadow-[0_0_20px_-4px_hsl(190_95%_50%/0.5)]" : "border border-white/10 text-white/70 hover:text-white
-  hover:border-white/20")}
+                    className={cn("flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200", plan.highlight ? "bg-cyan-400 hover:bg-cyan-300 text-[#080D14] shadow-[0_0_20px_-4px_hsl(190_95%_50%/0.5)]" : "border border-white/10 text-white/70 hover:text-white hover:border-white/20")}
                   >
                     {plan.cta}
                   </a>
@@ -673,32 +644,25 @@ import { useState, useEffect, useRef } from "react";
           <AnimatedSection>
             <div
               className="relative rounded-3xl overflow-hidden border border-white/[0.06] p-16 text-center"
-              style={{ background: "radial-gradient(ellipse 70% 80% at 50% 50%, hsl(190 95% 50% / 0.08) 0%, hsl(265 90%
-  60% / 0.04) 50%, transparent 100%), hsl(222 24% 8%)" }}
+              style={{ background: "radial-gradient(ellipse 70% 80% at 50% 50%, hsl(190 95% 50% / 0.08) 0%, hsl(265 90% 60% / 0.04) 50%, transparent 100%), hsl(222 24% 8%)" }}
             >
-              <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-cyan-400/30
-  to-transparent" />
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/20
-  bg-cyan-400/5 text-cyan-400 text-xs font-medium tracking-widest uppercase mb-8">
+              <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/5 text-cyan-400 text-xs font-medium tracking-widest uppercase mb-8">
                 <Cpu className="w-3 h-3" />
                 Powered by IA
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6" style={{ fontFamily: "'Space
-   Grotesk', system-ui, sans-serif" }}>
+              <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
                 Pronto para modernizar<br />suas licitações?
               </h2>
               <p className="text-lg text-white/40 max-w-xl mx-auto mb-12 leading-relaxed">
                 Junte-se a milhares de gestores que já profissionalizaram suas compras públicas com o Intelicite.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/signup" className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-cyan-400
-  hover:bg-cyan-300 text-[#080D14] font-semibold transition-all duration-200
-  shadow-[0_0_40px_-8px_hsl(190_95%_50%/0.6)]">
+                <Link to="/signup" className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#080D14] font-semibold transition-all duration-200 shadow-[0_0_40px_-8px_hsl(190_95%_50%/0.6)]">
                   Criar conta gratuita
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <a href="mailto:contato@intelicite.com.br" className="flex items-center gap-2 px-8 py-4 rounded-xl
-  border border-white/10 text-white/60 hover:text-white hover:border-white/20 font-medium transition-all duration-200">
+                <a href="mailto:contato@intelicite.com.br" className="flex items-center gap-2 px-8 py-4 rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 font-medium transition-all duration-200">
                   Falar com especialista
                 </a>
               </div>
@@ -718,12 +682,10 @@ import { useState, useEffect, useRef } from "react";
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center
-  justify-center">
+                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
                   <Scale className="w-4 h-4 text-[#080D14]" />
                 </div>
-                <span className="font-futuristic text-sm font-bold tracking-widest text-white
-  uppercase">Intelicite</span>
+                <span className="font-futuristic text-sm font-bold tracking-widest text-white uppercase">Intelicite</span>
               </div>
               <p className="text-sm text-white/35 leading-relaxed">O ecossistema completo de inteligência para
   licitações públicas do Brasil.</p>
@@ -733,8 +695,7 @@ import { useState, useEffect, useRef } from "react";
               <ul className="space-y-3">
                 {[{ label: "Intelicite — Gestores", href: "/signup" }, { label: "Licitante — Empresas", href:
   "#licitante" }, { label: "Consultor — Especialistas", href: "#consultor" }].map((l) => (
-                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white
-  transition-colors">{l.label}</a></li>
+                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white transition-colors">{l.label}</a></li>
                 ))}
               </ul>
             </div>
@@ -743,8 +704,7 @@ import { useState, useEffect, useRef } from "react";
               <ul className="space-y-3">
                 {[{ label: "Entrar na plataforma", href: "/login" }, { label: "Criar conta", href: "/signup" }, { label:
    "Preços", href: "#preços" }].map((l) => (
-                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white
-  transition-colors">{l.label}</a></li>
+                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white transition-colors">{l.label}</a></li>
                 ))}
               </ul>
             </div>
@@ -753,14 +713,12 @@ import { useState, useEffect, useRef } from "react";
               <ul className="space-y-3">
                 {[{ label: "Privacidade", href: "#" }, { label: "Termos de uso", href: "#" }, { label: "Contato", href:
   "mailto:contato@intelicite.com.br" }].map((l) => (
-                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white
-  transition-colors">{l.label}</a></li>
+                  <li key={l.label}><a href={l.href} className="text-sm text-white/35 hover:text-white transition-colors">{l.label}</a></li>
                 ))}
               </ul>
             </div>
           </div>
-          <div className="border-t border-white/[0.05] pt-8 flex flex-col md:flex-row items-center justify-between
-  gap-4">
+          <div className="border-t border-white/[0.05] pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/20">© {new Date().getFullYear()} Intelicite. Todos os direitos
   reservados.</p>
             <div className="flex items-center gap-2 text-xs text-white/20">
