@@ -22,6 +22,8 @@ import PlanActivatedPage from "./pages/PlanActivatedPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotebookPage from "./pages/NotebookPage";
+import LicitantePage from "./pages/LicitantePage";
+import ConsultorPage from "./pages/ConsultorPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +57,8 @@ const App = () => (
           <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
           <Route path="/admin" element={<DashboardRoute><AdminPage /></DashboardRoute>} />
+          <Route path="/licitante" element={<LicitantePage />} />
+          <Route path="/consultor" element={<ConsultorPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

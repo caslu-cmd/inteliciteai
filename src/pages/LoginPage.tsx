@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
-import logoBlue from "@/assets/logo-blue.png";
-import { Button } from "@/components/ui/button";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Scale } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,106 +18,108 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
-    } else {
-      navigate("/dashboard");
+      return;
     }
+    const role = data.user?.user_metadata?.role || "gestor";
+    if (role === "licitante") navigate("/licitante");
+    else if (role === "consultor") navigate("/consultor");
+    else navigate("/dashboard");
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left panel */}
-      <div className="hidden w-1/2 bg-gradient-hero lg:flex lg:flex-col lg:items-center lg:justify-center lg:p-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-md text-center">
-
-          <img src={logoBlue} alt="Intelicite" className="mx-auto h-16 mb-6" />
-          <h2 className="text-3xl font-bold text-primary-foreground">
-
-          </h2>
-          <p className="mt-4 text-primary-foreground/60 text-lg">
-            Plataforma de IA especializada na Lei 14.133/2021 para gestores públicos e empresas licitantes.
-          </p>
-        </motion.div>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "hsl(223 27% 7%)" }}
+    >
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/4 w-96 h-96 rounded-full bg-cyan-500/8 blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-violet-500/8 blur-[120px]" />
       </div>
 
-      {/* Right panel */}
-      <div className="flex w-full flex-col items-center justify-center px-6 lg:w-1/2">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="w-full max-w-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-sm"
+      >
+        <div className="flex items-center justify-center gap-2 mb-10">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
+            <Scale className="w-4 h-4 text-[#080D14]" />
+          </div>
+          <span className="text-white font-bold tracking-widest uppercase text-sm" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>
+            Intelicite
+          </span>
+        </div>
 
-          <div className="mb-8 lg:hidden flex items-center gap-2 justify-center">
-            <img src={logoBlue} alt="Intelicite" className="h-7" />
+        <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+          Entrar na plataforma
+        </h1>
+        <p className="text-sm text-white/40 mb-8">
+          Acesse seu painel com suas credenciais.
+        </p>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-white/70 text-xs">E-mail</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <Input
+                type="email"
+                placeholder="seu@email.com"
+                className="pl-10 bg-white/[0.05] border-white/10 text-white placeholder:text-white/25 focus:border-cyan-400/50"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
-          <h1 className="text-2xl font-bold">Entrar na plataforma</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Digite suas credenciais para acessar o painel.
-          </p>
-
-          <form onSubmit={handleLogin} className="mt-8 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required />
-
-              </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-white/70 text-xs">Senha</Label>
+              <a href="#" className="text-xs text-cyan-400 hover:underline">Esqueceu a senha?</a>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Senha</Label>
-                <a href="#" className="text-xs text-accent hover:underline">Esqueceu a senha?</a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="pl-10 pr-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required />
-
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                className="pl-10 pr-10 bg-white/[0.05] border-white/10 text-white placeholder:text-white/25 focus:border-cyan-400/50"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-            <Button variant="gold" className="w-full" type="submit" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"} <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </form>
+          </div>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Não tem uma conta?{" "}
-            <Link to="/signup" className="font-medium text-accent hover:underline">
-              Teste grátis por 7 dias
-            </Link>
-          </p>
-        </motion.div>
-      </div>
-    </div>);
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#080D14] font-semibold text-sm transition-all duration-200 disabled:opacity-50 shadow-[0_0_20px_-4px_hsl(190_95%_50%/0.4)]"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+            {!loading && <ArrowRight className="w-4 h-4" />}
+          </button>
+        </form>
 
+        <p className="text-center mt-6 text-sm text-white/30">
+          Não tem uma conta?{" "}
+          <Link to="/signup" className="text-cyan-400 hover:underline">
+            Criar conta grátis
+          </Link>
+        </p>
+      </motion.div>
+    </div>
+  );
 }
