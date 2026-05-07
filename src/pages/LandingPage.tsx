@@ -62,7 +62,7 @@ const verticals = [
     accent: "38 95% 58%",
     accent2: "45 95% 65%",
     description:
-      "O marketplace que conecta órgãos públicos e empresas a consultores especializados em licitações. Pagamentos seguros, reputação verificada, contratos em escrow.",
+      "Conecta pessoas que precisam de consultoria especializada em licitações. Ideal para quem não tem tanto domínio do assunto e quer contar com a orientação de um profissional verificado.",
     icon: Handshake,
     features: [
       { icon: Briefcase, title: "Publicar Projetos", desc: "Receba propostas de especialistas qualificados." },
