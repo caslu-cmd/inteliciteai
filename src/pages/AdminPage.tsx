@@ -13,6 +13,7 @@ import { checkIsAdmin } from "@/lib/adminAuth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
+import AdminVerificationsTab from "@/components/admin/AdminVerificationsTab";
 import AdminLogsTab from "@/components/admin/AdminLogsTab";
 import AdminCouponsTab from "@/components/admin/AdminCouponsTab";
 import AdminSalesTab from "@/components/admin/AdminSalesTab";
@@ -20,13 +21,14 @@ import AdminGeoTab from "@/components/admin/AdminGeoTab";
 import AdminGatewayTab from "@/components/admin/AdminGatewayTab";
 
 const tabs = [
-  { id: "overview", label: "Visão Geral", icon: BarChart3 },
-  { id: "users",    label: "Usuários",    icon: Users },
-  { id: "sales",    label: "Vendas",      icon: CreditCard },
-  { id: "gateway",  label: "Gateway",     icon: Settings },
-  { id: "coupons",  label: "Cupons",      icon: Tag },
-  { id: "geo",      label: "Localização", icon: MapPin },
-  { id: "logs",     label: "Logs",        icon: Activity },
+  { id: "overview",       label: "Visão Geral",  icon: BarChart3 },
+  { id: "users",          label: "Usuários",     icon: Users },
+  { id: "verifications",  label: "Consultores",  icon: Shield },
+  { id: "sales",          label: "Vendas",       icon: CreditCard },
+  { id: "gateway",        label: "Gateway",      icon: Settings },
+  { id: "coupons",        label: "Cupons",       icon: Tag },
+  { id: "geo",            label: "Localização",  icon: MapPin },
+  { id: "logs",           label: "Logs",         icon: Activity },
 ];
 
 interface PendingUser {
@@ -354,7 +356,8 @@ export default function AdminPage() {
         </motion.div>
       )}
 
-      {activeTab === "users"   && <AdminUsersTab />}
+      {activeTab === "users"          && <AdminUsersTab />}
+      {activeTab === "verifications"  && <AdminVerificationsTab />}
       {activeTab === "sales"   && <AdminSalesTab />}
       {activeTab === "gateway" && <AdminGatewayTab />}
       {activeTab === "coupons" && <AdminCouponsTab />}
