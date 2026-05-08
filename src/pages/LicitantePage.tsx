@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
@@ -5,30 +6,67 @@ import { KpiCard } from "@/components/licitante/KpiCard";
 import { OpportunityCard } from "@/components/licitante/OpportunityCard";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
 import {
   FileSearch, TrendingUp, FileWarning, AlertTriangle,
   Upload, FileText, HelpCircle, Building2, Bell, Clock,
-  Search, ChevronRight,
+  Search, ChevronRight, Loader2, RefreshCw,
 } from "lucide-react";
-
-const alerts = [
-  { id: 1, type: "deadline" as const, message: "Pregão Eletrônico 045/2025 - Abertura em 2 dias", time: "Há 30 min", route: "/licitante/analises" },
-  { id: 2, type: "new" as const,      message: "Nova licitação compatível: Serviços de TI - TJSP",  time: "Há 1h",    route: "/licitante/radar" },
-  { id: 3, type: "risk" as const,     message: "Cláusula restritiva detectada em PE 032/2025",       time: "Há 2h",    route: "/licitante/analises" },
-  { id: 4, type: "doc" as const,      message: "Certidão FGTS vence em 5 dias - Renovar",           time: "Há 3h",    route: "/licitante/documentos" },
-];
-
-const opportunities = [
-  { title: "Pregão Eletrônico - Aquisição de equipamentos de TI e infraestrutura de rede", organ: "Ministério da Saúde",     location: "Brasília, DF",    deadline: "22 Mar 2026", score: 78, risk: "low"    as const, value: "R$ 2.450.000,00" },
-  { title: "Concorrência - Serviços de consultoria em segurança da informação",              organ: "Tribunal de Justiça SP", location: "São Paulo, SP",   deadline: "28 Mar 2026", score: 52, risk: "medium" as const, value: "R$ 890.000,00"   },
-  { title: "Pregão Presencial - Fornecimento de licenças de software corporativo",           organ: "Prefeitura de Curitiba", location: "Curitiba, PR",    deadline: "01 Abr 2026", score: 34, risk: "high"   as const, value: "R$ 1.200.000,00" },
-];
 
 const alertIcons = { deadline: Clock, new: Bell, risk: AlertTriangle, doc: FileWarning };
 const alertColors = { deadline: "text-amber-400", new: "text-primary", risk: "text-destructive", doc: "text-amber-400" };
 
+interface Opportunity {
+  id: string;
+  title: string;
+  organ: string;
+  location: string;
+  deadline: string;
+  score: number;
+  risk: "low" | "medium" | "high";
+  value: string;
+  modalidade: string;
+  link: string;
+  orgaoCnpj: string;
+}
+
 export default function LicitantePage() {
   const navigate = useNavigate();
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [totalPncp, setTotalPncp] = useState<number | null>(null);
+  const [minutasCount, setMinutasCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = {
+        Authorization: `Bearer ${session?.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      };
+
+      // Fetch PNCP opportunities and minutas count in parallel
+      const [pncpRes, minutasRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pncp-proxy?search=pregao&pagina=1`, { headers }),
+        supabase.from("minutas").select("id", { count: "exact", head: true }),
+      ]);
+
+      if (pncpRes.ok) {
+        const json = await pncpRes.json();
+        setOpportunities((json.opportunities || []).slice(0, 4));
+        setTotalPncp(json.totalRegistros || 0);
+      }
+
+      setMinutasCount(minutasRes.count || 0);
+    } catch {
+      // Fail silently on dashboard — individual pages handle their own errors
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadDashboardData(); }, []);
 
   return (
     <LicitanteLayout>
@@ -37,7 +75,11 @@ export default function LicitantePage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display font-bold text-2xl text-foreground">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Visão estratégica das suas licitações</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalPncp !== null
+                ? `${totalPncp.toLocaleString("pt-BR")} editais disponíveis no PNCP`
+                : "Visão estratégica das suas licitações"}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -49,40 +91,15 @@ export default function LicitantePage() {
                 onKeyDown={(e) => { if (e.key === "Enter") navigate("/licitante/radar"); }}
               />
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button className="relative" size="icon" variant="ghost">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-4 border-b border-border">
-                  <h4 className="font-semibold text-sm">Notificações</h4>
-                </div>
-                <div className="max-h-72 overflow-y-auto">
-                  {alerts.map((alert) => {
-                    const Icon = alertIcons[alert.type];
-                    return (
-                      <button key={alert.id} onClick={() => navigate(alert.route)}
-                        className="flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors w-full text-left">
-                        <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${alertColors[alert.type]}`} />
-                        <div className="min-w-0">
-                          <p className="text-sm text-card-foreground leading-snug">{alert.message}</p>
-                          <span className="text-xs text-muted-foreground">{alert.time}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Button variant="ghost" size="icon" onClick={loadDashboardData} title="Atualizar">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
 
         {/* Upload CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           className="gradient-hero rounded-2xl p-6 md:p-8 mb-8 relative overflow-hidden cursor-pointer"
           onClick={() => navigate("/licitante/scanner")}
@@ -92,87 +109,115 @@ export default function LicitantePage() {
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="font-display font-bold text-xl text-white mb-1">Analise um edital em segundos</h2>
+              <h2 className="font-display font-bold text-xl text-white mb-1">Analise um edital com Claude AI</h2>
               <p className="text-white/70 text-sm max-w-md">
-                Envie um PDF e receba diagnóstico estratégico completo: riscos, habilitação, prazos e ações recomendadas.
+                Envie um PDF e receba diagnóstico completo: score, riscos, habilitação, prazos e recomendações — em segundos.
               </p>
             </div>
             <Button className="gap-2 flex-shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/20"
               onClick={(e) => { e.stopPropagation(); navigate("/licitante/scanner"); }}>
-              <Upload className="w-4 h-4" />
-              Enviar Edital
+              <Upload className="w-4 h-4" /> Enviar Edital
             </Button>
           </div>
         </motion.div>
 
-        {/* KPIs */}
+        {/* KPIs — real data where available */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <KpiCard title="Licitações Analisadas" value={47} icon={FileSearch} trend={{ value: 12, positive: true }} subtitle="Este mês" />
-          <KpiCard title="Score Médio de Vitória" value="64%" icon={TrendingUp} trend={{ value: 5, positive: true }} variant="success" />
-          <KpiCard title="Documentos Pendentes" value={8} icon={FileWarning} trend={{ value: 3, positive: false }} variant="warning" />
-          <KpiCard title="Alertas Críticos" value={3} icon={AlertTriangle} variant="destructive" />
+          <KpiCard
+            title="Editais no PNCP"
+            value={totalPncp !== null ? totalPncp.toLocaleString("pt-BR") : "—"}
+            icon={FileSearch}
+            subtitle="Portal Nacional de Contratações"
+          />
+          <KpiCard
+            title="Minutas Geradas"
+            value={minutasCount}
+            icon={FileText}
+            subtitle="Impugnações e esclarecimentos"
+            variant="success"
+          />
+          <KpiCard
+            title="Documentos Pendentes"
+            value={8}
+            icon={FileWarning}
+            trend={{ value: 3, positive: false }}
+            variant="warning"
+          />
+          <KpiCard
+            title="Alertas Críticos"
+            value={3}
+            icon={AlertTriangle}
+            variant="destructive"
+          />
         </div>
 
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Alerts */}
+          {/* Quick actions panel */}
           <div className="lg:col-span-1 bg-card rounded-xl border border-border p-5 shadow-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-semibold text-base text-card-foreground">Alertas</h3>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/licitante/radar")}>
-                Ver todos <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {alerts.map((alert, i) => {
-                const Icon = alertIcons[alert.type];
-                return (
-                  <motion.div
-                    key={alert.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(alert.route)}
-                  >
-                    <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${alertColors[alert.type]}`} />
-                    <div className="min-w-0">
-                      <p className="text-sm text-card-foreground leading-snug">{alert.message}</p>
-                      <span className="text-xs text-muted-foreground">{alert.time}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
+            <h3 className="font-display font-semibold text-base text-card-foreground mb-4">Ações Rápidas</h3>
+            <div className="space-y-2">
+              {[
+                { label: "Analisar Edital (PDF)", icon: FileSearch, route: "/licitante/scanner", desc: "Claude AI analisa em segundos" },
+                { label: "Gerar Impugnação",       icon: FileText,   route: "/licitante/minutas",    desc: "Documento jurídico com IA" },
+                { label: "Pedido de Esclarecimento", icon: HelpCircle, route: "/licitante/minutas",  desc: "Formal e fundamentado" },
+                { label: "Verificar Habilitação",  icon: Building2,  route: "/licitante/habilitacao", desc: "Consulta Receita Federal" },
+                { label: "Radar de Oportunidades", icon: FileSearch, route: "/licitante/radar",     desc: `${totalPncp !== null ? totalPncp.toLocaleString("pt-BR") + " editais" : "PNCP ao vivo"}` },
+              ].map((action, i) => (
+                <motion.button
+                  key={action.label}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  onClick={() => navigate(action.route)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+                >
+                  <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+                    <action.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-card-foreground">{action.label}</p>
+                    <p className="text-xs text-muted-foreground">{action.desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </motion.button>
+              ))}
             </div>
           </div>
 
-          {/* Opportunities */}
+          {/* Real opportunities from PNCP */}
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-semibold text-base text-foreground">Radar de Oportunidades</h3>
+              <h3 className="font-display font-semibold text-base text-foreground flex items-center gap-2">
+                Oportunidades Recentes
+                {totalPncp !== null && (
+                  <span className="text-xs font-normal text-muted-foreground">— PNCP ao vivo</span>
+                )}
+              </h3>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/licitante/radar")}>
                 Ver radar completo <ChevronRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {opportunities.map((opp, i) => (
-                <OpportunityCard key={i} {...opp} index={i} />
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Quick actions */}
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/minutas")}>
-            <FileText className="w-4 h-4" /> Gerar Impugnação
-          </Button>
-          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/minutas")}>
-            <HelpCircle className="w-4 h-4" /> Pedido de Esclarecimento
-          </Button>
-          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/habilitacao")}>
-            <Building2 className="w-4 h-4" /> Cadastrar Empresa
-          </Button>
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : opportunities.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {opportunities.map((opp, i) => (
+                  <OpportunityCard key={opp.id || i} {...opp} index={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <p className="text-sm">Conectando ao PNCP...</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={loadDashboardData}>
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </LicitanteLayout>

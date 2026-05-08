@@ -30,7 +30,7 @@ export default function AnalisesPage() {
   const [items, setItems] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("licitação");
   const [sortField, setSortField] = useState("deadline");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [totalRegistros, setTotalRegistros] = useState(0);
@@ -41,8 +41,8 @@ export default function AnalisesPage() {
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const params = new URLSearchParams({ pagina: "1", tamanhoPagina: "50" });
-      if (searchTerm) params.set("search", searchTerm);
+      const params = new URLSearchParams({ pagina: "1" });
+      params.set("search", searchTerm || "licitação");
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pncp-proxy?${params}`,
