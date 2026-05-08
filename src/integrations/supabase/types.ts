@@ -185,6 +185,54 @@ export type Database = {
         }
         Relationships: []
       }
+      minutas: {
+        Row: {
+          base_legal: string
+          clausula: string
+          conteudo: string
+          created_at: string
+          edital: string
+          id: string
+          orgao: string
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          base_legal?: string
+          clausula?: string
+          conteudo?: string
+          created_at?: string
+          edital?: string
+          id?: string
+          orgao?: string
+          status?: string
+          tipo: string
+          titulo?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          base_legal?: string
+          clausula?: string
+          conteudo?: string
+          created_at?: string
+          edital?: string
+          id?: string
+          orgao?: string
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

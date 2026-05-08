@@ -91,10 +91,14 @@ export default function MinutasPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
 
+      const userId = session?.user?.id;
+      if (!userId) throw new Error("Usuário não autenticado");
+
       // Save to Supabase
       const { data: saved, error: saveErr } = await supabase
         .from("minutas")
         .insert({
+          user_id: userId,
           tipo: formTipo,
           titulo: json.titulo,
           edital,
