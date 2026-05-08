@@ -3,7 +3,7 @@ import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
-  Zap, ChevronDown, Command,
+  Zap, ChevronDown, Command, Layers,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -247,6 +247,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         ))}
       </nav>
+
+      {/* Platform switcher — admin only */}
+      {isAdmin && (
+        <div className="shrink-0 border-t px-2 pt-3 pb-1" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+          {!collapsed && (
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest"
+              style={{ color: "hsl(var(--sidebar-foreground) / 0.35)" }}>
+              Plataformas
+            </p>
+          )}
+          {collapsed && <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
+          {[
+            { label: "Gestor",     path: "/dashboard", emoji: "🏛️" },
+            { label: "Licitante",  path: "/licitante",  emoji: "📋" },
+            { label: "Consultor",  path: "/consultor",  emoji: "🎓" },
+          ].map(({ label, path, emoji }) => {
+            const active = location.pathname === path || location.pathname.startsWith(path + "/");
+            return (
+              <Link key={path} to={path} title={collapsed ? label : undefined}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150",
+                  active ? "text-white" : "hover:text-white"
+                )}
+                style={{
+                  color: active ? "white" : "hsl(var(--sidebar-foreground))",
+                  background: active ? "hsl(var(--sidebar-accent))" : "transparent",
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "hsl(var(--sidebar-accent) / 0.5)"; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span className="text-sm shrink-0">{emoji}</span>
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="truncate">
+                      {label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* Bottom: plan + user */}
       <div className="shrink-0 border-t px-2 py-3 space-y-1"
