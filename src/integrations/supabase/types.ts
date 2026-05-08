@@ -44,6 +44,87 @@ export type Database = {
         }
         Relationships: []
       }
+      consultant_verifications: {
+        Row: {
+          bio: string | null
+          birth_date: string | null
+          cpf: string
+          created_at: string
+          doc_identity: string | null
+          doc_professional: string | null
+          doc_selfie: string | null
+          full_name: string
+          id: string
+          linkedin_url: string | null
+          phone: string | null
+          professional_type: string
+          registration_number: string | null
+          registration_state: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_flags: string[] | null
+          risk_score: number | null
+          specialties: string[] | null
+          status: string
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }
+        Insert: {
+          bio?: string | null
+          birth_date?: string | null
+          cpf?: string
+          created_at?: string
+          doc_identity?: string | null
+          doc_professional?: string | null
+          doc_selfie?: string | null
+          full_name?: string
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          professional_type?: string
+          registration_number?: string | null
+          registration_state?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flags?: string[] | null
+          risk_score?: number | null
+          specialties?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          years_experience?: number | null
+        }
+        Update: {
+          bio?: string | null
+          birth_date?: string | null
+          cpf?: string
+          created_at?: string
+          doc_identity?: string | null
+          doc_professional?: string | null
+          doc_selfie?: string | null
+          full_name?: string
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          professional_type?: string
+          registration_number?: string | null
+          registration_state?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flags?: string[] | null
+          risk_score?: number | null
+          specialties?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           active: boolean
