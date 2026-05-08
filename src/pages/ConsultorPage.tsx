@@ -140,11 +140,11 @@ export default function ConsultorPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { navigate("/login"); return; }
-    const { data } = await supabase
-      .from("consultant_verifications")
+    const { data } = await (supabase
+      .from("consultant_verifications" as any)
       .select("*")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .maybeSingle());
     setVerification(data);
     setLoading(false);
   };
