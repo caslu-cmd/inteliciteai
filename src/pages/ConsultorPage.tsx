@@ -77,12 +77,12 @@ async function calcRiskScore(data: any, userId: string) {
   }
 
   // Previous rejection
-  const { data: prev } = await supabase
-    .from("consultant_verifications")
+  const { data: prev } = await (supabase
+    .from("consultant_verifications" as any)
     .select("status")
     .eq("user_id", userId)
     .eq("status", "rejected")
-    .maybeSingle();
+    .maybeSingle());
   if (prev) { score += 30; flags.push("Submissão anterior rejeitada"); }
 
   return { score: Math.min(score, 100), flags };
