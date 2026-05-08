@@ -1,166 +1,107 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const corsHeaders = {
+const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+
+const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+const SYSTEM = `Você é um auditor especializado em editais de licitação brasileiros, com domínio da Lei 14.133/2021.
+
+Analise o edital e retorne SOMENTE um objeto JSON válido neste formato (sem texto antes ou depois):
+{
+  "score": <inteiro 0-100: chance de vitória considerando complexidade, prazo, valor e exigências>,
+  "riskLevel": <"low"|"medium"|"high">,
+  "summary": {
+    "objeto": "<descrição do objeto>",
+    "modalidade": "<modalidade de licitação>",
+    "valorEstimado": "<valor em BRL ou 'Sigiloso'>",
+    "orgao": "<órgão>",
+    "numero": "<número do processo/edital>"
+  },
+  "prazos": [
+    { "label": "<nome>", "date": "<DD/MM/AAAA>", "status": "<past|urgent|upcoming|future>" }
+  ],
+  "habilitacao": [
+    { "categoria": "<Jurídica|Fiscal|Técnica|Econômico-Financeira>", "status": "<apto|risco|nao_atende>", "itens": ["<exigência>"] }
+  ],
+  "riscos": [
+    { "level": "<low|medium|high>", "title": "<título>", "ref": "<Art. X — Lei 14.133/2021>", "excerpt": "<trecho literal>" }
+  ],
+  "recomendacoes": ["<ação recomendada>"]
+}
+
+Status de prazo: past=já venceu, urgent=≤3 dias úteis, upcoming=4-10 dias, future=>10 dias.
+Riscos de alto nível: ISO/certificação obrigatória desnecessária, capital social >10% do valor, prazo de entrega ≤30 dias, visita técnica obrigatória, atestados com quantidades ≥80% do objeto.`;
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+  if (!req.headers.get("Authorization")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
+  let body: any;
+  try { body = await req.json(); } catch {
+    return new Response(JSON.stringify({ error: "JSON inválido" }), {
+      status: 400, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const { pdfBase64, text, filename } = body;
+  if (!pdfBase64 && !text) {
+    return new Response(JSON.stringify({ error: "Forneça pdfBase64 ou text" }), {
+      status: 400, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "Serviço de análise não configurado" }), {
+      status: 503, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const userContent: any[] = pdfBase64
+    ? [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }, title: filename || "Edital" },
+        { type: "text", text: "Analise este edital e retorne APENAS o JSON estruturado." },
+      ]
+    : [{ type: "text", text: `Analise o edital a seguir e retorne APENAS o JSON estruturado:\n\n${text.substring(0, 40000)}` }];
+
   try {
-    // Authenticate user
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Autenticação necessária." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Token inválido ou expirado." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { text, fileName } = await req.json();
-    if (!text || text.trim().length < 50) {
-      return new Response(
-        JSON.stringify({ error: "Texto do PDF muito curto ou vazio. Verifique se o PDF contém texto legível." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    // Truncate to ~30k chars to stay within context limits
-    const truncatedText = text.substring(0, 30000);
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch(ANTHROPIC_API, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "pdfs-2024-09-25",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um auditor jurídico especializado em licitações públicas brasileiras e na Lei 14.133/2021. 
-Analise o texto do edital fornecido e identifique não-conformidades, riscos e pontos de atenção.
-Para cada achado, classifique a severidade como "alta", "media" ou "baixa".
-Responda EXCLUSIVAMENTE usando a função analyze_findings.`,
-          },
-          {
-            role: "user",
-            content: `Analise o seguinte edital de licitação (arquivo: ${fileName || "edital.pdf"}) e identifique todas as não-conformidades com a Lei 14.133/2021:\n\n${truncatedText}`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "analyze_findings",
-              description: "Retorna os achados de conformidade do edital analisado",
-              parameters: {
-                type: "object",
-                properties: {
-                  findings: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        severity: {
-                          type: "string",
-                          enum: ["alta", "media", "baixa"],
-                          description: "Nível de risco do achado",
-                        },
-                        title: {
-                          type: "string",
-                          description: "Título curto do achado (máx 60 caracteres)",
-                        },
-                        description: {
-                          type: "string",
-                          description: "Descrição detalhada do problema encontrado",
-                        },
-                        article: {
-                          type: "string",
-                          description: "Artigo da Lei 14.133/2021 relacionado",
-                        },
-                      },
-                      required: ["severity", "title", "description", "article"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["findings"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "analyze_findings" } },
+        model: "claude-sonnet-4-6",
+        max_tokens: 2500,
+        system: SYSTEM,
+        messages: [{ role: "user", content: userContent }],
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos de IA esgotados. Entre em contato com o suporte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(
-        JSON.stringify({ error: "Erro no serviço de IA. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const data = await res.json();
+    const raw = data.content?.[0]?.text ?? "{}";
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Resposta sem JSON válido");
 
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in response:", JSON.stringify(data));
-      return new Response(
-        JSON.stringify({ error: "A IA não retornou resultados estruturados. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const findings = JSON.parse(toolCall.function.arguments);
-
-    return new Response(JSON.stringify(findings), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(match[0], {
+      headers: { ...cors, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    console.error("analyze-edital error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Falha na análise", detail: String(err) }), {
+      status: 502, headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 });
