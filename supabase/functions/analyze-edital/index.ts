@@ -72,24 +72,40 @@ Deno.serve(async (req: Request) => {
       ]
     : [{ type: "text", text: `Analise o edital a seguir e retorne APENAS o JSON estruturado:\n\n${text.substring(0, 40000)}` }];
 
-  try {
-    const res = await fetch(ANTHROPIC_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "pdfs-2024-09-25",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2500,
-        system: SYSTEM,
-        messages: [{ role: "user", content: userContent }],
-      }),
-    });
+  const RETRY_DELAYS = [1000, 2000, 4000];
+  const RETRYABLE = new Set([429, 500, 502, 503, 504, 529]);
 
-    if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
+  try {
+    let res: Response | null = null;
+    let lastErr = "";
+    for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+      res = await fetch(ANTHROPIC_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "pdfs-2024-09-25",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 2500,
+          system: SYSTEM,
+          messages: [{ role: "user", content: userContent }],
+        }),
+      });
+
+      if (res.ok) break;
+
+      lastErr = `Claude ${res.status}: ${await res.text()}`;
+      if (!RETRYABLE.has(res.status) || attempt === RETRY_DELAYS.length - 1) {
+        throw new Error(lastErr);
+      }
+      console.warn(`[analyze-edital] retry ${attempt + 1}/${RETRY_DELAYS.length} after ${RETRY_DELAYS[attempt]}ms — ${res.status}`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+    }
+
+    if (!res || !res.ok) throw new Error(lastErr || "Falha desconhecida");
 
     const data = await res.json();
     const raw = data.content?.[0]?.text ?? "{}";
