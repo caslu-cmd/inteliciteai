@@ -286,6 +286,24 @@ export type Database = {
         }
         Relationships: []
       }
+      pncp_cache: {
+        Row: {
+          cache_key: string
+          created_at: string | null
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string | null
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string | null
+          payload?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_status: string
@@ -431,6 +449,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_pncp_cache: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
