@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          messages: Json
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       consultant_verifications: {
         Row: {
           bio: string | null
@@ -155,6 +182,48 @@ export type Database = {
           max_uses?: number | null
           used_count?: number
           valid_until?: string | null
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          conteudo: string
+          created_at: string | null
+          form_data: Json
+          id: string
+          objeto: string
+          orgao: string
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conteudo?: string
+          created_at?: string | null
+          form_data?: Json
+          id?: string
+          objeto?: string
+          orgao?: string
+          status?: string
+          tipo: string
+          titulo?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string | null
+          form_data?: Json
+          id?: string
+          objeto?: string
+          orgao?: string
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
