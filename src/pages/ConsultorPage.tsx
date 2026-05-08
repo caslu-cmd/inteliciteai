@@ -174,7 +174,7 @@ export default function ConsultorPage() {
 
       const status: VerifStatus = score >= 80 ? "flagged" : "pending";
 
-      const { error } = await supabase.from("consultant_verifications").upsert({
+      const { error } = await (supabase.from("consultant_verifications" as any).upsert({
         user_id: user.id,
         full_name: form.full_name,
         cpf: form.cpf.replace(/\D/g, ""),
@@ -194,7 +194,7 @@ export default function ConsultorPage() {
         risk_score: score,
         risk_flags: flags,
         updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      }, { onConflict: "user_id" }));
 
       if (error) throw error;
       toast({ title: status === "flagged" ? "Documentação enviada — revisão adicional necessária" : "Documentação enviada com sucesso!" });
