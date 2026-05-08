@@ -49,12 +49,12 @@ async function calcRiskScore(data: any, userId: string) {
 
   // Duplicate CPF
   const cpfClean = data.cpf.replace(/\D/g, "");
-  const { data: dup } = await supabase
-    .from("consultant_verifications")
+  const { data: dup } = await (supabase
+    .from("consultant_verifications" as any)
     .select("id")
     .eq("cpf", cpfClean)
     .neq("user_id", userId)
-    .maybeSingle();
+    .maybeSingle());
   if (dup) { score += 60; flags.push("CPF já cadastrado por outro usuário"); }
 
   // Selfie missing
