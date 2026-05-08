@@ -47,10 +47,10 @@ export default function AdminVerificationsTab() {
 
   const fetchVerifications = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("consultant_verifications")
+    const { data } = await (supabase
+      .from("consultant_verifications" as any)
       .select("*, profiles:user_id(email)")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }));
     setVerifications(data || []);
     setLoading(false);
   };
