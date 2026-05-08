@@ -24,6 +24,16 @@ import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotebookPage from "./pages/NotebookPage";
 import LicitantePage from "./pages/LicitantePage";
+import RadarPage from "./pages/licitante/RadarPage";
+import AnalisesPage from "./pages/licitante/AnalisesPage";
+import ScannerPage from "./pages/licitante/ScannerPage";
+import HabilitacaoPage from "./pages/licitante/HabilitacaoPage";
+import DocumentosLicitantePage from "./pages/licitante/DocumentosPage";
+import MinutasPage from "./pages/licitante/MinutasPage";
+import AssistenteLicitantePage from "./pages/licitante/AssistentePage";
+import RelatoriosLicitantePage from "./pages/licitante/RelatoriosPage";
+import PrecificacaoPage from "./pages/licitante/PrecificacaoPage";
+import ContratosPage from "./pages/licitante/ContratosPage";
 import ConsultorPage from "./pages/ConsultorPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -72,7 +82,17 @@ const App = () => (
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
 
           {/* Protected — Licitante */}
-          <Route path="/licitante" element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante"               element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/radar"         element={<ProtectedRoute><RadarPage /></ProtectedRoute>} />
+          <Route path="/licitante/analises"      element={<ProtectedRoute><AnalisesPage /></ProtectedRoute>} />
+          <Route path="/licitante/scanner"       element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
+          <Route path="/licitante/habilitacao"   element={<ProtectedRoute><HabilitacaoPage /></ProtectedRoute>} />
+          <Route path="/licitante/documentos"    element={<ProtectedRoute><DocumentosLicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/minutas"       element={<ProtectedRoute><MinutasPage /></ProtectedRoute>} />
+          <Route path="/licitante/assistente"    element={<ProtectedRoute><AssistenteLicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/relatorios"    element={<ProtectedRoute><RelatoriosLicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/precificacao"  element={<ProtectedRoute><PrecificacaoPage /></ProtectedRoute>} />
+          <Route path="/licitante/contratos"     element={<ProtectedRoute><ContratosPage /></ProtectedRoute>} />
 
           {/* Protected — Consultor */}
           <Route path="/consultor" element={<ProtectedRoute><ConsultorPage /></ProtectedRoute>} />

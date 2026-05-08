@@ -1,143 +1,180 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import {
-  FileSearch, Globe, BarChart3, Award, DollarSign, FileText,
-  Scale, LogOut, Bell, ChevronRight, Sparkles,
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
+import { KpiCard } from "@/components/licitante/KpiCard";
+import { OpportunityCard } from "@/components/licitante/OpportunityCard";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  FileSearch, TrendingUp, FileWarning, AlertTriangle,
+  Upload, FileText, HelpCircle, Building2, Bell, Clock,
+  Search, ChevronRight,
+} from "lucide-react";
 
-const FEATURES = [
-  { icon: FileSearch, label: "Scanner de Editais", desc: "Análise de risco e pontuação de vitória por IA", status: "beta" },
-  { icon: Globe, label: "Radar de Oportunidades", desc: "Monitoramento automático de oportunidades do PNCP", status: "beta" },
-  { icon: BarChart3, label: "Análise Competitiva", desc: "Inteligência sobre concorrentes e mercado", status: "soon" },
-  { icon: Award, label: "Habilitação", desc: "Gestão de documentos e requisitos de habilitação", status: "soon" },
-  { icon: DollarSign, label: "Precificação IA", desc: "Estratégia de preço para maximizar competitividade", status: "soon" },
-  { icon: FileText, label: "Minutas e Contratos", desc: "Templates jurídicos prontos para uso", status: "soon" },
+const alerts = [
+  { id: 1, type: "deadline" as const, message: "Pregão Eletrônico 045/2025 - Abertura em 2 dias", time: "Há 30 min", route: "/licitante/analises" },
+  { id: 2, type: "new" as const,      message: "Nova licitação compatível: Serviços de TI - TJSP",  time: "Há 1h",    route: "/licitante/radar" },
+  { id: 3, type: "risk" as const,     message: "Cláusula restritiva detectada em PE 032/2025",       time: "Há 2h",    route: "/licitante/analises" },
+  { id: 4, type: "doc" as const,      message: "Certidão FGTS vence em 5 dias - Renovar",           time: "Há 3h",    route: "/licitante/documentos" },
 ];
 
-const STATUS = {
-  beta: { label: "Beta", cls: "bg-violet-400/10 text-violet-400 border border-violet-400/20" },
-  soon: { label: "Em breve", cls: "bg-white/5 text-white/40 border border-white/10" },
-};
+const opportunities = [
+  { title: "Pregão Eletrônico - Aquisição de equipamentos de TI e infraestrutura de rede", organ: "Ministério da Saúde",     location: "Brasília, DF",    deadline: "22 Mar 2026", score: 78, risk: "low"    as const, value: "R$ 2.450.000,00" },
+  { title: "Concorrência - Serviços de consultoria em segurança da informação",              organ: "Tribunal de Justiça SP", location: "São Paulo, SP",   deadline: "28 Mar 2026", score: 52, risk: "medium" as const, value: "R$ 890.000,00"   },
+  { title: "Pregão Presencial - Fornecimento de licenças de software corporativo",           organ: "Prefeitura de Curitiba", location: "Curitiba, PR",    deadline: "01 Abr 2026", score: 34, risk: "high"   as const, value: "R$ 1.200.000,00" },
+];
+
+const alertIcons = { deadline: Clock, new: Bell, risk: AlertTriangle, doc: FileWarning };
+const alertColors = { deadline: "text-amber-400", new: "text-primary", risk: "text-destructive", doc: "text-amber-400" };
 
 export default function LicitantePage() {
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
-
   return (
-    <div className="min-h-screen text-white" style={{ background: "hsl(223 27% 7%)" }}>
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full bg-violet-500/8 blur-[120px]" />
-        <div className="absolute bottom-1/3 left-1/4 w-80 h-80 rounded-full bg-cyan-500/5 blur-[120px]" />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 border-b border-white/[0.06] bg-[#080D14]/60 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center">
-              <Scale className="w-4 h-4 text-[#080D14]" />
-            </div>
-            <span className="text-white font-bold tracking-widest uppercase text-xs" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>
-              Intelicite
-            </span>
-            <div className="w-px h-4 bg-white/10 mx-1" />
-            <span className="text-violet-400 text-sm font-semibold">Licitante</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-lg border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all">
-              <Bell className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-14"
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-400/10 text-violet-400 border border-violet-400/20 text-xs font-medium mb-6">
-            <Sparkles className="w-3.5 h-3.5" />
-            Plataforma Licitante — Acesso Antecipado
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
-            Bem-vindo ao{" "}
-            <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, hsl(265 90% 60%), hsl(265 80% 75%))" }}>
-              Licitante
-            </span>
-          </h1>
-          <p className="text-lg text-white/50 max-w-xl leading-relaxed">
-            Sua plataforma de inteligência competitiva para vencer mais licitações públicas está sendo construída.
-            Você está entre os primeiros a ter acesso.
-          </p>
-        </motion.div>
-
-        {/* Features grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-16">
-          {FEATURES.map((f, i) => {
-            const s = STATUS[f.status as keyof typeof STATUS];
-            return (
-              <motion.div
-                key={f.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.4 }}
-                className="rounded-2xl border border-violet-400/15 bg-violet-400/[0.03] p-6 hover:border-violet-400/25 transition-all duration-200"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl border border-violet-400/20 bg-violet-400/5 flex items-center justify-center">
-                    <f.icon className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
-                </div>
-                <h3 className="font-semibold text-white mb-1">{f.label}</h3>
-                <p className="text-sm text-white/40 leading-relaxed">{f.desc}</p>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-10 flex flex-col md:flex-row items-center justify-between gap-6"
-        >
+    <LicitanteLayout>
+      <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
-            <h3 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
-              Enquanto preparamos tudo para você...
-            </h3>
-            <p className="text-white/40 text-sm">
-              Experimente o Notebook IA do Intelicite para analisar editais e extrair informações jurídicas.
-            </p>
+            <h1 className="font-display font-bold text-2xl text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Visão estratégica das suas licitações</p>
           </div>
-          <Link
-            to="/dashboard/notebook"
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap"
-          >
-            Abrir Notebook IA
-            <ChevronRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar licitações..."
+                className="h-10 pl-10 pr-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-64"
+                onKeyDown={(e) => { if (e.key === "Enter") navigate("/licitante/radar"); }}
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className="relative" size="icon" variant="ghost">
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 border-b border-border">
+                  <h4 className="font-semibold text-sm">Notificações</h4>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {alerts.map((alert) => {
+                    const Icon = alertIcons[alert.type];
+                    return (
+                      <button key={alert.id} onClick={() => navigate(alert.route)}
+                        className="flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors w-full text-left">
+                        <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${alertColors[alert.type]}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm text-card-foreground leading-snug">{alert.message}</p>
+                          <span className="text-xs text-muted-foreground">{alert.time}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        {/* Upload CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="gradient-hero rounded-2xl p-6 md:p-8 mb-8 relative overflow-hidden cursor-pointer"
+          onClick={() => navigate("/licitante/scanner")}
+        >
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-4 right-4 w-64 h-64 rounded-full bg-primary blur-3xl" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="font-display font-bold text-xl text-white mb-1">Analise um edital em segundos</h2>
+              <p className="text-white/70 text-sm max-w-md">
+                Envie um PDF e receba diagnóstico estratégico completo: riscos, habilitação, prazos e ações recomendadas.
+              </p>
+            </div>
+            <Button className="gap-2 flex-shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/20"
+              onClick={(e) => { e.stopPropagation(); navigate("/licitante/scanner"); }}>
+              <Upload className="w-4 h-4" />
+              Enviar Edital
+            </Button>
+          </div>
         </motion.div>
-      </main>
-    </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <KpiCard title="Licitações Analisadas" value={47} icon={FileSearch} trend={{ value: 12, positive: true }} subtitle="Este mês" />
+          <KpiCard title="Score Médio de Vitória" value="64%" icon={TrendingUp} trend={{ value: 5, positive: true }} variant="success" />
+          <KpiCard title="Documentos Pendentes" value={8} icon={FileWarning} trend={{ value: 3, positive: false }} variant="warning" />
+          <KpiCard title="Alertas Críticos" value={3} icon={AlertTriangle} variant="destructive" />
+        </div>
+
+        {/* Main grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Alerts */}
+          <div className="lg:col-span-1 bg-card rounded-xl border border-border p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-semibold text-base text-card-foreground">Alertas</h3>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/licitante/radar")}>
+                Ver todos <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {alerts.map((alert, i) => {
+                const Icon = alertIcons[alert.type];
+                return (
+                  <motion.div
+                    key={alert.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(alert.route)}
+                  >
+                    <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${alertColors[alert.type]}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm text-card-foreground leading-snug">{alert.message}</p>
+                      <span className="text-xs text-muted-foreground">{alert.time}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Opportunities */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-semibold text-base text-foreground">Radar de Oportunidades</h3>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/licitante/radar")}>
+                Ver radar completo <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {opportunities.map((opp, i) => (
+                <OpportunityCard key={i} {...opp} index={i} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/minutas")}>
+            <FileText className="w-4 h-4" /> Gerar Impugnação
+          </Button>
+          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/minutas")}>
+            <HelpCircle className="w-4 h-4" /> Pedido de Esclarecimento
+          </Button>
+          <Button variant="outline" className="gap-2 text-sm" onClick={() => navigate("/licitante/habilitacao")}>
+            <Building2 className="w-4 h-4" /> Cadastrar Empresa
+          </Button>
+        </div>
+      </div>
+    </LicitanteLayout>
   );
 }
