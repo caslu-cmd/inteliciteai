@@ -49,12 +49,12 @@ async function calcRiskScore(data: any, userId: string) {
 
   // Duplicate CPF
   const cpfClean = data.cpf.replace(/\D/g, "");
-  const { data: dup } = await supabase
-    .from("consultant_verifications")
+  const { data: dup } = await (supabase
+    .from("consultant_verifications" as any)
     .select("id")
     .eq("cpf", cpfClean)
     .neq("user_id", userId)
-    .maybeSingle();
+    .maybeSingle());
   if (dup) { score += 60; flags.push("CPF já cadastrado por outro usuário"); }
 
   // Selfie missing
@@ -77,12 +77,12 @@ async function calcRiskScore(data: any, userId: string) {
   }
 
   // Previous rejection
-  const { data: prev } = await supabase
-    .from("consultant_verifications")
+  const { data: prev } = await (supabase
+    .from("consultant_verifications" as any)
     .select("status")
     .eq("user_id", userId)
     .eq("status", "rejected")
-    .maybeSingle();
+    .maybeSingle());
   if (prev) { score += 30; flags.push("Submissão anterior rejeitada"); }
 
   return { score: Math.min(score, 100), flags };
@@ -140,11 +140,11 @@ export default function ConsultorPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { navigate("/login"); return; }
-    const { data } = await supabase
-      .from("consultant_verifications")
+    const { data } = await (supabase
+      .from("consultant_verifications" as any)
       .select("*")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .maybeSingle());
     setVerification(data);
     setLoading(false);
   };
@@ -174,7 +174,7 @@ export default function ConsultorPage() {
 
       const status: VerifStatus = score >= 80 ? "flagged" : "pending";
 
-      const { error } = await supabase.from("consultant_verifications").upsert({
+      const { error } = await (supabase.from("consultant_verifications" as any).upsert({
         user_id: user.id,
         full_name: form.full_name,
         cpf: form.cpf.replace(/\D/g, ""),
@@ -194,7 +194,7 @@ export default function ConsultorPage() {
         risk_score: score,
         risk_flags: flags,
         updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      }, { onConflict: "user_id" }));
 
       if (error) throw error;
       toast({ title: status === "flagged" ? "Documentação enviada — revisão adicional necessária" : "Documentação enviada com sucesso!" });

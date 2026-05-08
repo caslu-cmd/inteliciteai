@@ -47,10 +47,10 @@ export default function AdminVerificationsTab() {
 
   const fetchVerifications = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("consultant_verifications")
+    const { data } = await (supabase
+      .from("consultant_verifications" as any)
       .select("*, profiles:user_id(email)")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }));
     setVerifications(data || []);
     setLoading(false);
   };
@@ -76,12 +76,12 @@ export default function AdminVerificationsTab() {
   const setStatus = async (id: string, status: string, userId: string) => {
     setProcessing(id);
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("consultant_verifications").update({
+    await (supabase.from("consultant_verifications" as any).update({
       status,
       rejection_reason: status === "rejected" ? (rejectionReason[id] || "Documentos inválidos ou insuficientes.") : null,
       reviewed_by: user?.id,
       reviewed_at: new Date().toISOString(),
-    }).eq("id", id);
+    }).eq("id", id));
 
     // Notify the consultant
     await supabase.from("notifications").insert({
