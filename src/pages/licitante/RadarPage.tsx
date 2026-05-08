@@ -48,7 +48,7 @@ export default function RadarPage() {
   const [data, setData] = useState<PncpResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("licitação");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUf, setSelectedUf] = useState<string>("");
   const [selectedModalidade, setSelectedModalidade] = useState<string>("");
@@ -58,10 +58,10 @@ export default function RadarPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ pagina: String(pagina), tamanhoPagina: "20" });
-      if (selectedUf)        params.set("uf", selectedUf);
+      const params = new URLSearchParams({ pagina: String(pagina) });
+      if (selectedUf)         params.set("uf", selectedUf);
       if (selectedModalidade) params.set("modalidadeId", selectedModalidade);
-      if (searchTerm)         params.set("search", searchTerm);
+      params.set("search", searchTerm || "licitação");
 
       const { data: result, error: fnErr } = await supabase.functions.invoke("pncp-proxy", {
         method: "GET",
@@ -96,7 +96,7 @@ export default function RadarPage() {
   const clearFilters = () => {
     setSelectedUf("");
     setSelectedModalidade("");
-    setSearchTerm("");
+    setSearchTerm("licitação");
     setPagina(1);
   };
 
@@ -130,8 +130,8 @@ export default function RadarPage() {
                 <Input
                   placeholder="Buscar por objeto, órgão..."
                   className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchTerm === "licitação" ? "" : searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value || "licitação")}
                 />
               </div>
               <Button type="submit" size="icon" variant="default"><Search className="w-4 h-4" /></Button>

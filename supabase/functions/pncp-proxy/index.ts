@@ -1,17 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const PNCP_BASE = "https://pncp.gov.br/api/pncp/v1";
+// Real PNCP search API discovered via reverse engineering of pncp.gov.br frontend
+const PNCP_SEARCH = "https://pncp.gov.br/api/search";
+const ITEMS_PER_PAGE = 10; // PNCP search always returns 10 per page
 const CACHE_TTL_MINUTES = 30;
 
-const corsHeaders = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-function dateToYYYYMMDD(d: Date): string {
-  return d.toISOString().slice(0, 10).replace(/-/g, "");
-}
 
 function calcRiskLevel(valor: number, diasAbertura: number): "low" | "medium" | "high" {
   if (diasAbertura < 5 || valor > 5_000_000) return "high";
@@ -20,7 +18,6 @@ function calcRiskLevel(valor: number, diasAbertura: number): "low" | "medium" | 
 }
 
 function calcScore(diasAbertura: number, valor: number): number {
-  // Simple heuristic: more time + medium value = higher fit score
   let score = 60;
   if (diasAbertura >= 15) score += 15;
   if (diasAbertura >= 30) score += 5;
@@ -31,88 +28,75 @@ function calcScore(diasAbertura: number, valor: number): number {
 }
 
 function normalizeOpportunity(item: any) {
-  const abertura = item.dataAberturaProposta
-    ? new Date(item.dataAberturaProposta)
-    : item.dataEncerramentoProposta
-    ? new Date(item.dataEncerramentoProposta)
-    : null;
+  const valor = Number(item.valor_global) || 0;
 
-  const now = new Date();
-  const diasAbertura = abertura
-    ? Math.ceil((abertura.getTime() - now.getTime()) / 86400000)
-    : 30;
+  // Estimate days from publication date (no abertura date in search results)
+  const pub = item.data_publicacao_pncp ? new Date(item.data_publicacao_pncp) : new Date();
+  const diasAbertura = Math.max(7, Math.ceil((pub.getTime() + 15 * 86400000 - Date.now()) / 86400000));
 
-  const valor = item.valorTotalEstimado || 0;
-  const riskLevel = calcRiskLevel(valor, diasAbertura);
   const score = calcScore(diasAbertura, valor);
+  const risk = calcRiskLevel(valor, diasAbertura);
 
-  const deadlineStr = abertura
-    ? abertura.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
-    : "—";
+  // Build PNCP portal link from item_url: /compras/{cnpj}/{ano}/{seq}
+  const urlParts = (item.item_url || "").match(/\/(\d+)\/(\d+)\/(\d+)/);
+  const cnpjUrl = urlParts?.[1] || "";
+  const anoUrl = urlParts?.[2] || "";
+  const seqUrl = urlParts?.[3] || "";
+  const link = cnpjUrl
+    ? `https://pncp.gov.br/app/editais/${cnpjUrl}/${anoUrl}/${seqUrl}`
+    : `https://pncp.gov.br`;
 
-  const uf = item.unidadeOrgao?.ufSigla || "BR";
-  const municipio = item.unidadeOrgao?.municipioNome || "";
-  const location = municipio ? `${municipio}, ${uf}` : uf;
+  const municipio = item.municipio_nome || "";
+  const uf = item.uf || "";
+  const location = municipio ? `${municipio}, ${uf}` : (uf || "Brasil");
+
+  const pubFormatted = pub.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
   return {
-    id: item.numeroControlePNCP,
-    title: item.objetoCompra || "Sem descrição",
-    organ: item.orgaoEntidade?.razaoSocial || "Órgão não informado",
+    id: item.numero_controle_pncp || item.id || String(Math.random()),
+    title: item.description || item.title || "Sem descrição",
+    organ: item.orgao_nome || "Órgão não informado",
     location,
-    deadline: deadlineStr,
+    deadline: pubFormatted,
     value: valor > 0
       ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor)
       : "Valor sigiloso",
     score,
-    risk: riskLevel,
-    modalidade: item.modalidadeLicitacaoNome || "",
-    situacao: item.situacaoCompraNome || "",
-    link: item.linkSistemaOrigem || `https://pncp.gov.br/app/editais/${item.numeroControlePNCP}`,
-    dataPublicacao: item.dataPublicacaoGlobal || null,
-    dataAbertura: item.dataAberturaProposta || null,
-    orgaoCnpj: item.orgaoEntidade?.cnpj || null,
+    risk,
+    modalidade: item.modalidade_licitacao_nome || "",
+    situacao: item.situacao_nome || "",
+    link,
+    orgaoCnpj: (item.orgao_cnpj || "").replace(/\D/g, ""),
+    dataPublicacao: item.data_publicacao_pncp || null,
+    dataAbertura: null,
   };
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  // Auth check
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
+  if (!req.headers.get("Authorization")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
   const url = new URL(req.url);
+  const search = url.searchParams.get("search") || "licitação";
   const uf = url.searchParams.get("uf") || "";
   const modalidadeId = url.searchParams.get("modalidadeId") || "";
   const pagina = url.searchParams.get("pagina") || "1";
-  const tamanhoPagina = url.searchParams.get("tamanhoPagina") || "20";
-  const search = url.searchParams.get("search") || "";
 
-  // Date range: last 30 days to today + 90 days ahead
-  const hoje = new Date();
-  const inicio = new Date(hoje);
-  inicio.setDate(inicio.getDate() - 30);
-  const fim = new Date(hoje);
-  fim.setDate(fim.getDate() + 90);
+  // Cache key
+  const cacheKey = `search|${search}|${uf}|${modalidadeId}|${pagina}`;
 
-  const dataInicial = url.searchParams.get("dataInicial") || dateToYYYYMMDD(inicio);
-  const dataFinal   = url.searchParams.get("dataFinal")   || dateToYYYYMMDD(fim);
-
-  // Check Supabase cache
-  const supabase = createClient(
+  const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const cacheKey = `${uf}|${modalidadeId}|${pagina}|${tamanhoPagina}|${dataInicial}|${dataFinal}`;
-  const { data: cached } = await supabase
+  // Check cache
+  const { data: cached } = await supabaseClient
     .from("pncp_cache")
     .select("payload, created_at")
     .eq("cache_key", cacheKey)
@@ -122,69 +106,56 @@ Deno.serve(async (req: Request) => {
     const age = (Date.now() - new Date(cached.created_at).getTime()) / 60000;
     if (age < CACHE_TTL_MINUTES) {
       return new Response(JSON.stringify(cached.payload), {
-        headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "HIT" },
+        headers: { ...cors, "Content-Type": "application/json", "X-Cache": "HIT" },
       });
     }
   }
 
-  // Build PNCP query
+  // Build PNCP search query
   const params = new URLSearchParams({
-    dataInicial,
-    dataFinal,
+    q: search,
+    tipos_documento: "edital",
     pagina,
-    tamanhoPagina,
   });
-  if (uf)          params.set("uf", uf.toUpperCase());
-  if (modalidadeId) params.set("modalidadeId", modalidadeId);
+  if (uf) params.set("uf", uf.toUpperCase());
+  if (modalidadeId) params.set("modalidade_licitacao_id", modalidadeId);
 
   let pncpData: any;
   try {
-    const pncpRes = await fetch(`${PNCP_BASE}/contratacoes/publicacoes?${params}`, {
-      headers: { "Accept": "application/json", "User-Agent": "Intelicite/1.0" },
+    const res = await fetch(`${PNCP_SEARCH}?${params}`, {
+      headers: { Accept: "application/json", "User-Agent": "Intelicite/1.0" },
     });
 
-    if (!pncpRes.ok) {
-      throw new Error(`PNCP API error: ${pncpRes.status}`);
-    }
-
-    pncpData = await pncpRes.json();
+    if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
+    pncpData = await res.json();
   } catch (err) {
     return new Response(JSON.stringify({ error: "Falha ao acessar PNCP", detail: String(err) }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 502, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  const rawItems: any[] = pncpData.data || [];
-
-  // Filter by search term if provided
-  const filtered = search
-    ? rawItems.filter((item: any) =>
-        (item.objetoCompra || "").toLowerCase().includes(search.toLowerCase()) ||
-        (item.orgaoEntidade?.razaoSocial || "").toLowerCase().includes(search.toLowerCase())
-      )
-    : rawItems;
-
-  const opportunities = filtered.map(normalizeOpportunity);
+  const rawItems: any[] = pncpData.items || [];
+  const total: number = pncpData.total || 0;
+  const opportunities = rawItems.map(normalizeOpportunity);
 
   const payload = {
     opportunities,
-    totalRegistros: pncpData.totalRegistros || 0,
-    totalPaginas: pncpData.totalPaginas || 1,
+    totalRegistros: total,
+    totalPaginas: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
     numeroPagina: Number(pagina),
-    tamanhoPagina: Number(tamanhoPagina),
-    source: "pncp",
+    tamanhoPagina: ITEMS_PER_PAGE,
+    source: "pncp-search",
     fetchedAt: new Date().toISOString(),
   };
 
-  // Upsert to cache
-  await supabase.from("pncp_cache").upsert({
+  // Store in cache
+  await supabaseClient.from("pncp_cache").upsert({
     cache_key: cacheKey,
     payload,
     created_at: new Date().toISOString(),
   }, { onConflict: "cache_key" });
 
   return new Response(JSON.stringify(payload), {
-    headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" },
+    headers: { ...cors, "Content-Type": "application/json", "X-Cache": "MISS" },
   });
 });
