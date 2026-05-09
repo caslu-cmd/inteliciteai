@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className={cn("flex flex-1 flex-col min-w-0 transition-all duration-300", collapsed ? "md:ml-16" : "md:ml-60")}>
         {/* Header */}
         <header
-          className="sticky top-0 z-30 flex h-14 items-center justify-between px-6 gap-4"
+          className="sticky top-0 z-30 flex h-14 items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4"
           style={{
             background: "hsl(var(--background) / 0.85)",
             borderBottom: "1px solid hsl(var(--border))",
@@ -516,7 +516,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6">
           {children}
         </main>
       </div>

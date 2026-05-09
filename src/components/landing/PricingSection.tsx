@@ -141,9 +141,9 @@ export default function PricingSection() {
               viewport={{ once: true }}
               variants={fadeUp}
               custom={i}
-              className={`relative rounded-2xl border p-8 transition-all duration-300 ${
+              className={`relative rounded-2xl border p-6 sm:p-8 transition-all duration-300 ${
                 plan.highlighted
-                  ? "border-accent bg-card shadow-xl shadow-accent/10 scale-[1.03]"
+                  ? "border-accent bg-card shadow-xl shadow-accent/10 md:scale-[1.03]"
                   : "border-border bg-card hover:shadow-lg hover:shadow-navy/5"
               }`}
             >

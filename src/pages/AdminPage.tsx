@@ -162,25 +162,27 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 rounded-lg bg-secondary p-1 w-fit flex-wrap">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
-              activeTab === tab.id ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-            {tab.id === "overview" && kpis.pendingUsers > 0 && (
-              <span className="ml-1 bg-amber-400 text-[#080D14] rounded-full px-1.5 py-0.5 text-[9px] font-bold">
-                {kpis.pendingUsers}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="mb-6 -mx-1 overflow-x-auto">
+        <div className="flex gap-1 rounded-lg bg-secondary p-1 w-max min-w-full sm:w-fit">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 sm:px-4 py-2 text-sm font-medium transition-all whitespace-nowrap",
+                activeTab === tab.id ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+              {tab.id === "overview" && kpis.pendingUsers > 0 && (
+                <span className="ml-1 bg-amber-400 text-[#080D14] rounded-full px-1.5 py-0.5 text-[9px] font-bold">
+                  {kpis.pendingUsers}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── OVERVIEW ────────────────────────────────────────────── */}
@@ -302,19 +304,19 @@ export default function AdminPage() {
                 {pendingUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="grid grid-cols-12 gap-3 items-center px-5 py-3 border-b border-amber-400/5 last:border-b-0 hover:bg-amber-400/[0.03] transition-colors"
+                    className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:gap-3 sm:items-center px-4 sm:px-5 py-3 border-b border-amber-400/5 last:border-b-0 hover:bg-amber-400/[0.03] transition-colors"
                   >
-                    <div className="col-span-4">
+                    <div className="sm:col-span-4 min-w-0">
                       <p className="text-sm font-medium truncate">{user.full_name || user.email}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
-                    <div className="col-span-3 text-xs text-muted-foreground truncate">
+                    <div className="sm:col-span-3 text-xs text-muted-foreground truncate">
                       {user.organization || "—"}
                     </div>
-                    <div className="col-span-2 text-xs text-muted-foreground">
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
                       {ROLE_LABELS[user.platform_role] || user.platform_role}
                     </div>
-                    <div className="col-span-3 flex justify-end gap-1">
+                    <div className="sm:col-span-3 flex sm:justify-end gap-1">
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7"
                         title="Aprovar"

@@ -17,7 +17,7 @@ const fadeUp = {
 export default function HeroSection() {
   const { ref: parallaxRef, offset } = useParallax(0.12);
   return (
-    <section ref={parallaxRef} className="relative overflow-hidden pt-36 pb-20 md:pt-48 md:pb-32 bg-gradient-hero">
+    <section ref={parallaxRef} className="relative overflow-hidden pt-28 pb-16 sm:pt-36 sm:pb-20 md:pt-48 md:pb-32 bg-gradient-hero">
       {/* Grid overlay */}
       <div className="absolute inset-0 grid-tech" />
 
@@ -33,7 +33,7 @@ export default function HeroSection() {
       <div className="absolute top-60 right-[30%] w-0.5 h-0.5 rounded-full bg-landing-purple/70" style={{ animation: "float 3.5s ease-in-out infinite 0.5s" }} />
 
       <div className="container relative z-10">
-        <div className="grid items-center gap-16 lg:grid-cols-2">
+        <div className="grid items-center gap-10 md:gap-16 lg:grid-cols-2">
           {/* Copy */}
           <div>
             <motion.div
@@ -52,7 +52,7 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={1}
-              className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-landing-text md:text-5xl lg:text-6xl"
+              className="font-display text-3xl sm:text-4xl font-bold leading-[1.08] tracking-tight text-landing-text md:text-5xl lg:text-6xl"
             >
               Plataforma de IA para{" "}
               <span className="text-gradient-cyan-purple">Licitações</span>
@@ -75,19 +75,19 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={3}
-              className="mt-10 flex flex-col gap-3 sm:flex-row"
+              className="mt-8 sm:mt-10 flex flex-col gap-3 sm:flex-row"
             >
-              <Link to="/signup">
-                 <Button size="lg" className="text-base px-10 h-14 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
+              <Link to="/signup" className="w-full sm:w-auto">
+                 <Button size="lg" className="w-full sm:w-auto text-base px-8 sm:px-10 h-14 bg-gradient-cyber text-white border-0 glow-cyan hover:opacity-90 font-semibold">
                   Comece grátis por 7 dias
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <a href="#funcionalidades">
+              <a href="#funcionalidades" className="w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="lg"
-                  className="text-base px-10 h-14 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
+                  className="w-full sm:w-auto text-base px-8 sm:px-10 h-14 text-landing-text-muted border-landing-border bg-transparent hover:bg-landing-surface-2 hover:text-landing-text"
                 >
                   Ver funcionalidades
                 </Button>
@@ -99,7 +99,7 @@ export default function HeroSection() {
               animate="visible"
               variants={fadeUp}
               custom={4}
-              className="mt-6 flex items-center gap-5 text-xs text-landing-text-muted"
+              className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-landing-text-muted"
             >
               <span className="flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5 text-landing-cyan" /> Dados protegidos (LGPD)
