@@ -176,7 +176,7 @@ function ConsultorDashboard({ verification, onLogout }: { verification: any; onL
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
           {stats.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
               className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-center">

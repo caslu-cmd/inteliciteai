@@ -294,7 +294,7 @@ function EcosystemCards() {
           </div>
         </Reveal>
 
-        <div className="mt-16 grid gap-5 lg:grid-cols-3">
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {verticals.map((v, i) => {
             const Icon = v.icon;
             return (
@@ -442,7 +442,7 @@ function StatsBar() {
             A IA já está transformando as licitações públicas no Brasil.
           </h2>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10">
           {stats.map((s, i) => (
             <Reveal key={s.label} delay={i * 0.08}>
               <div>
@@ -525,7 +525,7 @@ function Pricing() {
           </div>
         </Reveal>
 
-        <div className="mt-16 grid gap-5 lg:grid-cols-3">
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((p, i) => (
             <Reveal key={p.name} delay={i * 0.1}>
               <div
@@ -675,8 +675,8 @@ function Footer() {
   return (
     <footer className="relative border-t border-white/[0.06] py-16">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="grid gap-10 lg:grid-cols-6">
-          <div className="lg:col-span-2">
+        <div className="grid gap-10 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
             <div className="flex items-center">
               <img src={logoWhite} alt="Intelicite" className="h-9 w-auto" />
             </div>

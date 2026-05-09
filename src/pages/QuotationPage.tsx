@@ -107,23 +107,26 @@ export default function QuotationPage() {
           <h2 className="font-semibold mb-4">Composição de Custos</h2>
           <div className="space-y-3">
             {items.map((item, idx) => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
-                  {idx === 0 && <Label className="text-xs">Descrição</Label>}
+              <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-12 gap-2 items-end rounded-lg sm:rounded-none border sm:border-0 border-border p-3 sm:p-0">
+                <div className="col-span-12 sm:col-span-5">
+                  {idx === 0 && <Label className="text-xs hidden sm:block">Descrição</Label>}
+                  <Label className="text-xs sm:hidden">Descrição</Label>
                   <Input placeholder="Item / Serviço" value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} />
                 </div>
-                <div className="col-span-2">
-                  {idx === 0 && <Label className="text-xs">Qtd</Label>}
+                <div className="col-span-4 sm:col-span-2">
+                  {idx === 0 && <Label className="text-xs hidden sm:block">Qtd</Label>}
+                  <Label className="text-xs sm:hidden">Qtd</Label>
                   <Input type="number" min={1} value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseInt(e.target.value) || 0)} />
                 </div>
-                <div className="col-span-3">
-                  {idx === 0 && <Label className="text-xs">Valor Unit. (R$)</Label>}
+                <div className="col-span-8 sm:col-span-3">
+                  {idx === 0 && <Label className="text-xs hidden sm:block">Valor Unit. (R$)</Label>}
+                  <Label className="text-xs sm:hidden">Valor Unit. (R$)</Label>
                   <Input type="number" min={0} step={0.01} value={item.valorUnitario || ""} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} />
                 </div>
-                <div className="col-span-2 flex gap-1">
-                  {idx === 0 && <Label className="text-xs invisible">.</Label>}
-                  <span className="text-sm font-medium w-full text-right self-center">{fmt(item.quantidade * item.valorUnitario)}</span>
-                  <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive shrink-0 self-center">
+                <div className="col-span-12 sm:col-span-2 flex justify-between sm:justify-end gap-2 items-center">
+                  {idx === 0 && <Label className="text-xs invisible hidden sm:block">.</Label>}
+                  <span className="text-sm font-medium sm:w-full sm:text-right">{fmt(item.quantidade * item.valorUnitario)}</span>
+                  <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive shrink-0">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>

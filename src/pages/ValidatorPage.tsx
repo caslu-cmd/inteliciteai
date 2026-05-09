@@ -203,7 +203,7 @@ export default function ValidatorPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: "Risco Alto", count: high, ...severityConfig.alta },
           { label: "Risco Médio", count: med, ...severityConfig.media },

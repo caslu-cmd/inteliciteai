@@ -126,7 +126,7 @@ function Sec1({ form, set }: SectionProps) {
         <FL label="Responsável pela Elaboração" req><Input value={form.responsavel} onChange={e => set("responsavel", e.target.value)} placeholder="Nome completo" /></FL>
         <FL label="Cargo / Função"><Input value={form.cargo} onChange={e => set("cargo", e.target.value)} placeholder="Ex: Analista de Contratos" /></FL>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <FL label="Matrícula"><Input value={form.matricula} onChange={e => set("matricula", e.target.value)} placeholder="Nº matrícula" /></FL>
         <FL label="Nº do Processo" tip="Número SEI, SIPAC ou similar"><Input value={form.processoSEI} onChange={e => set("processoSEI", e.target.value)} placeholder="0000000.000000/0000-00" /></FL>
         <FL label="Data de Elaboração"><Input type="date" value={form.dataElaboracao} onChange={e => set("dataElaboracao", e.target.value)} /></FL>
