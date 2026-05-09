@@ -12,7 +12,7 @@ export default function Footer() {
               className="h-6 opacity-70"
             />
           </div>
-          <div className="flex gap-6 text-sm text-landing-text-muted">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-landing-text-muted">
             <a href="#" className="transition-colors hover:text-landing-cyan">
               Termos de Uso
             </a>
