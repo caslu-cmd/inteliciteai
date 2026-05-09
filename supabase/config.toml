@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.notebook-fetch]
 verify_jwt = false
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.generate-document]
+verify_jwt = true

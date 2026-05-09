@@ -5,13 +5,14 @@ import {
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
   Zap, ChevronDown, Command, Layers,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIsAdmin } from "@/lib/adminAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion, AnimatePresence } from "framer-motion";
+import CommandPalette from "@/components/CommandPalette";
 
 // ── Nav structure ─────────────────────────────────────────────
 const NAV = [
@@ -70,6 +71,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
@@ -77,6 +79,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      setCommandOpen((v) => !v);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   useEffect(() => {
     (async () => {
@@ -259,7 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           {collapsed && <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
           {[
-            { label: "Gestor",     path: "/dashboard", emoji: "🏛️" },
+            { label: "Agente Público", path: "/dashboard", emoji: "🏛️" },
             { label: "Licitante",  path: "/licitante",  emoji: "📋" },
             { label: "Consultor",  path: "/consultor",  emoji: "🎓" },
           ].map(({ label, path, emoji }) => {
@@ -445,11 +459,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Right: search hint + notifications + user */}
           <div className="flex items-center gap-2">
-            {/* Cmd+K search hint */}
+            {/* Cmd+K search */}
             <button
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground transition-colors"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground transition-colors hover:bg-secondary"
               style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
-              onClick={() => {/* future: open command palette */}}
+              onClick={() => setCommandOpen(true)}
             >
               <Search className="h-3.5 w-3.5" />
               <span>Buscar…</span>
@@ -506,6 +520,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
 }

@@ -75,11 +75,13 @@ export default function ValidatorPage() {
       }
 
       const data = await resp.json();
-      const resultFindings: Finding[] = (data.findings || []).map((f: any) => ({
-        severity: f.severity || "baixa",
+      const levelMap: Record<string, "alta" | "media" | "baixa"> = { high: "alta", medium: "media", low: "baixa" };
+      const rawItems = data.riscos || data.findings || [];
+      const resultFindings: Finding[] = rawItems.map((f: any) => ({
+        severity: levelMap[f.level] || (f.severity as any) || "baixa",
         title: f.title || "Achado",
-        description: f.description || "",
-        article: f.article || "",
+        description: f.excerpt || f.description || "",
+        article: f.ref || f.article || "",
       }));
 
       setFindings(resultFindings);

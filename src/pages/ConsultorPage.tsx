@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Scale, LogOut, Bell, Upload, CheckCircle2, XCircle, Clock,
   AlertTriangle, ChevronRight, Shield, FileText, User, Briefcase,
-  Camera, Loader2, RefreshCw,
+  Camera, Loader2, RefreshCw, Star, ExternalLink, MessageSquare,
+  Award, MapPin, Phone, Linkedin,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,6 +109,132 @@ const SPECIALTIES = [
 ];
 
 const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+
+// ── Consultor Dashboard (post-approval) ───────────────────────
+function ConsultorDashboard({ verification, onLogout }: { verification: any; onLogout: () => void }) {
+  const profType = PROF_TYPES.find(p => p.id === verification.professional_type);
+
+  const stats = [
+    { label: "Anos de experiência", value: verification.years_experience || "—", icon: Award },
+    { label: "Especialidades", value: verification.specialties?.length || 0, icon: Star },
+    { label: "Status", value: "Verificado ✓", icon: Shield },
+  ];
+
+  return (
+    <div className="min-h-screen text-white" style={{ background: "hsl(223 27% 7%)" }}>
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 right-1/3 w-96 h-96 rounded-full bg-emerald-500/6 blur-[120px]" />
+        <div className="absolute bottom-1/3 left-1/4 w-80 h-80 rounded-full bg-cyan-500/5 blur-[120px]" />
+      </div>
+
+      <header className="relative z-10 border-b border-white/[0.06] bg-[#080D14]/60 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center">
+              <Scale className="w-4 h-4 text-[#080D14]" />
+            </div>
+            <span className="text-white font-bold tracking-widest uppercase text-xs" style={{ fontFamily: "'Orbitron', system-ui, sans-serif" }}>Intelicite</span>
+            <div className="w-px h-4 bg-white/10 mx-1" />
+            <span className="text-emerald-400 text-sm font-semibold">Consultor Verificado</span>
+          </div>
+          <button onClick={onLogout} className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+            <LogOut className="w-4 h-4" /> Sair
+          </button>
+        </div>
+      </header>
+
+      <main className="relative z-10 max-w-5xl mx-auto px-6 py-10">
+        {/* Profile hero */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-6 mb-8 flex items-start gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/20 text-2xl font-bold text-emerald-400">
+            {(verification.full_name || "C").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-xl font-bold">{verification.full_name}</h1>
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-400 text-xs font-semibold">
+                <CheckCircle2 className="h-3 w-3" /> Verificado
+              </span>
+            </div>
+            <p className="text-white/50 text-sm mb-3">{profType?.label || verification.professional_type}</p>
+            <div className="flex flex-wrap gap-3 text-xs text-white/40">
+              {verification.phone && (
+                <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{verification.phone}</span>
+              )}
+              {verification.registration_state && (
+                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{verification.registration_state}</span>
+              )}
+              {verification.linkedin_url && (
+                <a href={`https://${verification.linkedin_url.replace(/^https?:\/\//, "")}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors">
+                  <Linkedin className="h-3 w-3" /> LinkedIn <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {stats.map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
+              className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-center">
+              <s.icon className="h-5 w-5 text-amber-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">{s.value}</p>
+              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Specialties */}
+        {verification.specialties?.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-6">
+            <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Especialidades</h2>
+            <div className="flex flex-wrap gap-2">
+              {verification.specialties.map((s: string) => (
+                <span key={s} className="px-3 py-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-400 text-xs font-medium">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Bio */}
+        {verification.bio && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-6">
+            <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">Bio profissional</h2>
+            <p className="text-white/70 text-sm leading-relaxed">{verification.bio}</p>
+          </motion.div>
+        )}
+
+        {/* Quick actions */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Acessar plataformas</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              { label: "Plataforma Gestor Público", desc: "ETP, TR, Validador, Notebook IA", path: "/dashboard", color: "text-amber-400 border-amber-400/20 bg-amber-400/5" },
+              { label: "Plataforma Licitante", desc: "Radar PNCP, Scanner, Minutas", path: "/licitante", color: "text-cyan-400 border-cyan-400/20 bg-cyan-400/5" },
+            ].map(({ label, desc, path, color }) => (
+              <Link key={path} to={path}
+                className={`flex items-center gap-3 rounded-xl border p-4 transition-all hover:opacity-90 ${color}`}>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm text-white">{label}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      </main>
+    </div>
+  );
+}
 
 // ── Main component ─────────────────────────────────────────────
 export default function ConsultorPage() {
@@ -219,6 +346,11 @@ export default function ConsultorPage() {
       <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
     </div>
   );
+
+  // Approved consultant gets a proper dashboard
+  if (verification?.status === "approved") {
+    return <ConsultorDashboard verification={verification} onLogout={handleLogout} />;
+  }
 
   return (
     <div className="min-h-screen text-white" style={{ background: "hsl(223 27% 7%)" }}>

@@ -26,7 +26,7 @@ Estrutura obrigatória (todas as seções devem ser desenvolvidas):
 11. CONTRATAÇÕES CORRELATAS E/OU INTERDEPENDENTES
 12. POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE E RAZOABILIDADE DA CONTRATAÇÃO
 
-Use linguagem técnica formal. Cite o Art. 18 da Lei 14.133/2021 e a IN SEGES/ME nº 58/2022. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
+Use linguagem técnica formal em markdown. Cite o Art. 18 da Lei 14.133/2021 e a IN SEGES/ME nº 58/2022. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
 
 const SYSTEM_TR = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021.
 Redija um TERMO DE REFERÊNCIA (TR) completo conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021.
@@ -45,7 +45,50 @@ Estrutura obrigatória:
 11. OBRIGAÇÕES DA CONTRATANTE E DA CONTRATADA
 12. SANÇÕES E INFRAÇÕES ADMINISTRATIVAS
 
-Use linguagem técnica formal. Cite o Art. 40 da Lei 14.133/2021. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
+Use linguagem técnica formal em markdown. Cite o Art. 40 da Lei 14.133/2021. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
+
+const SYSTEM_COTACAO = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras.
+Com base nos itens fornecidos, analise e sugira:
+1. Faixas de preço de mercado para cada item (baseado em padrões de compras governamentais)
+2. Alertas sobre itens com preços potencialmente fora da média
+3. Recomendações para pesquisa de preços conforme IN SEGES/ME nº 65/2021
+4. Estimativa de custo total com margem de segurança
+
+Retorne APENAS um JSON válido:
+{
+  "itens": [
+    { "descricao": "...", "faixaMin": 0, "faixaMax": 0, "referencia": "..." }
+  ],
+  "alertas": ["..."],
+  "recomendacoes": ["..."],
+  "totalEstimado": 0
+}`;
+
+async function callClaude(apiKey: string, body: object): Promise<Response> {
+  let lastErr: Error = new Error("unknown");
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+    try {
+      const res = await fetch(ANTHROPIC_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+      });
+      if (RETRYABLE.has(res.status)) {
+        lastErr = new Error(`Claude ${res.status}`);
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  throw lastErr;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -63,9 +106,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { tipo, titulo, orgao, objeto, form_data } = body;
-  if (!tipo || !["etp", "tr"].includes(tipo) || !objeto) {
-    return new Response(JSON.stringify({ error: "tipo (etp|tr) e objeto são obrigatórios" }), {
+  const { tipo, formData, stream = false } = body;
+  if (!tipo || !formData) {
+    return new Response(JSON.stringify({ error: "tipo e formData são obrigatórios" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -77,66 +120,117 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const systemPrompt = tipo === "etp" ? SYSTEM_ETP : SYSTEM_TR;
-  const docTipo = tipo === "etp" ? "Estudo Técnico Preliminar (ETP)" : "Termo de Referência (TR)";
+  let systemPrompt: string;
+  let userPrompt: string;
 
-  const extras = form_data && typeof form_data === "object"
-    ? Object.entries(form_data).map(([k, v]) => `- ${k}: ${v}`).join("\n")
-    : "";
+  if (tipo === "etp") {
+    systemPrompt = SYSTEM_ETP;
+    userPrompt = `Gere o ETP completo com base nos seguintes dados:
 
-  const userPrompt = `Gere um ${docTipo} completo para:
+Órgão: ${formData.orgao || "não informado"}
+Setor Requisitante: ${formData.setor || "não informado"}
+Responsável: ${formData.responsavel || "não informado"}
+Objeto da Contratação: ${formData.objeto || "não informado"}
+Previsão de Contratação: ${formData.previsaoContratacao ? formData.previsaoContratacao + " dias" : "não informado"}
+Descrição da Necessidade: ${formData.descricaoNecessidade || "não informado"}
+Área Requisitante: ${formData.areaRequisitante || "não informado"}
+Alinhamento Estratégico: ${formData.alinhamentoEstrategico || "não informado"}
+Requisitos de Negócio: ${formData.requisitosNegocio || "não informado"}
+Requisitos Técnicos: ${formData.requisitosTecnicos || "não informado"}
+Estimativa de Custo: ${formData.estimativaCusto ? "R$ " + formData.estimativaCusto : "não informado"}
+Fonte da Pesquisa: ${formData.fontePesquisa || "não informado"}
+Riscos Principais: ${formData.riscosPrincipais || "não informado"}
+Medidas de Mitigação: ${formData.mitigacao || "não informado"}
 
-Título: ${titulo || "[A DEFINIR]"}
-Órgão: ${orgao || "[ÓRGÃO]"}
-Objeto da contratação: ${objeto}
-${extras ? `\nDados adicionais:\n${extras}` : ""}
+Gere o documento completo em markdown, com todas as seções desenvolvidas, formal e pronto para revisão.`;
 
-Gere o documento completo, com todas as seções desenvolvidas, pronto para revisão.`;
+  } else if (tipo === "tr") {
+    systemPrompt = SYSTEM_TR;
+    userPrompt = `Gere o TR completo com base nos seguintes dados:
 
-  let lastErr = "unknown";
-  for (let attempt = 0; attempt < RETRY_DELAYS.length + 1; attempt++) {
+Órgão: ${formData.orgao || "não informado"}
+Objeto: ${formData.objeto || "não informado"}
+Justificativa: ${formData.justificativa || "não informado"}
+Especificações Técnicas: ${formData.especificacoes || "não informado"}
+Quantitativos: ${formData.quantitativos || "não informado"}
+Prazo de Execução: ${formData.prazoExecucao || "não informado"}
+Local de Entrega/Execução: ${formData.localEntrega || "não informado"}
+Obrigações da Contratada: ${formData.obrigacoesContratada || "não informado"}
+Obrigações da Contratante: ${formData.obrigacoesContratante || "não informado"}
+Critérios de Aceitação: ${formData.criterioAceitacao || "não informado"}
+Sanções: ${formData.sancoes || "não informado"}
+
+Gere o documento completo em markdown, com todas as seções desenvolvidas, formal e pronto para revisão.`;
+
+  } else if (tipo === "cotacao") {
+    systemPrompt = SYSTEM_COTACAO;
+    userPrompt = `Analise os seguintes itens para pesquisa de preços em compras governamentais:
+
+${JSON.stringify(formData.itens, null, 2)}
+
+Margem de lucro aplicada: ${formData.margem || 15}%
+Impostos aplicados: ${formData.impostos || 8.65}%
+
+Forneça faixas de preço de mercado e recomendações para a pesquisa de preços.`;
+
+  } else {
+    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr ou cotacao" }), {
+      status: 400, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const claudeBody: any = {
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  };
+
+  // Streaming mode for ETP/TR
+  if (stream && tipo !== "cotacao") {
+    claudeBody.stream = true;
     try {
-      const res = await fetch(ANTHROPIC_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 4000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }],
-        }),
-      });
-
-      if (RETRYABLE.has(res.status) && attempt < RETRY_DELAYS.length) {
-        lastErr = `Claude ${res.status}`;
-        console.warn(`[generate-document] retry ${attempt + 1}: ${lastErr}`);
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
-        continue;
+      const res = await callClaude(apiKey, claudeBody);
+      if (!res.ok) {
+        const err = await res.text();
+        return new Response(JSON.stringify({ error: `Claude ${res.status}`, detail: err }), {
+          status: 502, headers: { ...cors, "Content-Type": "application/json" },
+        });
       }
-
-      if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
-
-      const data = await res.json();
-      const conteudo = data.content?.[0]?.text ?? "";
-      const tituloOut = titulo || (tipo === "etp"
-        ? `ETP — ${objeto.slice(0, 60)}`
-        : `TR — ${objeto.slice(0, 60)}`);
-
-      return new Response(JSON.stringify({ titulo: tituloOut, conteudo }), {
-        headers: { ...cors, "Content-Type": "application/json" },
+      return new Response(res.body, {
+        headers: {
+          ...cors,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
       });
     } catch (err) {
-      lastErr = String(err);
-      if (attempt >= RETRY_DELAYS.length) break;
-      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      return new Response(JSON.stringify({ error: "Falha ao gerar documento (stream)", detail: String(err) }), {
+        status: 502, headers: { ...cors, "Content-Type": "application/json" },
+      });
     }
   }
 
-  return new Response(JSON.stringify({ error: "Falha ao gerar documento", detail: lastErr }), {
-    status: 502, headers: { ...cors, "Content-Type": "application/json" },
-  });
+  // Non-streaming mode
+  try {
+    const res = await callClaude(apiKey, claudeBody);
+    if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const raw = data.content?.[0]?.text ?? "";
+
+    if (tipo === "cotacao") {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Resposta sem JSON válido");
+      return new Response(match[0], { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    return new Response(JSON.stringify({ conteudo: raw }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Falha ao gerar documento", detail: String(err) }), {
+      status: 502, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
 });
