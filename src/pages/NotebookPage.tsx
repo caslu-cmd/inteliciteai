@@ -1183,11 +1183,40 @@ export default function NotebookPage() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-[88vw] sm:w-[380px]">
-            <NotebookSourcesPanel
-              sources={sources}
-              onOpenAddModal={() => setShowAddModal(true)}
-              setSources={setSources}
-            />
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-semibold">Fontes</span>
+                  {sources.length > 0 && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">{sources.length}</span>
+                  )}
+                </div>
+                <Button variant="gold" size="sm" className="h-7 px-3 text-xs" onClick={() => setShowAddModal(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {sources.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-dashed border-border mb-3">
+                      <FileText className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Nenhuma fonte</p>
+                    <p className="text-xs text-muted-foreground/60 leading-relaxed mb-3">
+                      Adicione editais, TRs, ETPs, importe URLs ou busque dados de preços na web
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                      <Plus className="h-3.5 w-3.5" /> Adicionar fonte
+                    </Button>
+                  </div>
+                ) : (
+                  sources.map((s) => (
+                    <SourceCard key={s.id} source={s} onToggle={toggleSource} onDelete={deleteSource} />
+                  ))
+                )}
+              </div>
+            </div>
           </SheetContent>
         </Sheet>
         <Sheet>
