@@ -2,11 +2,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Paperclip, Plus, Search, Bot, User, FileText,
-  Trash2, Download, BookOpen, Loader2,
+  Trash2, Download, BookOpen, Loader2, MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { streamChat } from "@/lib/streamChat";
 import { supabase } from "@/integrations/supabase/client";
