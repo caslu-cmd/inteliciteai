@@ -228,9 +228,7 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="p-4 sm:p-6">
-          {children}
-        </div>
+        {children}
       </main>
     </div>
   );
