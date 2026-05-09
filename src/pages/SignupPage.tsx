@@ -148,13 +148,13 @@ export default function SignupPage() {
               transition={{ duration: 0.4 }}
             >
               <div className="text-center mb-10">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
                   Qual é o seu perfil?
                 </h1>
                 <p className="text-white/50">Escolha o perfil que melhor descreve como você usará o Intelicite.</p>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 {ROLES.map((r, i) => (
                   <motion.button
                     key={r.id}
@@ -236,7 +236,7 @@ export default function SignupPage() {
               </p>
 
               <form onSubmit={handleSignup} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-white/70 text-xs">Nome</Label>
                     <div className="relative">
@@ -300,7 +300,7 @@ export default function SignupPage() {
                     </button>
                   </div>
                   {password.length > 0 && (
-                    <div className="mt-2 grid grid-cols-2 gap-1">
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
                       {passwordRules.map((r) => (
                         <div key={r.label} className="flex items-center gap-1.5 text-xs">
                           {r.valid
