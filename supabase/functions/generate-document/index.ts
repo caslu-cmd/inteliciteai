@@ -9,8 +9,6 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── System prompts ─────────────────────────────────────────────
-
 const SYSTEM_ETP = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
 Redija um ESTUDO TÉCNICO PRELIMINAR (ETP) completo, técnico, formal e juridicamente fundamentado conforme Art. 18, §1º da Lei 14.133/2021 e IN SEGES/ME nº 58/2022.
 
@@ -31,7 +29,7 @@ ESTRUTURA OBRIGATÓRIA (todas as seções devem ser plenamente desenvolvidas):
 
 INSTRUÇÕES:
 - Use linguagem técnica e formal em português brasileiro
-- Cite os dispositivos legais aplicáveis em cada seção (Art. 18, §1º, incisos, IN SEGES nº 58/2022)
+- Cite os dispositivos legais aplicáveis em cada seção
 - Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
 - Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
 - Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
@@ -59,7 +57,7 @@ ESTRUTURA OBRIGATÓRIA (todas as seções devem ser plenamente desenvolvidas):
 
 INSTRUÇÕES:
 - Use linguagem técnica e formal em português brasileiro
-- Cite os dispositivos legais aplicáveis em cada seção (Art. 40, incisos, artigos correlatos)
+- Cite os dispositivos legais aplicáveis em cada seção
 - Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
 - Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
 - Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
@@ -84,7 +82,6 @@ Retorne APENAS um JSON válido:
 
 const SYSTEM_SUGESTAO = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021. Ao receber o nome de um campo de documento oficial (ETP ou TR) e o contexto atual preenchido, sugira um texto técnico, formal e juridicamente fundamentado para aquele campo específico. Retorne APENAS o texto sugerido, sem explicações, sem prefixos como "Sugiro:", sem markdown, sem meta-comentários. O texto deve ser pronto para inserção direta no campo do formulário, escrito na terceira pessoa ou forma impessoal conforme documentos públicos oficiais.`;
 
-// ── Retry helper ───────────────────────────────────────────────
 async function callClaude(apiKey: string, body: object): Promise<Response> {
   let lastErr: Error = new Error("unknown");
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -108,7 +105,6 @@ async function callClaude(apiKey: string, body: object): Promise<Response> {
   throw lastErr;
 }
 
-// ── Build user prompts ─────────────────────────────────────────
 function buildETPPrompt(f: any): string {
   const v = (x: any, label: string) => x ? `${label}: ${x}` : `${label}: [não informado]`;
   return `Gere o ETP completo com base nos seguintes dados:
@@ -252,7 +248,6 @@ ${v(f.prorrogacao, "Possibilidade de Prorrogação")}
 Gere o TR completo em markdown, com todas as 15 seções desenvolvidas conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021. Expanda cada informação fornecida com linguagem técnica formal e fundamentos jurídicos. Cite os dispositivos legais em cada seção.`;
 }
 
-// ── Handler ────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -339,7 +334,6 @@ Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequ
     messages: [{ role: "user", content: userPrompt }],
   };
 
-  // Streaming for ETP/TR
   if (stream && (tipo === "etp" || tipo === "tr")) {
     claudeBody.stream = true;
     try {
@@ -360,7 +354,6 @@ Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequ
     }
   }
 
-  // Non-streaming (cotacao, sugestao, or fallback)
   try {
     const res = await callClaude(apiKey, claudeBody);
     if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
