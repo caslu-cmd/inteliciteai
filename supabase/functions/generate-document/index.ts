@@ -9,43 +9,61 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_ETP = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021.
-Redija um ESTUDO TÉCNICO PRELIMINAR (ETP) completo, técnico e fundamentado conforme Art. 18, §1º da Lei 14.133/2021.
+// ── System prompts ─────────────────────────────────────────────
 
-Estrutura obrigatória (todas as seções devem ser desenvolvidas):
-1. DESCRIÇÃO DA NECESSIDADE DA CONTRATAÇÃO (problema a ser resolvido)
-2. DEMONSTRAÇÃO DA PREVISÃO NO PCA (Plano de Contratações Anual)
-3. REQUISITOS DA CONTRATAÇÃO (técnicos, sustentáveis, de qualidade)
-4. ESTIMATIVAS DAS QUANTIDADES (com memória de cálculo)
-5. LEVANTAMENTO DE MERCADO (alternativas avaliadas)
-6. ESTIMATIVA DO VALOR DA CONTRATAÇÃO (com fontes de pesquisa de preço)
-7. DESCRIÇÃO DA SOLUÇÃO COMO UM TODO
-8. JUSTIFICATIVAS PARA PARCELAMENTO OU NÃO DA SOLUÇÃO
-9. DEMONSTRATIVO DOS RESULTADOS PRETENDIDOS
-10. PROVIDÊNCIAS A SEREM ADOTADAS PELA ADMINISTRAÇÃO
-11. CONTRATAÇÕES CORRELATAS E/OU INTERDEPENDENTES
-12. POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE E RAZOABILIDADE DA CONTRATAÇÃO
+const SYSTEM_ETP = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
+Redija um ESTUDO TÉCNICO PRELIMINAR (ETP) completo, técnico, formal e juridicamente fundamentado conforme Art. 18, §1º da Lei 14.133/2021 e IN SEGES/ME nº 58/2022.
 
-Use linguagem técnica formal em markdown. Cite o Art. 18 da Lei 14.133/2021 e a IN SEGES/ME nº 58/2022. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
+ESTRUTURA OBRIGATÓRIA (todas as seções devem ser plenamente desenvolvidas):
+1. IDENTIFICAÇÃO DO DOCUMENTO (cabeçalho completo com órgão, setor, responsáveis, processo, data)
+2. DESCRIÇÃO DA NECESSIDADE DA CONTRATAÇÃO (Art. 18, §1º, I — problema, contexto, motivação)
+3. DEMONSTRAÇÃO DA PREVISÃO NO PCA (Art. 18, §1º, II — Plano de Contratações Anual, DFD)
+4. REQUISITOS DA CONTRATAÇÃO (Art. 18, §1º, III — técnicos, sustentabilidade, qualidade, habilitação)
+5. ESTIMATIVAS DAS QUANTIDADES (Art. 18, §1º, IV — com memória de cálculo detalhada)
+6. LEVANTAMENTO DE MERCADO (Art. 18, §1º, V — alternativas avaliadas, benchmarking)
+7. ESTIMATIVA DO VALOR DA CONTRATAÇÃO (Art. 18, §1º, VI — fontes, metodologia, pesquisa de preços)
+8. DESCRIÇÃO DA SOLUÇÃO COMO UM TODO (Art. 18, §1º, VII — arquitetura da solução)
+9. JUSTIFICATIVAS PARA PARCELAMENTO OU NÃO DA SOLUÇÃO (Art. 18, §1º, VII)
+10. DEMONSTRATIVO DOS RESULTADOS PRETENDIDOS (Art. 18, §1º, VIII — benefícios esperados, indicadores)
+11. PROVIDÊNCIAS A SEREM ADOTADAS PELA ADMINISTRAÇÃO (Art. 18, §1º, IX)
+12. CONTRATAÇÕES CORRELATAS E/OU INTERDEPENDENTES (Art. 18, §1º, XI)
+13. POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE E RAZOABILIDADE DA CONTRATAÇÃO (Art. 18, §1º, XII)
 
-const SYSTEM_TR = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021.
-Redija um TERMO DE REFERÊNCIA (TR) completo conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021.
+INSTRUÇÕES:
+- Use linguagem técnica e formal em português brasileiro
+- Cite os dispositivos legais aplicáveis em cada seção (Art. 18, §1º, incisos, IN SEGES nº 58/2022)
+- Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
+- Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
+- Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
+- O documento deve ter nível profissional para apresentação a autoridades e controle externo`;
 
-Estrutura obrigatória:
-1. DEFINIÇÃO DO OBJETO (descrição precisa, suficiente e clara)
-2. FUNDAMENTAÇÃO DA CONTRATAÇÃO (referência ao ETP)
-3. DESCRIÇÃO DA SOLUÇÃO COMO UM TODO
-4. REQUISITOS DA CONTRATAÇÃO (sustentabilidade, normas técnicas)
-5. MODELO DE EXECUÇÃO DO OBJETO (prazos, locais, condições)
-6. MODELO DE GESTÃO DO CONTRATO (fiscalização, recebimento)
-7. CRITÉRIOS DE MEDIÇÃO E PAGAMENTO
-8. FORMA E CRITÉRIOS DE SELEÇÃO DO FORNECEDOR (modalidade, critério de julgamento, modo de disputa)
-9. ESTIMATIVAS DO VALOR DA CONTRATAÇÃO
-10. ADEQUAÇÃO ORÇAMENTÁRIA
-11. OBRIGAÇÕES DA CONTRATANTE E DA CONTRATADA
-12. SANÇÕES E INFRAÇÕES ADMINISTRATIVAS
+const SYSTEM_TR = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
+Redija um TERMO DE REFERÊNCIA (TR) completo, técnico, formal e juridicamente fundamentado conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021.
 
-Use linguagem técnica formal em markdown. Cite o Art. 40 da Lei 14.133/2021. Deixe colchetes [  ] onde dados específicos devem ser preenchidos.`;
+ESTRUTURA OBRIGATÓRIA (todas as seções devem ser plenamente desenvolvidas):
+1. IDENTIFICAÇÃO DO DOCUMENTO (cabeçalho, número do TR, processo, data, responsáveis)
+2. DEFINIÇÃO DO OBJETO (Art. 40, I — descrição precisa, suficiente e clara, código CATMAT/CATSER)
+3. FUNDAMENTAÇÃO DA CONTRATAÇÃO (Art. 40, II — referência ao ETP, dispositivos legais)
+4. DESCRIÇÃO DA SOLUÇÃO COMO UM TODO (Art. 40, III — solução completa incluindo requisitos)
+5. REQUISITOS DA CONTRATAÇÃO (Art. 40, III — técnicos, sustentabilidade, normas, habilitação)
+6. MODELO DE EXECUÇÃO DO OBJETO (Art. 40, IV — prazos, locais, condições, cronograma, subcontratação)
+7. MODELO DE GESTÃO DO CONTRATO (Art. 40, V — fiscalização, recebimento provisório e definitivo)
+8. CRITÉRIOS DE MEDIÇÃO E PAGAMENTO (Art. 40, V — aferição, prazo e forma de pagamento)
+9. FORMA E CRITÉRIOS DE SELEÇÃO DO FORNECEDOR (Art. 40, VI e VII — modalidade, critério, modo de disputa)
+10. ESTIMATIVAS DO VALOR DA CONTRATAÇÃO (Art. 40, VIII — valor, tabela de preços unitários)
+11. ADEQUAÇÃO ORÇAMENTÁRIA (Art. 40, IX — programa de trabalho, elemento de despesa)
+12. OBRIGAÇÕES DA CONTRATANTE E DA CONTRATADA (Art. 40, X e XI)
+13. SANÇÕES E INFRAÇÕES ADMINISTRATIVAS (Art. 40, XII — Arts. 155 a 163 da Lei 14.133/2021)
+14. GARANTIA CONTRATUAL (Art. 96 — percentual, modalidade, prazo)
+15. DISPOSIÇÕES GERAIS (vigência, prorrogação, rescisão, publicação)
+
+INSTRUÇÕES:
+- Use linguagem técnica e formal em português brasileiro
+- Cite os dispositivos legais aplicáveis em cada seção (Art. 40, incisos, artigos correlatos)
+- Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
+- Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
+- Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
+- O documento deve ter nível profissional para apresentação a autoridades e controle externo`;
 
 const SYSTEM_COTACAO = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras.
 Com base nos itens fornecidos, analise e sugira:
@@ -64,6 +82,9 @@ Retorne APENAS um JSON válido:
   "totalEstimado": 0
 }`;
 
+const SYSTEM_SUGESTAO = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021. Ao receber o nome de um campo de documento oficial (ETP ou TR) e o contexto atual preenchido, sugira um texto técnico, formal e juridicamente fundamentado para aquele campo específico. Retorne APENAS o texto sugerido, sem explicações, sem prefixos como "Sugiro:", sem markdown, sem meta-comentários. O texto deve ser pronto para inserção direta no campo do formulário, escrito na terceira pessoa ou forma impessoal conforme documentos públicos oficiais.`;
+
+// ── Retry helper ───────────────────────────────────────────────
 async function callClaude(apiKey: string, body: object): Promise<Response> {
   let lastErr: Error = new Error("unknown");
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -78,10 +99,7 @@ async function callClaude(apiKey: string, body: object): Promise<Response> {
         },
         body: JSON.stringify(body),
       });
-      if (RETRYABLE.has(res.status)) {
-        lastErr = new Error(`Claude ${res.status}`);
-        continue;
-      }
+      if (RETRYABLE.has(res.status)) { lastErr = new Error(`Claude ${res.status}`); continue; }
       return res;
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
@@ -90,6 +108,151 @@ async function callClaude(apiKey: string, body: object): Promise<Response> {
   throw lastErr;
 }
 
+// ── Build user prompts ─────────────────────────────────────────
+function buildETPPrompt(f: any): string {
+  const v = (x: any, label: string) => x ? `${label}: ${x}` : `${label}: [não informado]`;
+  return `Gere o ETP completo com base nos seguintes dados:
+
+IDENTIFICAÇÃO:
+${v(f.orgao, "Órgão/Entidade")}
+${v(f.cnpjOrgao, "CNPJ")}
+${v(f.unidade, "Unidade Administrativa")}
+${v(f.setor, "Setor Requisitante")}
+${v(f.responsavel, "Responsável")}
+${v(f.cargo, "Cargo")}
+${v(f.matricula, "Matrícula")}
+${v(f.processoSEI, "Nº do Processo")}
+${v(f.dataElaboracao, "Data de Elaboração")}
+
+NECESSIDADE DA CONTRATAÇÃO:
+${v(f.descricaoNecessidade, "Descrição da Necessidade")}
+${v(f.problemaSolucionar, "Problema a Solucionar")}
+${v(f.publicoBeneficiado, "Público Beneficiado")}
+${v(f.quantidadeUsuarios, "Quantidade de Beneficiários")}
+${v(f.previsaoPCA, "Previsão no PCA")}
+${v(f.numeroPCA, "Nº no PCA/DFD")}
+${v(f.alinhamentoEstrategico, "Alinhamento Estratégico")}
+${v(f.instrumentoPlanejamento, "Instrumento de Planejamento")}
+
+REQUISITOS DA CONTRATAÇÃO:
+${v(f.requisitosNegocio, "Requisitos de Negócio")}
+${v(f.requisitosTecnicos, "Requisitos Técnicos")}
+${v(f.sustentabilidade, "Requisitos de Sustentabilidade")}
+${v(f.qualidade, "Requisitos de Qualidade")}
+${v(f.segurancaInformacao, "Segurança da Informação")}
+${v(f.habilitacaoEspecifica, "Habilitação Específica")}
+
+QUANTIDADES E LEVANTAMENTO DE MERCADO:
+${v(f.descricaoItens, "Descrição dos Itens/Quantitativos")}
+${v(f.memoriaCalculo, "Memória de Cálculo")}
+${v(f.alternativasAvaliadas, "Alternativas de Mercado Avaliadas")}
+${v(f.solucaoEscolhida, "Justificativa da Solução Escolhida")}
+${v(f.decisaoParcelamento, "Decisão sobre Parcelamento")}
+${v(f.justificativaParcelamento, "Justificativa do Parcelamento")}
+
+ESTIMATIVA DO VALOR:
+${v(f.valorEstimado ? "R$ " + f.valorEstimado : null, "Valor Total Estimado")}
+${v(f.fontePesquisa1, "Fonte de Pesquisa Principal")}
+${v(f.fontePesquisa2, "Fonte de Pesquisa Complementar")}
+${v(f.metodologiaPesquisa, "Metodologia da Pesquisa")}
+${v(f.dataPesquisa, "Data da Pesquisa")}
+${v(f.catmatCatser, "Código CATMAT/CATSER")}
+${v(f.naturezaDespesa, "Natureza da Despesa")}
+${v(f.dotacaoOrcamentaria, "Dotação Orçamentária")}
+
+RISCOS E CONTRATAÇÕES CORRELATAS:
+${v(f.riscosIdentificados, "Riscos Identificados")}
+${v(f.probabilidadeImpacto, "Probabilidade e Impacto")}
+${v(f.medidasMitigacao, "Medidas de Mitigação")}
+${v(f.contratacaoCorrelatas, "Contratações Correlatas")}
+${v(f.interdependentes, "Contratações Interdependentes")}
+${v(f.providencias, "Providências Administrativas")}
+
+RESULTADOS E POSICIONAMENTO CONCLUSIVO:
+${v(f.resultadosPretendidos, "Resultados Pretendidos")}
+${v(f.indicadoresDesempenho, "Indicadores de Desempenho")}
+${v(f.beneficiosEsperados, "Benefícios Esperados")}
+${v(f.viabilidade, "Posicionamento sobre Viabilidade")}
+${v(f.justificativaViabilidade, "Justificativa do Posicionamento")}
+
+Gere o ETP completo em markdown, com todas as 13 seções desenvolvidas conforme Art. 18, §1º da Lei 14.133/2021 e IN SEGES/ME nº 58/2022. Expanda cada informação fornecida com linguagem técnica formal e fundamentos jurídicos. Cite os dispositivos legais em cada seção.`;
+}
+
+function buildTRPrompt(f: any): string {
+  const v = (x: any, label: string) => x ? `${label}: ${x}` : `${label}: [não informado]`;
+  return `Gere o TR completo com base nos seguintes dados:
+
+IDENTIFICAÇÃO:
+${v(f.orgao, "Órgão/Entidade")}
+${v(f.unidade, "Unidade Administrativa")}
+${v(f.numeroProcesso, "Nº do Processo")}
+${v(f.numeroTR, "Nº do TR")}
+${v(f.responsavel, "Responsável")}
+${v(f.cargo, "Cargo")}
+${v(f.referenciaETP, "Referência ao ETP")}
+${v(f.dataElaboracao, "Data de Elaboração")}
+
+OBJETO E FUNDAMENTAÇÃO:
+${v(f.objeto, "Definição do Objeto")}
+${v(f.naturezaObjeto, "Natureza do Objeto")}
+${v(f.catmatCatser, "Código CATMAT/CATSER")}
+${v(f.fundamentacaoLegal, "Fundamentação Legal")}
+${v(f.modalidadePrevista, "Modalidade Prevista")}
+${v(f.tipoContratacao, "Tipo de Contratação")}
+
+ESPECIFICAÇÕES E REQUISITOS:
+${v(f.especificacoesTecnicas, "Especificações Técnicas")}
+${v(f.normasTecnicas, "Normas Técnicas")}
+${v(f.sustentabilidade, "Requisitos de Sustentabilidade")}
+${v(f.amostra, "Exige Amostra")}
+${v(f.habilitacaoJuridica, "Habilitação Jurídica")}
+${v(f.habilitacaoTecnica, "Habilitação Técnica")}
+${v(f.qualificacaoFinanceira, "Qualificação Econômico-financeira")}
+${v(f.indices, "Índices Financeiros Mínimos")}
+
+MODELO DE EXECUÇÃO:
+${v(f.prazoExecucao && f.unidadePrazo ? f.prazoExecucao + " " + f.unidadePrazo : f.prazoExecucao, "Prazo de Execução")}
+${v(f.localExecucao, "Local de Execução/Entrega")}
+${v(f.formaEntrega, "Forma de Entrega")}
+${v(f.cronograma, "Cronograma de Etapas")}
+${v(f.subcontratacao, "Subcontratação")}
+${v(f.percentualSubcontratacao, "Percentual de Subcontratação")}
+${v(f.condicoesEspeciais, "Condições Especiais")}
+
+GESTÃO CONTRATUAL:
+${v(f.fiscalTecnico, "Fiscal Técnico")}
+${v(f.fiscalAdministrativo, "Fiscal Administrativo")}
+${v(f.recebimentoProvisorio ? f.recebimentoProvisorio + " dias" : null, "Prazo Recebimento Provisório")}
+${v(f.recebimentoDefinitivo ? f.recebimentoDefinitivo + " dias" : null, "Prazo Recebimento Definitivo")}
+${v(f.criterioMedicao, "Critério de Medição")}
+${v(f.prazoPagamento ? f.prazoPagamento + " dias" : null, "Prazo de Pagamento")}
+${v(f.formaPagamento, "Forma de Pagamento")}
+${v(f.documentosCobranca, "Documentos de Cobrança")}
+
+SELEÇÃO DO FORNECEDOR:
+${v(f.modalidade, "Modalidade Licitatória")}
+${v(f.criterioJulgamento, "Critério de Julgamento")}
+${v(f.modoDisputa, "Modo de Disputa")}
+${v(f.validadeProposta ? f.validadeProposta + " dias" : null, "Validade da Proposta")}
+${v(f.exigeAmostraPrevia, "Exige Amostra Prévia")}
+${v(f.exigeCartaSolidariedade, "Exige Carta de Solidariedade")}
+
+VALOR, ORÇAMENTO E SANÇÕES:
+${v(f.valorEstimado ? "R$ " + f.valorEstimado : null, "Valor Total Estimado")}
+${v(f.valorMaximoUnitario, "Valores Unitários Máximos")}
+${v(f.programaTrabalho, "Programa de Trabalho")}
+${v(f.elementoDespesa, "Elemento de Despesa")}
+${v(f.obrigacoesContratada, "Obrigações da Contratada")}
+${v(f.obrigacoesContratante, "Obrigações da Contratante")}
+${v(f.garantia, "Garantia Contratual")}
+${v(f.sancoes, "Sanções Administrativas")}
+${v(f.vigenciaContrato ? f.vigenciaContrato + " meses" : null, "Vigência Contratual")}
+${v(f.prorrogacao, "Possibilidade de Prorrogação")}
+
+Gere o TR completo em markdown, com todas as 15 seções desenvolvidas conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021. Expanda cada informação fornecida com linguagem técnica formal e fundamentos jurídicos. Cite os dispositivos legais em cada seção.`;
+}
+
+// ── Handler ────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -122,48 +285,19 @@ Deno.serve(async (req: Request) => {
 
   let systemPrompt: string;
   let userPrompt: string;
+  let maxTokens = 8192;
 
   if (tipo === "etp") {
     systemPrompt = SYSTEM_ETP;
-    userPrompt = `Gere o ETP completo com base nos seguintes dados:
-
-Órgão: ${formData.orgao || "não informado"}
-Setor Requisitante: ${formData.setor || "não informado"}
-Responsável: ${formData.responsavel || "não informado"}
-Objeto da Contratação: ${formData.objeto || "não informado"}
-Previsão de Contratação: ${formData.previsaoContratacao ? formData.previsaoContratacao + " dias" : "não informado"}
-Descrição da Necessidade: ${formData.descricaoNecessidade || "não informado"}
-Área Requisitante: ${formData.areaRequisitante || "não informado"}
-Alinhamento Estratégico: ${formData.alinhamentoEstrategico || "não informado"}
-Requisitos de Negócio: ${formData.requisitosNegocio || "não informado"}
-Requisitos Técnicos: ${formData.requisitosTecnicos || "não informado"}
-Estimativa de Custo: ${formData.estimativaCusto ? "R$ " + formData.estimativaCusto : "não informado"}
-Fonte da Pesquisa: ${formData.fontePesquisa || "não informado"}
-Riscos Principais: ${formData.riscosPrincipais || "não informado"}
-Medidas de Mitigação: ${formData.mitigacao || "não informado"}
-
-Gere o documento completo em markdown, com todas as seções desenvolvidas, formal e pronto para revisão.`;
+    userPrompt = buildETPPrompt(formData);
 
   } else if (tipo === "tr") {
     systemPrompt = SYSTEM_TR;
-    userPrompt = `Gere o TR completo com base nos seguintes dados:
-
-Órgão: ${formData.orgao || "não informado"}
-Objeto: ${formData.objeto || "não informado"}
-Justificativa: ${formData.justificativa || "não informado"}
-Especificações Técnicas: ${formData.especificacoes || "não informado"}
-Quantitativos: ${formData.quantitativos || "não informado"}
-Prazo de Execução: ${formData.prazoExecucao || "não informado"}
-Local de Entrega/Execução: ${formData.localEntrega || "não informado"}
-Obrigações da Contratada: ${formData.obrigacoesContratada || "não informado"}
-Obrigações da Contratante: ${formData.obrigacoesContratante || "não informado"}
-Critérios de Aceitação: ${formData.criterioAceitacao || "não informado"}
-Sanções: ${formData.sancoes || "não informado"}
-
-Gere o documento completo em markdown, com todas as seções desenvolvidas, formal e pronto para revisão.`;
+    userPrompt = buildTRPrompt(formData);
 
   } else if (tipo === "cotacao") {
     systemPrompt = SYSTEM_COTACAO;
+    maxTokens = 2048;
     userPrompt = `Analise os seguintes itens para pesquisa de preços em compras governamentais:
 
 ${JSON.stringify(formData.itens, null, 2)}
@@ -171,23 +305,42 @@ ${JSON.stringify(formData.itens, null, 2)}
 Margem de lucro aplicada: ${formData.margem || 15}%
 Impostos aplicados: ${formData.impostos || 8.65}%
 
-Forneça faixas de preço de mercado e recomendações para a pesquisa de preços.`;
+Forneça faixas de preço de mercado e recomendações para a pesquisa de preços conforme IN SEGES/ME nº 65/2021.`;
+
+  } else if (tipo === "sugestao") {
+    systemPrompt = SYSTEM_SUGESTAO;
+    maxTokens = 600;
+    const campo = formData.campo || "campo desconhecido";
+    const tipoDoc = formData.tipoDocumento || "ETP";
+    const ctx = formData.contexto || {};
+    const ctxStr = Object.entries(ctx)
+      .filter(([, v]) => v && String(v).trim())
+      .map(([k, v]) => `${k}: ${v}`)
+      .slice(0, 20)
+      .join("\n");
+    userPrompt = `Tipo de documento: ${tipoDoc}
+Campo a preencher: ${campo}
+
+Contexto atual do formulário:
+${ctxStr || "(formulário vazio)"}
+
+Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequada para um documento de contratação pública.`;
 
   } else {
-    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr ou cotacao" }), {
+    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, cotacao ou sugestao" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
   const claudeBody: any = {
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   };
 
-  // Streaming mode for ETP/TR
-  if (stream && tipo !== "cotacao") {
+  // Streaming for ETP/TR
+  if (stream && (tipo === "etp" || tipo === "tr")) {
     claudeBody.stream = true;
     try {
       const res = await callClaude(apiKey, claudeBody);
@@ -198,12 +351,7 @@ Forneça faixas de preço de mercado e recomendações para a pesquisa de preço
         });
       }
       return new Response(res.body, {
-        headers: {
-          ...cors,
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-        },
+        headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" },
       });
     } catch (err) {
       return new Response(JSON.stringify({ error: "Falha ao gerar documento (stream)", detail: String(err) }), {
@@ -212,7 +360,7 @@ Forneça faixas de preço de mercado e recomendações para a pesquisa de preço
     }
   }
 
-  // Non-streaming mode
+  // Non-streaming (cotacao, sugestao, or fallback)
   try {
     const res = await callClaude(apiKey, claudeBody);
     if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
@@ -229,7 +377,7 @@ Forneça faixas de preço de mercado e recomendações para a pesquisa de preço
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha ao gerar documento", detail: String(err) }), {
+    return new Response(JSON.stringify({ error: "Falha ao processar", detail: String(err) }), {
       status: 502, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
