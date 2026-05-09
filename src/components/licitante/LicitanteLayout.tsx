@@ -209,8 +209,10 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <main
-        className="flex-1 transition-[margin] duration-250 min-w-0"
-        style={{ marginLeft: typeof window !== "undefined" && window.innerWidth >= 768 ? (collapsed ? 72 : 256) : 0 }}
+        className={cn(
+          "flex-1 transition-[margin] duration-250 min-w-0",
+          collapsed ? "md:ml-[72px]" : "md:ml-64"
+        )}
       >
         {/* Mobile header */}
         <header className="md:hidden sticky top-0 z-30 flex h-14 items-center gap-3 px-4 border-b backdrop-blur"
