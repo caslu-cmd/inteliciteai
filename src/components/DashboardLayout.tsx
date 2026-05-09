@@ -3,7 +3,7 @@ import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
-  Zap, ChevronDown, Command, Layers,
+  Zap, ChevronDown, Command, Layers, ArrowLeft,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -444,14 +444,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          {/* Left: hamburger (mobile) + page title */}
-          <div className="flex items-center gap-3 min-w-0">
+          {/* Left: hamburger (mobile) + back button + page title */}
+          <div className="flex items-center gap-2 min-w-0">
             <button
               className="md:hidden p-1.5 rounded-lg hover:bg-secondary transition-colors"
               onClick={() => setMobileOpen(true)}
             >
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
+            {location.pathname !== "/dashboard" && location.pathname !== "/admin" && (
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-secondary transition-colors shrink-0"
+                title="Voltar"
+              >
+                <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
             {pageTitle && (
               <h1 className="text-sm font-semibold text-foreground truncate">{pageTitle}</h1>
             )}

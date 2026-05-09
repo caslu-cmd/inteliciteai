@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Radar, FileSearch, ScanLine, Building2,
   FolderCheck, FileText, MessageSquareText, BarChart3,
   ChevronLeft, ChevronRight, DollarSign, FileCheck,
-  LogOut, Scale, Menu, X,
+  LogOut, Scale, Menu, X, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +73,8 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSubPage = location.pathname !== "/licitante";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -220,13 +222,44 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileOpen(true)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "hsl(265 80% 55%)" }}>
-              <Scale className="w-3.5 h-3.5 text-white" />
+          {isSubPage ? (
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "hsl(265 80% 55%)" }}>
+                <Scale className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-display font-semibold text-sm">Intelicite Licitante</span>
             </div>
-            <span className="font-display font-semibold text-sm">Intelicite Licitante</span>
-          </div>
+          )}
         </header>
+
+        {/* Desktop back button for sub-pages */}
+        {isSubPage && (
+          <div
+            className="hidden md:flex sticky top-0 z-20 items-center h-12 px-6 gap-3 border-b"
+            style={{
+              background: "hsl(var(--background) / 0.85)",
+              borderColor: "hsl(var(--border))",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+          </div>
+        )}
 
         {children}
       </main>
