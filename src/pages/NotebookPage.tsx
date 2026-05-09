@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { streamChat } from "@/lib/streamChat";
 import { extractPdfText } from "@/lib/pdfExtract";
@@ -1165,16 +1166,75 @@ export default function NotebookPage() {
             </div>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/5 border border-accent/10 text-xs text-accent font-medium">
-          <Sparkles className="h-3.5 w-3.5" />
-          IA Jurídica · Lei 14.133/2021
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/5 border border-accent/10 text-xs text-accent font-medium">
+            <Sparkles className="h-3.5 w-3.5" />
+            IA Jurídica · Lei 14.133/2021
+          </div>
         </div>
+      </div>
+
+      {/* Mobile/tablet toolbar to access side panels */}
+      <div className="lg:hidden flex gap-2 mb-3">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="flex-1">
+              <Layers className="h-4 w-4 mr-1.5" /> Fontes ({sources.length})
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-[88vw] sm:w-[380px]">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-semibold">Fontes</span>
+                  {sources.length > 0 && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">{sources.length}</span>
+                  )}
+                </div>
+                <Button variant="gold" size="sm" className="h-7 px-3 text-xs" onClick={() => setShowAddModal(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {sources.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-dashed border-border mb-3">
+                      <FileText className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Nenhuma fonte</p>
+                    <p className="text-xs text-muted-foreground/60 leading-relaxed mb-3">
+                      Adicione editais, TRs, ETPs, importe URLs ou busque dados de preços na web
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                      <Plus className="h-3.5 w-3.5" /> Adicionar fonte
+                    </Button>
+                  </div>
+                ) : (
+                  sources.map((s) => (
+                    <SourceCard key={s.id} source={s} onToggle={toggleSource} onDelete={deleteSource} />
+                  ))
+                )}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="flex-1 xl:hidden">
+              <Sparkles className="h-4 w-4 mr-1.5" /> Studio
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="p-0 w-[88vw] sm:w-[380px]">
+            <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis} />
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* Three-column layout */}
       <div className="flex flex-1 gap-4 overflow-hidden min-h-0">
-        {/* Left: Sources */}
-        <div className="w-72 shrink-0 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+        {/* Left: Sources (desktop only) */}
+        <div className="hidden lg:flex w-72 shrink-0 flex-col rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-accent" />
@@ -1228,8 +1288,8 @@ export default function NotebookPage() {
           <ChatPanel sources={sources} />
         </div>
 
-        {/* Right: Studio */}
-        <div className="w-80 shrink-0 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+        {/* Right: Studio (xl only) */}
+        <div className="hidden xl:flex w-80 shrink-0 flex-col rounded-xl border border-border bg-card overflow-hidden">
           <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis} />
         </div>
       </div>
