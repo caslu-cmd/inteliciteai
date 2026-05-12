@@ -147,6 +147,11 @@ ${v(f.habilitacaoEspecifica, "Habilitação Específica")}
 QUANTIDADES E LEVANTAMENTO DE MERCADO:
 ${v(f.descricaoItens, "Descrição dos Itens/Quantitativos")}
 ${v(f.memoriaCalculo, "Memória de Cálculo")}
+${Array.isArray(f.aquisicaoItems) && f.aquisicaoItems.length > 0
+  ? `Formas de Aquisição Avaliadas (Art. 44):\n${f.aquisicaoItems.map((i: any) =>
+      `  - ${i.modalidade}: custo ${i.custoEstimado || "—"} | vantagens: ${i.vantagens || "—"} | desvantagens: ${i.desvantagens || "—"}`
+    ).join("\n")}\nModalidade Escolhida: ${f.modalidadeEscolhida || "[não informada]"}`
+  : ""}
 ${v(f.alternativasAvaliadas, "Alternativas de Mercado Avaliadas")}
 ${v(f.solucaoEscolhida, "Justificativa da Solução Escolhida")}
 ${v(f.decisaoParcelamento, "Decisão sobre Parcelamento")}
@@ -311,12 +316,17 @@ Forneça faixas de preço de mercado e recomendações para a pesquisa de preço
 
   } else if (tipo === "sugestao") {
     systemPrompt = SYSTEM_SUGESTAO;
-    maxTokens = 600;
+    maxTokens = 800;
     const campo = formData.campo || "campo desconhecido";
     const tipoDoc = formData.tipoDocumento || "ETP";
     const ctx = formData.contexto || {};
+    const aquisicaoStr = Array.isArray(ctx.aquisicaoItems) && ctx.aquisicaoItems.length > 0
+      ? `\nFormas de aquisição avaliadas (Art. 44 da Lei 14.133/2021):\n${ctx.aquisicaoItems.map((item: any) =>
+          `- ${item.modalidade}: custo estimado ${item.custoEstimado || "não informado"} | vantagens: ${item.vantagens || "—"} | desvantagens: ${item.desvantagens || "—"}`
+        ).join("\n")}`
+      : "";
     const ctxStr = Object.entries(ctx)
-      .filter(([, v]) => v && String(v).trim())
+      .filter(([k, v]) => k !== "aquisicaoItems" && v && String(v).trim())
       .map(([k, v]) => `${k}: ${v}`)
       .slice(0, 20)
       .join("\n");
@@ -324,7 +334,7 @@ Forneça faixas de preço de mercado e recomendações para a pesquisa de preço
 Campo a preencher: ${campo}
 
 Contexto atual do formulário:
-${ctxStr || "(formulário vazio)"}
+${ctxStr || "(formulário vazio)"}${aquisicaoStr}
 
 Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequada para um documento de contratação pública.`;
 

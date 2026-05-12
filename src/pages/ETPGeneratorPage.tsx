@@ -4,7 +4,7 @@ import {
   FileText, ChevronRight, ChevronLeft, Save, Download, Sparkles,
   Loader2, Copy, Check, Building2, AlertTriangle, Scale, Calculator,
   TrendingUp, ShieldAlert, ClipboardCheck, Info, Wand2, BookOpen,
-  Maximize2, Minimize2, Plus, X, Table2,
+  Maximize2, Minimize2, Plus, X, Table2, ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ const FORM0 = {
   metodologiaPesquisa: "", dataPesquisa: "", catmatCatser: "",
   naturezaDespesa: "", dotacaoOrcamentaria: "",
   riscosIdentificados: "", probabilidadeImpacto: "", medidasMitigacao: "",
+  modalidadeEscolhida: "",
   impactosAmbientais: "",
   contratacaoCorrelatas: "", interdependentes: "", providencias: "",
   resultadosPretendidos: "", indicadoresDesempenho: "", beneficiosEsperados: "",
@@ -257,9 +258,127 @@ function Sec3({ form, set, suggesting, onSuggest }: SectionProps) {
   );
 }
 
-function Sec4({ form, set, suggesting, onSuggest }: SectionProps) {
+type AquisicaoItem = { id: string; modalidade: string; custoEstimado: string; vantagens: string; desvantagens: string };
+
+const MODALIDADES_PRESET = [
+  "Compra Direta", "Locação / Aluguel", "Serviço Terceirizado",
+  "Leasing", "Comodato", "Serviço por Demanda",
+];
+
+type Sec4Props = SectionProps & {
+  aquisicaoItems: AquisicaoItem[];
+  analisandoAquisicao: boolean;
+  onAddAquisicao: (modalidade?: string) => void;
+  onRemoveAquisicao: (id: string) => void;
+  onUpdateAquisicao: (id: string, field: keyof AquisicaoItem, value: string) => void;
+  onAnalisarAquisicao: () => void;
+};
+
+function Sec4({ form, set, suggesting, onSuggest, aquisicaoItems, analisandoAquisicao, onAddAquisicao, onRemoveAquisicao, onUpdateAquisicao, onAnalisarAquisicao }: Sec4Props) {
   return (
     <div className="space-y-4">
+
+      {/* ── Formas de Aquisição ── */}
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <div className="flex items-center gap-2">
+            <ArrowLeftRight className="h-4 w-4 text-amber-500" />
+            <div>
+              <p className="text-xs font-semibold">Formas de Aquisição</p>
+              <p className="text-[10px] text-muted-foreground">Opcional · Art. 44 · Lei 14.133/2021 — Comprar, alugar, terceirizar?</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline"
+            className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+            onClick={onAnalisarAquisicao} disabled={analisandoAquisicao || !aquisicaoItems.some(i => i.modalidade.trim())} type="button">
+            {analisandoAquisicao ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
+            {analisandoAquisicao ? "Analisando..." : "Analisar com IA"}
+          </Button>
+        </div>
+
+        <div className="px-4 py-2 border-b border-border/60 flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] text-muted-foreground mr-1">Adicionar:</span>
+          {MODALIDADES_PRESET.map(m => (
+            <button key={m} type="button" onClick={() => onAddAquisicao(m)}
+              className="text-[10px] px-2.5 py-0.5 rounded-full border border-border hover:border-amber-500/50 hover:bg-amber-500/5 hover:text-amber-600 transition-colors text-muted-foreground">
+              {m}
+            </button>
+          ))}
+          <button type="button" onClick={() => onAddAquisicao()}
+            className="text-[10px] px-2.5 py-0.5 rounded-full border border-dashed border-border hover:border-amber-500/50 hover:text-amber-600 transition-colors text-muted-foreground ml-1">
+            + Outra
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="text-left py-2 px-3 text-muted-foreground font-medium w-[22%]">Modalidade</th>
+                <th className="text-left py-2 px-2 text-muted-foreground font-medium w-[16%]">Custo Estimado</th>
+                <th className="text-left py-2 px-2 text-muted-foreground font-medium w-[29%]">Vantagens</th>
+                <th className="text-left py-2 px-2 text-muted-foreground font-medium w-[29%]">Desvantagens</th>
+                <th className="w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {aquisicaoItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-5 px-3 text-center text-[11px] text-muted-foreground/50 italic">
+                    Clique nos atalhos acima para comparar as formas de adquirir o objeto
+                  </td>
+                </tr>
+              ) : aquisicaoItems.map(item => (
+                <tr key={item.id} className="border-b border-border/40 hover:bg-muted/10 transition-colors align-top">
+                  <td className="py-1.5 px-3">
+                    <Input className="h-7 text-[11px] font-medium bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                      value={item.modalidade} onChange={e => onUpdateAquisicao(item.id, "modalidade", e.target.value)}
+                      placeholder="Ex: Compra Direta" />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <Input className="h-7 text-[11px] font-mono bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                      value={item.custoEstimado} onChange={e => onUpdateAquisicao(item.id, "custoEstimado", e.target.value)}
+                      placeholder="R$ 0,00" />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <Textarea rows={2} className="text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0 resize-none min-h-0"
+                      value={item.vantagens} onChange={e => onUpdateAquisicao(item.id, "vantagens", e.target.value)}
+                      placeholder="Pontos positivos..." />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <Textarea rows={2} className="text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0 resize-none min-h-0"
+                      value={item.desvantagens} onChange={e => onUpdateAquisicao(item.id, "desvantagens", e.target.value)}
+                      placeholder="Pontos negativos..." />
+                  </td>
+                  <td className="py-1.5 px-2 pt-2.5">
+                    <button type="button" onClick={() => onRemoveAquisicao(item.id)}
+                      className="text-muted-foreground/30 hover:text-red-400 transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {aquisicaoItems.some(i => i.modalidade.trim()) && (
+          <div className="px-4 py-2.5 border-t border-border/60 flex items-center gap-3">
+            <span className="text-[11px] text-muted-foreground shrink-0">Modalidade escolhida:</span>
+            <Select value={form.modalidadeEscolhida} onValueChange={v => set("modalidadeEscolhida", v)}>
+              <SelectTrigger className="h-7 text-[11px] flex-1">
+                <SelectValue placeholder="Selecione a modalidade adotada" />
+              </SelectTrigger>
+              <SelectContent>
+                {aquisicaoItems.filter(i => i.modalidade.trim()).map(i => (
+                  <SelectItem key={i.id} value={i.modalidade}>{i.modalidade}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
       <FL label="Descrição dos Itens / Quantitativos" req campo="descricaoItens" suggesting={suggesting} onSuggest={onSuggest}
         tip="Liste todos os itens com código CATMAT/CATSER, unidade de medida e quantidade estimada">
         <Textarea rows={5} value={form.descricaoItens} onChange={e => set("descricaoItens", e.target.value)} placeholder="Item 1 — [CATMAT 000000] Descrição detalhada — 100 unidades&#10;Item 2 — ..." />
@@ -564,6 +683,8 @@ export default function ETPGeneratorPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [cotacaoData, setCotacaoData] = useState<any>(null);
   const [estimatingPrice, setEstimatingPrice] = useState(false);
+  const [aquisicaoItems, setAquisicaoItems] = useState<AquisicaoItem[]>([]);
+  const [analisandoAquisicao, setAnalisandoAquisicao] = useState(false);
   const [priceItems, setPriceItems] = useState<PriceItem[]>([
     { id: "1", descricao: "", quantidade: "1", unidade: "UN", valorUnitario: "", referencia: "" },
   ]);
@@ -584,6 +705,49 @@ export default function ETPGeneratorPage() {
   }, [form]);
 
   const words = aiContent ? aiContent.split(/\s+/).filter(Boolean).length : 0;
+
+  const addAquisicao = useCallback((modalidade?: string) => {
+    setAquisicaoItems(p => [...p, { id: Date.now().toString(), modalidade: modalidade ?? "", custoEstimado: "", vantagens: "", desvantagens: "" }]);
+  }, []);
+
+  const removeAquisicao = useCallback((id: string) => {
+    setAquisicaoItems(p => p.filter(i => i.id !== id));
+  }, []);
+
+  const updateAquisicao = useCallback((id: string, field: keyof AquisicaoItem, value: string) => {
+    setAquisicaoItems(p => p.map(i => i.id === id ? { ...i, [field]: value } : i));
+  }, []);
+
+  const handleAnalisarAquisicao = useCallback(async () => {
+    const validos = aquisicaoItems.filter(i => i.modalidade.trim());
+    if (!validos.length) return;
+    setAnalisandoAquisicao(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          tipo: "sugestao",
+          formData: {
+            campo: "alternativasAvaliadas",
+            tipoDocumento: "ETP",
+            contexto: { ...form, aquisicaoItems: validos },
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.conteudo) {
+        set("alternativasAvaliadas", data.conteudo);
+        toast.success("Análise comparativa gerada!");
+      }
+    } catch { toast.error("Erro ao analisar. Tente novamente."); }
+    finally { setAnalisandoAquisicao(false); }
+  }, [aquisicaoItems, form, set]);
 
   const addPriceItem = useCallback(() => {
     setPriceItems(p => [...p, { id: Date.now().toString(), descricao: "", quantidade: "1", unidade: "UN", valorUnitario: "", referencia: "" }]);
@@ -868,7 +1032,7 @@ export default function ETPGeneratorPage() {
                 {section === 1 && <Sec1 {...sectionProps} />}
                 {section === 2 && <Sec2 {...sectionProps} />}
                 {section === 3 && <Sec3 {...sectionProps} />}
-                {section === 4 && <Sec4 {...sectionProps} />}
+                {section === 4 && <Sec4 {...sectionProps} aquisicaoItems={aquisicaoItems} analisandoAquisicao={analisandoAquisicao} onAddAquisicao={addAquisicao} onRemoveAquisicao={removeAquisicao} onUpdateAquisicao={updateAquisicao} onAnalisarAquisicao={handleAnalisarAquisicao} />}
                 {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} priceItems={priceItems} priceTotal={priceTotal} onAddItem={addPriceItem} onRemoveItem={removePriceItem} onUpdateItem={updatePriceItem} />}
                 {section === 6 && <Sec6 {...sectionProps} />}
                 {section === 7 && <Sec7 {...sectionProps} />}
