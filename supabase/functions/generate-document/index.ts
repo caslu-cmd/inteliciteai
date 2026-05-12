@@ -14,18 +14,19 @@ Redija um ESTUDO TÉCNICO PRELIMINAR (ETP) completo, técnico, formal e juridica
 
 ESTRUTURA OBRIGATÓRIA (todas as seções devem ser plenamente desenvolvidas):
 1. IDENTIFICAÇÃO DO DOCUMENTO (cabeçalho completo com órgão, setor, responsáveis, processo, data)
-2. DESCRIÇÃO DA NECESSIDADE DA CONTRATAÇÃO (Art. 18, §1º, I — problema, contexto, motivação)
+2. DESCRIÇÃO DA NECESSIDADE DA CONTRATAÇÃO (Art. 18, §1º, I — responda obrigatoriamente: por que contratar, para que contratar, para quem contratar, que interesse público será atendido, o que se busca resolver)
 3. DEMONSTRAÇÃO DA PREVISÃO NO PCA (Art. 18, §1º, II — Plano de Contratações Anual, DFD)
 4. REQUISITOS DA CONTRATAÇÃO (Art. 18, §1º, III — técnicos, sustentabilidade, qualidade, habilitação)
 5. ESTIMATIVAS DAS QUANTIDADES (Art. 18, §1º, IV — com memória de cálculo detalhada)
 6. LEVANTAMENTO DE MERCADO (Art. 18, §1º, V — alternativas avaliadas, benchmarking)
-7. ESTIMATIVA DO VALOR DA CONTRATAÇÃO (Art. 18, §1º, VI — fontes, metodologia, pesquisa de preços)
+7. ESTIMATIVA DO VALOR DA CONTRATAÇÃO (Art. 18, §1º, VI — fontes, metodologia, pesquisa de preços, preços unitários referenciais)
 8. DESCRIÇÃO DA SOLUÇÃO COMO UM TODO (Art. 18, §1º, VII — arquitetura da solução)
 9. JUSTIFICATIVAS PARA PARCELAMENTO OU NÃO DA SOLUÇÃO (Art. 18, §1º, VII)
-10. DEMONSTRATIVO DOS RESULTADOS PRETENDIDOS (Art. 18, §1º, VIII — benefícios esperados, indicadores)
+10. DEMONSTRATIVO DOS RESULTADOS PRETENDIDOS (Art. 18, §1º, VIII — benefícios esperados, indicadores mensuráveis)
 11. PROVIDÊNCIAS A SEREM ADOTADAS PELA ADMINISTRAÇÃO (Art. 18, §1º, IX)
 12. CONTRATAÇÕES CORRELATAS E/OU INTERDEPENDENTES (Art. 18, §1º, XI)
-13. POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE E RAZOABILIDADE DA CONTRATAÇÃO (Art. 18, §1º, XII)
+13. DESCRIÇÃO DE POSSÍVEIS IMPACTOS AMBIENTAIS E MEDIDAS MITIGADORAS (Art. 18, §1º, XII — logística reversa, baixo consumo energético, reciclagem)
+14. POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE E RAZOABILIDADE DA CONTRATAÇÃO (Art. 18, §1º, XIII)
 
 INSTRUÇÕES:
 - Use linguagem técnica e formal em português brasileiro
@@ -129,6 +130,11 @@ ${v(f.previsaoPCA, "Previsão no PCA")}
 ${v(f.numeroPCA, "Nº no PCA/DFD")}
 ${v(f.alinhamentoEstrategico, "Alinhamento Estratégico")}
 ${v(f.instrumentoPlanejamento, "Instrumento de Planejamento")}
+${f.porQueContratar ? `Por que contratar: ${f.porQueContratar}` : ""}
+${f.paraQueContratar ? `Para que contratar: ${f.paraQueContratar}` : ""}
+${f.paraQuemContratar ? `Para quem contratar: ${f.paraQuemContratar}` : ""}
+${f.interessePublico ? `Interesse público atendido: ${f.interessePublico}` : ""}
+${f.oqueBuscaResolver ? `O que se busca resolver: ${f.oqueBuscaResolver}` : ""}
 
 REQUISITOS DA CONTRATAÇÃO:
 ${v(f.requisitosNegocio, "Requisitos de Negócio")}
@@ -156,10 +162,11 @@ ${v(f.catmatCatser, "Código CATMAT/CATSER")}
 ${v(f.naturezaDespesa, "Natureza da Despesa")}
 ${v(f.dotacaoOrcamentaria, "Dotação Orçamentária")}
 
-RISCOS E CONTRATAÇÕES CORRELATAS:
+RISCOS, IMPACTOS AMBIENTAIS E CONTRATAÇÕES CORRELATAS:
 ${v(f.riscosIdentificados, "Riscos Identificados")}
 ${v(f.probabilidadeImpacto, "Probabilidade e Impacto")}
 ${v(f.medidasMitigacao, "Medidas de Mitigação")}
+${v(f.impactosAmbientais, "Impactos Ambientais e Medidas Mitigadoras")}
 ${v(f.contratacaoCorrelatas, "Contratações Correlatas")}
 ${v(f.interdependentes, "Contratações Interdependentes")}
 ${v(f.providencias, "Providências Administrativas")}
@@ -171,7 +178,7 @@ ${v(f.beneficiosEsperados, "Benefícios Esperados")}
 ${v(f.viabilidade, "Posicionamento sobre Viabilidade")}
 ${v(f.justificativaViabilidade, "Justificativa do Posicionamento")}
 
-Gere o ETP completo em markdown, com todas as 13 seções desenvolvidas conforme Art. 18, §1º da Lei 14.133/2021 e IN SEGES/ME nº 58/2022. Expanda cada informação fornecida com linguagem técnica formal e fundamentos jurídicos. Cite os dispositivos legais em cada seção.`;
+Gere o ETP completo em markdown, com todas as 14 seções desenvolvidas conforme Art. 18, §1º da Lei 14.133/2021 e IN SEGES/ME nº 58/2022. Expanda cada informação fornecida com linguagem técnica formal e fundamentos jurídicos. Cite os dispositivos legais em cada seção.`;
 }
 
 function buildTRPrompt(f: any): string {

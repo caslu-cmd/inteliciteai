@@ -26,6 +26,8 @@ const FORM0 = {
   descricaoNecessidade: "", problemaSolucionar: "", publicoBeneficiado: "",
   quantidadeUsuarios: "", previsaoPCA: "", numeroPCA: "",
   alinhamentoEstrategico: "", instrumentoPlanejamento: "",
+  porQueContratar: "", paraQueContratar: "", paraQuemContratar: "",
+  interessePublico: "", oqueBuscaResolver: "",
   requisitosNegocio: "", requisitosTecnicos: "", sustentabilidade: "",
   qualidade: "", segurancaInformacao: "", habilitacaoEspecifica: "",
   descricaoItens: "", memoriaCalculo: "", alternativasAvaliadas: "",
@@ -34,6 +36,7 @@ const FORM0 = {
   metodologiaPesquisa: "", dataPesquisa: "", catmatCatser: "",
   naturezaDespesa: "", dotacaoOrcamentaria: "",
   riscosIdentificados: "", probabilidadeImpacto: "", medidasMitigacao: "",
+  impactosAmbientais: "",
   contratacaoCorrelatas: "", interdependentes: "", providencias: "",
   resultadosPretendidos: "", indicadoresDesempenho: "", beneficiosEsperados: "",
   viabilidade: "", justificativaViabilidade: "",
@@ -62,7 +65,8 @@ const COMPLIANCE = [
   { label: "VIII — Resultados", field: "resultadosPretendidos" },
   { label: "X — Riscos",        field: "riscosIdentificados" },
   { label: "XI — Correlatas",   field: "contratacaoCorrelatas" },
-  { label: "XII — Conclusivo",  field: "viabilidade" },
+  { label: "XII — Ambiental",   field: "impactosAmbientais" },
+  { label: "XIII — Conclusivo", field: "viabilidade" },
 ];
 
 // ── Helper components ──────────────────────────────────────────
@@ -136,11 +140,66 @@ function Sec1({ form, set }: SectionProps) {
 }
 
 function Sec2({ form, set, suggesting, onSuggest }: SectionProps) {
+  const consolidar = () => {
+    const parts = [
+      form.porQueContratar && `Por que contratar:\n${form.porQueContratar}`,
+      form.paraQueContratar && `Para que contratar:\n${form.paraQueContratar}`,
+      form.paraQuemContratar && `Para quem contratar:\n${form.paraQuemContratar}`,
+      form.interessePublico && `Interesse público atendido:\n${form.interessePublico}`,
+      form.oqueBuscaResolver && `O que se busca resolver:\n${form.oqueBuscaResolver}`,
+    ].filter(Boolean);
+    if (parts.length) set("descricaoNecessidade", parts.join("\n\n"));
+  };
+
+  const temPerguntas = form.porQueContratar || form.paraQueContratar || form.paraQuemContratar || form.interessePublico || form.oqueBuscaResolver;
+
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-amber-500" />
+            <div>
+              <p className="text-xs font-semibold text-amber-600">Perguntas Orientadoras</p>
+              <p className="text-[10px] text-muted-foreground">Inc. I do §1º do art. 18 da Lei nº 14.133/2021</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline"
+            className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+            onClick={consolidar} disabled={!temPerguntas}>
+            <Wand2 className="mr-1.5 h-3 w-3" />
+            Consolidar em Descrição
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          <FL label="Por que contratar?" campo="porQueContratar" suggesting={suggesting} onSuggest={onSuggest}
+            tip="Motivos que originam a necessidade da contratação">
+            <Textarea rows={2} className="text-xs" value={form.porQueContratar} onChange={e => set("porQueContratar", e.target.value)} placeholder="Qual o motivo ou problema que origina esta contratação?" />
+          </FL>
+          <FL label="Para que contratar?" campo="paraQueContratar" suggesting={suggesting} onSuggest={onSuggest}
+            tip="Finalidade e objetivo da contratação">
+            <Textarea rows={2} className="text-xs" value={form.paraQueContratar} onChange={e => set("paraQueContratar", e.target.value)} placeholder="Qual a finalidade e o objetivo a ser alcançado?" />
+          </FL>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FL label="Para quem contratar?" campo="paraQuemContratar" suggesting={suggesting} onSuggest={onSuggest}
+              tip="Público-alvo e beneficiários diretos">
+              <Textarea rows={2} className="text-xs" value={form.paraQuemContratar} onChange={e => set("paraQuemContratar", e.target.value)} placeholder="Quem são os beneficiários diretos?" />
+            </FL>
+            <FL label="Que interesse público será atendido?" campo="interessePublico" suggesting={suggesting} onSuggest={onSuggest}
+              tip="Interesse público que a contratação visa atender">
+              <Textarea rows={2} className="text-xs" value={form.interessePublico} onChange={e => set("interessePublico", e.target.value)} placeholder="Qual interesse público será atendido?" />
+            </FL>
+          </div>
+          <FL label="O que se busca resolver com essa contratação?" campo="oqueBuscaResolver" suggesting={suggesting} onSuggest={onSuggest}
+            tip="Problema concreto ou lacuna a ser resolvida">
+            <Textarea rows={2} className="text-xs" value={form.oqueBuscaResolver} onChange={e => set("oqueBuscaResolver", e.target.value)} placeholder="Que problema concreto ou lacuna esta contratação resolve?" />
+          </FL>
+        </div>
+      </div>
+
       <FL label="Descrição da Necessidade" req campo="descricaoNecessidade" suggesting={suggesting} onSuggest={onSuggest}
         tip="Descreva detalhadamente a necessidade que motiva a contratação conforme Art. 18, §1º, I">
-        <Textarea rows={4} value={form.descricaoNecessidade} onChange={e => set("descricaoNecessidade", e.target.value)} placeholder="Descreva a necessidade que motiva esta contratação, incluindo o contexto e os problemas atuais..." />
+        <Textarea rows={5} value={form.descricaoNecessidade} onChange={e => set("descricaoNecessidade", e.target.value)} placeholder="Descreva a necessidade que motiva esta contratação, incluindo o contexto e os problemas atuais..." />
       </FL>
       <FL label="Problema a ser Solucionado" req campo="problemaSolucionar" suggesting={suggesting} onSuggest={onSuggest}
         tip="Identifique claramente o problema que justifica a contratação">
@@ -235,9 +294,88 @@ function Sec4({ form, set, suggesting, onSuggest }: SectionProps) {
   );
 }
 
-function Sec5({ form, set, suggesting, onSuggest }: SectionProps) {
+type Sec5Props = SectionProps & {
+  cotacaoData: any;
+  estimatingPrice: boolean;
+  onEstimarPrecos: () => void;
+};
+
+function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, onEstimarPrecos }: Sec5Props) {
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-amber-500" />
+            <div>
+              <p className="text-xs font-semibold text-amber-600">Estimativa de Preços com IA</p>
+              <p className="text-[10px] text-muted-foreground">Art. 18, §1º, VI · IN SEGES/ME nº 65/2021</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline"
+            className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+            onClick={onEstimarPrecos} disabled={estimatingPrice || !form.descricaoItens}>
+            {estimatingPrice ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
+            {estimatingPrice ? "Estimando..." : "Estimar com IA"}
+          </Button>
+        </div>
+        {!form.descricaoItens ? (
+          <p className="text-[11px] text-muted-foreground italic">Preencha os itens na seção Quantidades para habilitar a estimativa de preços.</p>
+        ) : !cotacaoData && !estimatingPrice && (
+          <p className="text-[11px] text-muted-foreground">Clique em "Estimar com IA" para obter faixas de preço de mercado para os itens cadastrados.</p>
+        )}
+        {cotacaoData && (
+          <div className="space-y-3">
+            {cotacaoData.totalEstimado > 0 && (
+              <div className="flex items-center justify-between rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                <span className="text-xs font-medium">Total estimado pela IA:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-amber-600">
+                    R$ {cotacaoData.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]"
+                    onClick={() => set("valorEstimado", cotacaoData.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}>
+                    Usar valor
+                  </Button>
+                </div>
+              </div>
+            )}
+            {cotacaoData.itens?.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Faixas por Item</p>
+                {cotacaoData.itens.map((item: any, i: number) => (
+                  <div key={i} className="rounded border border-border/60 px-3 py-2 flex items-start justify-between gap-3">
+                    <span className="text-[11px] text-muted-foreground flex-1 leading-relaxed">{item.descricao}</span>
+                    <span className="text-[11px] font-mono text-right shrink-0 text-foreground">
+                      R$ {item.faixaMin?.toLocaleString("pt-BR")} – {item.faixaMax?.toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {cotacaoData.alertas?.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Alertas</p>
+                {cotacaoData.alertas.map((a: string, i: number) => (
+                  <div key={i} className="flex items-start gap-1.5 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                    <span>{a}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {cotacaoData.recomendacoes?.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recomendações</p>
+                {cotacaoData.recomendacoes.map((r: string, i: number) => (
+                  <p key={i} className="text-[11px] text-muted-foreground">• {r}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FL label="Valor Total Estimado (R$)" req><Input value={form.valorEstimado} onChange={e => set("valorEstimado", e.target.value)} placeholder="Ex: 150.000,00" /></FL>
         <FL label="Data da Pesquisa de Preços"><Input type="date" value={form.dataPesquisa} onChange={e => set("dataPesquisa", e.target.value)} /></FL>
@@ -304,6 +442,10 @@ function Sec6({ form, set, suggesting, onSuggest }: SectionProps) {
         tip="Ações concretas para reduzir a probabilidade ou o impacto dos riscos">
         <Textarea rows={4} value={form.medidasMitigacao} onChange={e => set("medidasMitigacao", e.target.value)} placeholder="Risco 1: [medida de mitigação correspondente]&#10;Risco 2: ..." />
       </FL>
+      <FL label="Impactos Ambientais e Medidas Mitigadoras" campo="impactosAmbientais" suggesting={suggesting} onSuggest={onSuggest}
+        tip="Art. 18, §1º, XII — Possíveis impactos ambientais, logística reversa, baixo consumo de energia e reciclagem">
+        <Textarea rows={3} value={form.impactosAmbientais} onChange={e => set("impactosAmbientais", e.target.value)} placeholder="Descreva os possíveis impactos ambientais e as medidas mitigadoras, incluindo logística reversa, baixo consumo energético e critérios de reciclagem..." />
+      </FL>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FL label="Contratações Correlatas" tip="Art. 18, §1º, XI — Contratos relacionados a esta contratação">
           <Textarea rows={3} value={form.contratacaoCorrelatas} onChange={e => set("contratacaoCorrelatas", e.target.value)} placeholder="Contratos em vigor que se relacionam com esta contratação..." />
@@ -364,6 +506,8 @@ export default function ETPGeneratorPage() {
   const [suggesting, setSuggesting] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [cotacaoData, setCotacaoData] = useState<any>(null);
+  const [estimatingPrice, setEstimatingPrice] = useState(false);
 
   const set = useCallback((field: keyof ETPForm, value: string) => {
     setForm(p => ({ ...p, [field]: value }));
@@ -381,6 +525,42 @@ export default function ETPGeneratorPage() {
   }, [form]);
 
   const words = aiContent ? aiContent.split(/\s+/).filter(Boolean).length : 0;
+
+  const handleEstimarPrecos = useCallback(async () => {
+    if (!form.descricaoItens) {
+      toast.warning("Preencha os itens na seção Quantidades primeiro.");
+      return;
+    }
+    setEstimatingPrice(true);
+    setCotacaoData(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          tipo: "cotacao",
+          formData: { itens: [{ descricao: form.descricaoItens }], margem: 15, impostos: 8.65 },
+        }),
+      });
+      const raw = await res.text();
+      const data = JSON.parse(raw);
+      if (data.itens || data.totalEstimado !== undefined) {
+        setCotacaoData(data);
+        if (data.totalEstimado) {
+          set("valorEstimado", data.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        }
+        toast.success("Estimativa de preços concluída!");
+      } else {
+        toast.error(data.error || "Resposta inválida da IA.");
+      }
+    } catch { toast.error("Erro ao estimar preços. Tente novamente."); }
+    finally { setEstimatingPrice(false); }
+  }, [form.descricaoItens, set]);
 
   const handleSuggest = useCallback(async (campo: string) => {
     setSuggesting(campo);
@@ -594,7 +774,7 @@ export default function ETPGeneratorPage() {
                 {section === 2 && <Sec2 {...sectionProps} />}
                 {section === 3 && <Sec3 {...sectionProps} />}
                 {section === 4 && <Sec4 {...sectionProps} />}
-                {section === 5 && <Sec5 {...sectionProps} />}
+                {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} />}
                 {section === 6 && <Sec6 {...sectionProps} />}
                 {section === 7 && <Sec7 {...sectionProps} />}
               </motion.div>
