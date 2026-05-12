@@ -4,7 +4,7 @@ import {
   FileText, ChevronRight, ChevronLeft, Save, Download, Sparkles,
   Loader2, Copy, Check, Building2, AlertTriangle, Scale, Calculator,
   TrendingUp, ShieldAlert, ClipboardCheck, Info, Wand2, BookOpen,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, Plus, X, Table2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -294,72 +294,128 @@ function Sec4({ form, set, suggesting, onSuggest }: SectionProps) {
   );
 }
 
+type PriceItem = { id: string; descricao: string; quantidade: string; unidade: string; valorUnitario: string; referencia: string };
+
 type Sec5Props = SectionProps & {
   cotacaoData: any;
   estimatingPrice: boolean;
   onEstimarPrecos: () => void;
+  priceItems: PriceItem[];
+  priceTotal: number;
+  onAddItem: () => void;
+  onRemoveItem: (id: string) => void;
+  onUpdateItem: (id: string, field: keyof PriceItem, value: string) => void;
 };
 
-function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, onEstimarPrecos }: Sec5Props) {
+function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, onEstimarPrecos, priceItems, priceTotal, onAddItem, onRemoveItem, onUpdateItem }: Sec5Props) {
+  const temItens = priceItems.some(i => i.descricao.trim());
+
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
-        <div className="flex items-center justify-between">
+      {/* ── Tabela de Levantamento de Preços ── */}
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
           <div className="flex items-center gap-2">
-            <Calculator className="h-4 w-4 text-amber-500" />
+            <Table2 className="h-4 w-4 text-amber-500" />
             <div>
-              <p className="text-xs font-semibold text-amber-600">Estimativa de Preços com IA</p>
-              <p className="text-[10px] text-muted-foreground">Art. 18, §1º, VI · IN SEGES/ME nº 65/2021</p>
+              <p className="text-xs font-semibold">Tabela de Levantamento de Preços</p>
+              <p className="text-[10px] text-muted-foreground">Opcional · Art. 18, §1º, VI · IN SEGES/ME nº 65/2021</p>
             </div>
           </div>
-          <Button size="sm" variant="outline"
-            className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
-            onClick={onEstimarPrecos} disabled={estimatingPrice || !form.descricaoItens}>
-            {estimatingPrice ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
-            {estimatingPrice ? "Estimando..." : "Estimar com IA"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={onAddItem} type="button">
+              <Plus className="mr-1 h-3 w-3" /> Item
+            </Button>
+            <Button size="sm" variant="outline"
+              className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+              onClick={onEstimarPrecos} disabled={estimatingPrice || !temItens} type="button">
+              {estimatingPrice ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
+              {estimatingPrice ? "Estimando..." : "Estimar com IA"}
+            </Button>
+          </div>
         </div>
-        {!form.descricaoItens ? (
-          <p className="text-[11px] text-muted-foreground italic">Preencha os itens na seção Quantidades para habilitar a estimativa de preços.</p>
-        ) : !cotacaoData && !estimatingPrice && (
-          <p className="text-[11px] text-muted-foreground">Clique em "Estimar com IA" para obter faixas de preço de mercado para os itens cadastrados.</p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left py-2 px-3 text-muted-foreground font-medium">Descrição do Item / Serviço</th>
+                <th className="text-center py-2 px-2 text-muted-foreground font-medium w-16">Qtd</th>
+                <th className="text-center py-2 px-2 text-muted-foreground font-medium w-16">Unid.</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium w-28">Valor Unit. (R$)</th>
+                <th className="text-right py-2 px-3 text-muted-foreground font-medium w-28">Total (R$)</th>
+                <th className="text-left py-2 px-2 text-muted-foreground font-medium w-28">Referência</th>
+                <th className="w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {priceItems.map((item) => {
+                const qty = parseFloat(item.quantidade.replace(",", ".")) || 0;
+                const unit = parseFloat(item.valorUnitario.replace(/\./g, "").replace(",", ".")) || 0;
+                const rowTotal = qty * unit;
+                return (
+                  <tr key={item.id} className="border-b border-border/40 hover:bg-muted/10 transition-colors">
+                    <td className="py-1.5 px-3">
+                      <Input className="h-7 text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                        value={item.descricao} onChange={e => onUpdateItem(item.id, "descricao", e.target.value)}
+                        placeholder="Descreva o item ou serviço..." />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input className="h-7 text-[11px] text-center bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                        value={item.quantidade} onChange={e => onUpdateItem(item.id, "quantidade", e.target.value)} placeholder="1" />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input className="h-7 text-[11px] text-center bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                        value={item.unidade} onChange={e => onUpdateItem(item.id, "unidade", e.target.value)} placeholder="UN" />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input className="h-7 text-[11px] text-right font-mono bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
+                        value={item.valorUnitario} onChange={e => onUpdateItem(item.id, "valorUnitario", e.target.value)} placeholder="0,00" />
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-medium">
+                      {rowTotal > 0 ? rowTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : <span className="text-muted-foreground/40">—</span>}
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input className="h-7 text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0 text-muted-foreground"
+                        value={item.referencia} onChange={e => onUpdateItem(item.id, "referencia", e.target.value)}
+                        placeholder="Painel, ata, NF..." />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <button type="button" onClick={() => onRemoveItem(item.id)}
+                        className="text-muted-foreground/30 hover:text-red-400 transition-colors">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {priceTotal > 0 && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/20">
+            <span className="text-xs font-semibold text-muted-foreground">Total geral:</span>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-sm">
+                R$ {priceTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </span>
+              <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" type="button"
+                onClick={() => set("valorEstimado", priceTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}>
+                Usar como valor estimado
+              </Button>
+            </div>
+          </div>
         )}
-        {cotacaoData && (
-          <div className="space-y-3">
-            {cotacaoData.totalEstimado > 0 && (
-              <div className="flex items-center justify-between rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-                <span className="text-xs font-medium">Total estimado pela IA:</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-600">
-                    R$ {cotacaoData.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </span>
-                  <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]"
-                    onClick={() => set("valorEstimado", cotacaoData.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}>
-                    Usar valor
-                  </Button>
-                </div>
-              </div>
-            )}
-            {cotacaoData.itens?.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Faixas por Item</p>
-                {cotacaoData.itens.map((item: any, i: number) => (
-                  <div key={i} className="rounded border border-border/60 px-3 py-2 flex items-start justify-between gap-3">
-                    <span className="text-[11px] text-muted-foreground flex-1 leading-relaxed">{item.descricao}</span>
-                    <span className="text-[11px] font-mono text-right shrink-0 text-foreground">
-                      R$ {item.faixaMin?.toLocaleString("pt-BR")} – {item.faixaMax?.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+
+        {(cotacaoData?.alertas?.length > 0 || cotacaoData?.recomendacoes?.length > 0) && (
+          <div className="px-4 py-3 border-t border-border space-y-2">
             {cotacaoData.alertas?.length > 0 && (
               <div className="space-y-1">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Alertas</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Alertas da IA</p>
                 {cotacaoData.alertas.map((a: string, i: number) => (
                   <div key={i} className="flex items-start gap-1.5 text-[11px] text-amber-600">
-                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                    <span>{a}</span>
+                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" /><span>{a}</span>
                   </div>
                 ))}
               </div>
@@ -508,6 +564,9 @@ export default function ETPGeneratorPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [cotacaoData, setCotacaoData] = useState<any>(null);
   const [estimatingPrice, setEstimatingPrice] = useState(false);
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([
+    { id: "1", descricao: "", quantidade: "1", unidade: "UN", valorUnitario: "", referencia: "" },
+  ]);
 
   const set = useCallback((field: keyof ETPForm, value: string) => {
     setForm(p => ({ ...p, [field]: value }));
@@ -526,9 +585,28 @@ export default function ETPGeneratorPage() {
 
   const words = aiContent ? aiContent.split(/\s+/).filter(Boolean).length : 0;
 
+  const addPriceItem = useCallback(() => {
+    setPriceItems(p => [...p, { id: Date.now().toString(), descricao: "", quantidade: "1", unidade: "UN", valorUnitario: "", referencia: "" }]);
+  }, []);
+
+  const removePriceItem = useCallback((id: string) => {
+    setPriceItems(p => p.length > 1 ? p.filter(i => i.id !== id) : p);
+  }, []);
+
+  const updatePriceItem = useCallback((id: string, field: keyof PriceItem, value: string) => {
+    setPriceItems(p => p.map(i => i.id === id ? { ...i, [field]: value } : i));
+  }, []);
+
+  const priceTotal = useMemo(() => priceItems.reduce((sum, item) => {
+    const qty = parseFloat(item.quantidade.replace(",", ".")) || 0;
+    const unit = parseFloat(item.valorUnitario.replace(/\./g, "").replace(",", ".")) || 0;
+    return sum + qty * unit;
+  }, 0), [priceItems]);
+
   const handleEstimarPrecos = useCallback(async () => {
-    if (!form.descricaoItens) {
-      toast.warning("Preencha os itens na seção Quantidades primeiro.");
+    const validos = priceItems.filter(i => i.descricao.trim());
+    if (!validos.length) {
+      toast.warning("Adicione ao menos um item com descrição na tabela de preços.");
       return;
     }
     setEstimatingPrice(true);
@@ -544,23 +622,40 @@ export default function ETPGeneratorPage() {
         },
         body: JSON.stringify({
           tipo: "cotacao",
-          formData: { itens: [{ descricao: form.descricaoItens }], margem: 15, impostos: 8.65 },
+          formData: {
+            itens: validos.map(i => ({ descricao: `${i.descricao} — ${i.quantidade} ${i.unidade}` })),
+            margem: 15,
+            impostos: 8.65,
+          },
         }),
       });
-      const raw = await res.text();
-      const data = JSON.parse(raw);
+      const data = JSON.parse(await res.text());
       if (data.itens || data.totalEstimado !== undefined) {
         setCotacaoData(data);
-        if (data.totalEstimado) {
-          set("valorEstimado", data.totalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        if (data.itens?.length) {
+          setPriceItems(prev => {
+            const validosIds = validos.map(v => v.id);
+            let aiIdx = 0;
+            return prev.map(item => {
+              if (!validosIds.includes(item.id)) return item;
+              const aiItem = data.itens[aiIdx++];
+              if (!aiItem) return item;
+              const mid = ((aiItem.faixaMin ?? 0) + (aiItem.faixaMax ?? 0)) / 2;
+              return {
+                ...item,
+                valorUnitario: mid > 0 ? mid.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.valorUnitario,
+                referencia: aiItem.referencia || item.referencia,
+              };
+            });
+          });
         }
-        toast.success("Estimativa de preços concluída!");
+        toast.success("Estimativa aplicada na tabela!");
       } else {
         toast.error(data.error || "Resposta inválida da IA.");
       }
     } catch { toast.error("Erro ao estimar preços. Tente novamente."); }
     finally { setEstimatingPrice(false); }
-  }, [form.descricaoItens, set]);
+  }, [priceItems]);
 
   const handleSuggest = useCallback(async (campo: string) => {
     setSuggesting(campo);
@@ -774,7 +869,7 @@ export default function ETPGeneratorPage() {
                 {section === 2 && <Sec2 {...sectionProps} />}
                 {section === 3 && <Sec3 {...sectionProps} />}
                 {section === 4 && <Sec4 {...sectionProps} />}
-                {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} />}
+                {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} priceItems={priceItems} priceTotal={priceTotal} onAddItem={addPriceItem} onRemoveItem={removePriceItem} onUpdateItem={updatePriceItem} />}
                 {section === 6 && <Sec6 {...sectionProps} />}
                 {section === 7 && <Sec7 {...sectionProps} />}
               </motion.div>
