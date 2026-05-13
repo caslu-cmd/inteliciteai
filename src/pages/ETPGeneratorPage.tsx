@@ -470,8 +470,8 @@ function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, 
               {estimatingPrice ? "Estimando..." : "Estimar com IA"}
             </Button>
             <Button size="sm" variant="outline"
-              className="h-8 text-xs gap-1.5 border-blue-400/40 text-blue-700 dark:text-blue-400 hover:bg-blue-500/10 hover:border-blue-400"
-              onClick={onBuscarNoNotebook} disabled={buscarNoNotebook || estimatingPrice || !temItens} type="button">
+              className="h-8 text-xs gap-1.5 border-blue-500/60 bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:border-blue-500"
+              onClick={onBuscarNoNotebook} disabled={buscarNoNotebook || estimatingPrice} type="button">
               {buscarNoNotebook ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
               {buscarNoNotebook ? "Buscando..." : "Notebook IA"}
             </Button>
@@ -877,7 +877,7 @@ export default function ETPGeneratorPage() {
   const handleBuscarNoNotebook = useCallback(async () => {
     const validos = priceItems.filter(i => i.descricao.trim());
     if (!validos.length) {
-      toast.warning("Adicione ao menos um item com descrição na tabela de preços.");
+      toast.warning("Preencha a descrição de ao menos um item na tabela antes de buscar no Notebook.");
       return;
     }
     setBuscarNoNotebook(true);
