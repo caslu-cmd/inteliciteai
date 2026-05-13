@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { exportAsPdf } from "@/lib/exportDocument";
+import { exportAsPdf, exportAsDocx } from "@/lib/exportDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -76,16 +76,18 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleExport = (doc: Doc) => {
-    exportAsPdf({
+  const handleExport = (doc: Doc, format: "pdf" | "docx" = "pdf") => {
+    const opts = {
       documentTitle: doc.titulo,
       orgao: doc.orgao,
       legalBasis: "Lei nº 14.133/2021",
       sections: [
-        { title: "Objeto", content: doc.objeto },
-        { title: "Conteúdo", content: doc.conteudo },
+        ...(doc.objeto ? [{ title: "Objeto da Contratação", isMarkdown: false, content: doc.objeto }] : []),
+        { title: "", isMarkdown: true, content: doc.conteudo },
       ],
-    });
+    };
+    if (format === "docx") exportAsDocx(opts);
+    else exportAsPdf(opts);
   };
 
   const filtered = docs.filter((d) => {
@@ -286,9 +288,12 @@ export default function DocumentsPage() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-2 shrink-0">
+              <div className="flex justify-end gap-2 shrink-0 flex-wrap">
                 <Button variant="outline" onClick={() => setViewDoc(null)}>Fechar</Button>
-                <Button onClick={() => handleExport(viewDoc)} className="gap-2">
+                <Button variant="outline" onClick={() => handleExport(viewDoc, "docx")} className="gap-2">
+                  <Download className="h-4 w-4" /> Word (.doc)
+                </Button>
+                <Button onClick={() => handleExport(viewDoc, "pdf")} className="gap-2">
                   <Download className="h-4 w-4" /> Exportar PDF
                 </Button>
               </div>

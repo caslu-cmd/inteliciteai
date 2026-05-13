@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import FloatingChat from "@/components/FloatingChat";
+import { exportAsPdf, exportAsDocx } from "@/lib/exportDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -600,15 +601,16 @@ export default function TRGeneratorPage() {
     finally { setSaving(false); }
   };
 
-  const handleExport = () => {
+  const handleExport = (format: "pdf" | "docx" = "pdf") => {
     if (!aiContent) return;
-    const blob = new Blob([aiContent], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `TR_${form.orgao || "documento"}_${new Date().toISOString().split("T")[0]}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const opts = {
+      documentTitle: `TR — ${form.objeto?.slice(0, 60) || form.orgao || "Termo de Referência"}`,
+      orgao: form.orgao,
+      legalBasis: "Lei nº 14.133/2021 · Art. 6º, XXIII e Art. 40",
+      sections: [{ title: "", isMarkdown: true, content: aiContent }],
+    };
+    if (format === "docx") exportAsDocx(opts);
+    else exportAsPdf(opts);
   };
 
   const handleCopy = () => {
@@ -785,8 +787,11 @@ export default function TRGeneratorPage() {
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleCopy}>
                       {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleExport}>
-                      <Download className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] gap-1" onClick={() => handleExport("pdf")} title="Exportar PDF">
+                      <Download className="h-3.5 w-3.5" /> PDF
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] gap-1" onClick={() => handleExport("docx")} title="Exportar Word">
+                      <Download className="h-3.5 w-3.5" /> Word
                     </Button>
                   </>
                 )}

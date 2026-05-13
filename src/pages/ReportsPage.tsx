@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3, FileText, MessageSquare, Loader2, CreditCard,
   Calendar, TrendingUp, Download, Clock, CheckCircle, AlertTriangle,
+  BookMarked,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,19 +37,33 @@ export default function ReportsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [docCount, setDocCount] = useState(0);
+  const [etpCount, setEtpCount] = useState(0);
+  const [trCount, setTrCount] = useState(0);
+  const [chatCount, setChatCount] = useState(0);
+  const [notebookCount, setNotebookCount] = useState(0);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [logsRes, paymentsRes, subRes, profileRes] = await Promise.all([
+      const [logsRes, paymentsRes, subRes, profileRes, docsRes, chatsRes, notebookRes] = await Promise.all([
         supabase.from("activity_logs").select("id, action, details, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100),
         supabase.from("payments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("documents").select("id, tipo").eq("user_id", user.id),
+        supabase.from("chat_conversations").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("notebook_sources").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
+      const docs = docsRes.data || [];
+      setDocCount(docs.length);
+      setEtpCount(docs.filter(d => d.tipo === "etp").length);
+      setTrCount(docs.filter(d => d.tipo === "tr").length);
+      setChatCount(chatsRes.count || 0);
+      setNotebookCount(notebookRes.count || 0);
       setLogs(logsRes.data || []);
       setPayments(paymentsRes.data || []);
       setSubscription(subRes.data);
@@ -59,38 +74,36 @@ export default function ReportsPage() {
 
   if (loading) return <div className="flex items-center justify-center py-32"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
 
-  // --- Computed stats ---
-  const docCount = logs.filter((l) => l.action?.includes("Gerou") || l.action?.includes("Exportou") || l.action?.includes("ETP") || l.action?.includes("TR")).length;
-  const chatCount = logs.filter((l) => l.action?.includes("Chat") || l.action?.includes("chat")).length;
+  // --- Computed from activity_logs ---
   const validationCount = logs.filter((l) => l.action?.includes("Valid") || l.action?.includes("Diagnóst")).length;
   const loginCount = logs.filter((l) => l.action?.includes("Login") || l.action?.includes("login")).length;
 
   // Monthly activity chart (last 6 months)
   const monthlyData = (() => {
-    const months: Record<string, { docs: number; chats: number; others: number }> = {};
+    const months: Record<string, { docs: number; chats: number; outros: number }> = {};
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-      months[key] = { docs: 0, chats: 0, others: 0 };
+      months[key] = { docs: 0, chats: 0, outros: 0 };
     }
     logs.forEach((l) => {
       const d = new Date(l.created_at);
       const key = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
       if (!(key in months)) return;
-      if (l.action?.includes("Gerou") || l.action?.includes("Exportou") || l.action?.includes("ETP") || l.action?.includes("TR")) months[key].docs++;
+      if (l.action?.includes("Gerou") || l.action?.includes("ETP") || l.action?.includes("TR")) months[key].docs++;
       else if (l.action?.includes("Chat") || l.action?.includes("chat")) months[key].chats++;
-      else months[key].others++;
+      else months[key].outros++;
     });
-    return Object.entries(months).map(([name, v]) => ({ name, Documentos: v.docs, Chats: v.chats, Outros: v.others }));
+    return Object.entries(months).map(([name, v]) => ({ name, Documentos: v.docs, Chats: v.chats, Outros: v.outros }));
   })();
 
   // Activity by type for pie chart
   const pieData = [
-    { name: "Documentos", value: docCount },
+    { name: "ETPs", value: etpCount },
+    { name: "TRs", value: trCount },
     { name: "Chats IA", value: chatCount },
-    { name: "Validações", value: validationCount },
-    { name: "Acessos", value: loginCount },
+    { name: "Fontes Notebook", value: notebookCount },
   ].filter((d) => d.value > 0);
 
   // Payments total
@@ -125,10 +138,10 @@ export default function ReportsPage() {
   };
 
   const kpis = [
-    { label: "Documentos gerados", value: docCount, icon: FileText, color: "text-accent" },
-    { label: "Conversas com IA", value: chatCount, icon: MessageSquare, color: "text-primary" },
-    { label: "Validações / Diagnósticos", value: validationCount, icon: CheckCircle, color: "text-success" },
-    { label: "Total pago", value: fmt(totalPaid), icon: CreditCard, color: "text-accent" },
+    { label: "ETPs gerados", value: etpCount, sub: `${trCount} TR${trCount !== 1 ? "s" : ""} • ${docCount} total`, icon: FileText, color: "text-accent" },
+    { label: "Conversas com IA", value: chatCount, sub: "histórico salvo", icon: MessageSquare, color: "text-primary" },
+    { label: "Fontes no Notebook IA", value: notebookCount, sub: "editais, preços, contratos", icon: BookMarked, color: "text-amber-500" },
+    { label: "Total investido", value: fmt(totalPaid), sub: subscription ? `Plano ${planLabel[subscription.plan] || subscription.plan}` : "sem assinatura", icon: CreditCard, color: "text-accent" },
   ];
 
   return (
@@ -155,7 +168,8 @@ export default function ReportsPage() {
           <motion.div key={c.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="rounded-xl border border-border bg-card p-5">
             <c.icon className={`h-5 w-5 ${c.color} mb-3`} />
             <p className="text-2xl font-bold">{c.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{c.label}</p>
+            <p className="text-sm font-medium mt-0.5">{c.label}</p>
+            {"sub" in c && <p className="text-[11px] text-muted-foreground mt-0.5">{(c as any).sub}</p>}
           </motion.div>
         ))}
       </div>
