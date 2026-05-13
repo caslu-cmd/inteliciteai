@@ -254,6 +254,57 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_projects: {
+        Row: {
+          budget_max: number
+          budget_min: number
+          category: string
+          client_id: string
+          created_at: string | null
+          deadline: string | null
+          description: string
+          id: string
+          platform_fee_pct: number
+          requirements: string | null
+          selected_application_id: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          budget_max?: number
+          budget_min?: number
+          category: string
+          client_id: string
+          created_at?: string | null
+          deadline?: string | null
+          description: string
+          id?: string
+          platform_fee_pct?: number
+          requirements?: string | null
+          selected_application_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          budget_max?: number
+          budget_min?: number
+          category?: string
+          client_id?: string
+          created_at?: string | null
+          deadline?: string | null
+          description?: string
+          id?: string
+          platform_fee_pct?: number
+          requirements?: string | null
+          selected_application_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       minutas: {
         Row: {
           base_legal: string
@@ -504,6 +555,92 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_applications: {
+        Row: {
+          consultant_id: string
+          created_at: string | null
+          estimated_days: number
+          id: string
+          project_id: string
+          proposal: string
+          proposed_value: number
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string | null
+          estimated_days?: number
+          id?: string
+          project_id: string
+          proposal: string
+          proposed_value: number
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string | null
+          estimated_days?: number
+          id?: string
+          project_id?: string
+          proposal?: string
+          proposed_value?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_messages: {
+        Row: {
+          application_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          project_id: string
+          sender_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          project_id: string
+          sender_id: string
+        }
+        Update: {
+          application_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "project_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
