@@ -361,15 +361,22 @@ const AddSourceModal = ({
       setContent(data.text);
       toast.success(`Página importada: ${data.charCount.toLocaleString()} caracteres`);
     } catch (err) {
-      // Fetch failed (site bloqueia scraping, CORS, etc.) — salva a URL como referência mesmo assim
+      // Fetch failed (site bloqueia scraping) — gera template editável a partir da URL
+      let productName = "";
+      let hostname = "";
       try {
-        const hostname = new URL(urlInput.trim()).hostname.replace("www.", "");
-        setTitle(hostname);
+        const parsed = new URL(urlInput.trim());
+        hostname = parsed.hostname.replace("www.", "");
+        // Extrai o nome do produto do caminho (antes do /p/ ou último segmento)
+        const pathSegments = parsed.pathname.split("/").filter(Boolean);
+        const productSegment = pathSegments.find(s => s.length > 10 && !s.startsWith("p")) || pathSegments[0] || "";
+        productName = productSegment.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()).slice(0, 120);
       } catch {
-        setTitle(urlInput.trim().slice(0, 80));
+        hostname = urlInput.trim().slice(0, 40);
       }
-      setContent(urlInput.trim());
-      toast.warning("Não foi possível extrair o conteúdo da página. A URL foi salva como referência — edite o conteúdo manualmente se necessário.");
+      setTitle(productName || hostname);
+      setContent(`Produto: ${productName || "—"}\nFonte: ${hostname}\nURL: ${urlInput.trim()}\n\nPreço unitário: R$ \nData da pesquisa: ${new Date().toLocaleDateString("pt-BR")}\nObservações: `);
+      toast.warning("Site não permite extração automática. Preencha o preço e as informações abaixo antes de salvar.");
     } finally {
       setLoading(false);
     }
