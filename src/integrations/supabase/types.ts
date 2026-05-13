@@ -302,6 +302,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notebook_sources: {
+        Row: {
+          active: boolean
+          char_count: number
+          content: string
+          created_at: string | null
+          id: string
+          source_url: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          char_count?: number
+          content?: string
+          created_at?: string | null
+          id?: string
+          source_url?: string | null
+          title?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          char_count?: number
+          content?: string
+          created_at?: string | null
+          id?: string
+          source_url?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
