@@ -85,6 +85,65 @@ const SYSTEM_SUGESTAO = `Você é um especialista em contratações públicas co
 
 const SYSTEM_NOTEBOOK_PRECOS = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras. Analise as fontes de conhecimento fornecidas e extraia referências de preços para os itens listados. Retorne APENAS um JSON válido no formato especificado, sem texto adicional.`;
 
+const SYSTEM_DFD = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
+Redija um DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA (DFD) completo, técnico, formal e juridicamente fundamentado conforme Art. 12, VII da Lei 14.133/2021.
+
+ESTRUTURA OBRIGATÓRIA:
+1. IDENTIFICAÇÃO DO DOCUMENTO (número do DFD, data, órgão/entidade, secretaria/unidade, setor demandante, ordenador de despesas, responsável)
+2. CLASSIFICAÇÃO DA DEMANDA (categoria: serviço/bem/obra — tipo de contratação: nova/prorrogação/aditivo — grau de prioridade: alto/médio/baixo — data prevista de contratação)
+3. DESCRIÇÃO DO OBJETO (descrição objetiva e clara do que será contratado, com características essenciais)
+4. JUSTIFICATIVA DA NECESSIDADE (motivação técnica e administrativa, problema a resolver, interesse público, consequências da não contratação, fundamentos legais aplicáveis)
+5. DESCRIÇÃO DOS ITENS E QUANTITATIVOS (tabela formatada em markdown com: Seq | Descrição do Item | Unid. | Quantidade | Valor Unit. (R$) | Valor Total (R$) — total geral ao final)
+6. VALOR ESTIMADO TOTAL (R$) (valor total consolidado com base nos quantitativos)
+7. POSICIONAMENTO DO RESPONSÁVEL (declaração de que a demanda é necessária e atende ao interesse público, com local e data para assinatura)
+
+INSTRUÇÕES:
+- Use linguagem técnica e formal em português brasileiro
+- Cite dispositivos legais onde aplicável
+- A tabela de itens deve ser formatada como tabela markdown com alinhamento correto
+- Onde dados não foram informados, use [A PREENCHER PELO ÓRGÃO]
+- Formate em markdown com títulos numerados bem estruturados
+- O documento deve ter nível profissional para uso oficial`;
+
+function buildDFDPrompt(f: any): string {
+  const v = (x: any, label: string) => x ? `${label}: ${x}` : `${label}: [não informado]`;
+  const categoriaLabel: Record<string, string> = { servico: "Serviço", bem: "Bem / Material", obra: "Obra / Engenharia" };
+  const tipoLabel: Record<string, string> = { nova: "Nova Contratação", prorrogacao: "Prorrogação", aditivo: "Aditivo", renovacao: "Renovação" };
+  const prioLabel: Record<string, string> = { alto: "Alto", medio: "Médio", baixo: "Baixo" };
+  const itensBlock = Array.isArray(f.itens) && f.itens.some((i: any) => i.descricao?.trim())
+    ? `Itens e Quantitativos:\n${f.itens.filter((i: any) => i.descricao?.trim()).map((i: any, idx: number) =>
+        `  Item ${idx + 1}: ${i.descricao} | Unid: ${i.unidade || "UN"} | Qtd: ${i.quantidade || 1} | Valor Unit: R$ ${i.valorUnitario || "—"}`
+      ).join("\n")}`
+    : "Itens e Quantitativos: [a preencher]";
+  return `Gere o DFD completo com base nos seguintes dados:
+
+IDENTIFICAÇÃO:
+${v(f.numeroDFD, "Número do DFD")}
+${v(f.dataElaboracao, "Data de Elaboração")}
+${v(f.secretaria, "Secretaria / Unidade")}
+${v(f.setor, "Setor Demandante")}
+${v(f.ordenador, "Ordenador de Despesas")}
+${v(f.responsavel, "Responsável pela Demanda")}
+${v(f.cargo, "Cargo / Função")}
+
+CLASSIFICAÇÃO:
+${v(categoriaLabel[f.categoria] || f.categoria, "Categoria")}
+${v(tipoLabel[f.tipoContratacao] || f.tipoContratacao, "Tipo de Contratação")}
+${v(prioLabel[f.prioridade] || f.prioridade, "Grau de Prioridade")}
+${v(f.dataPrevisao, "Data Prevista de Contratação")}
+
+OBJETO:
+${v(f.objeto, "Descrição do Objeto")}
+
+JUSTIFICATIVA:
+${v(f.justificativa, "Justificativa da Necessidade")}
+
+${itensBlock}
+${v(f.valorEstimado ? "R$ " + f.valorEstimado : null, "Valor Estimado Total")}
+
+Gere o DFD completo em markdown, com todas as 7 seções estruturadas conforme o modelo oficial. Inclua a tabela de itens formatada em markdown. Use linguagem técnica formal e cite os fundamentos legais aplicáveis.`;
+}
+
 async function callClaude(apiKey: string, body: object): Promise<Response> {
   let lastErr: Error = new Error("unknown");
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -340,6 +399,10 @@ ${ctxStr || "(formulário vazio)"}${aquisicaoStr}
 
 Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequada para um documento de contratação pública.`;
 
+  } else if (tipo === "dfd") {
+    systemPrompt = SYSTEM_DFD;
+    userPrompt = buildDFDPrompt(formData);
+
   } else if (tipo === "notebookPrecos") {
     systemPrompt = SYSTEM_NOTEBOOK_PRECOS;
     maxTokens = 2048;
@@ -366,7 +429,7 @@ Analise as fontes acima e retorne as referências de preço encontradas para cad
 Regras: itemIndex começa em 0; omita itens sem referência encontrada; valorUnitario é string numérica com ponto decimal e 2 casas; referencia deve citar o nome da fonte e o valor/período encontrado.`;
 
   } else {
-    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, cotacao, sugestao ou notebookPrecos" }), {
+    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, dfd, cotacao, sugestao ou notebookPrecos" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -378,7 +441,7 @@ Regras: itemIndex começa em 0; omita itens sem referência encontrada; valorUni
     messages: [{ role: "user", content: userPrompt }],
   };
 
-  if (stream && (tipo === "etp" || tipo === "tr")) {
+  if (stream && (tipo === "etp" || tipo === "tr" || tipo === "dfd")) {
     claudeBody.stream = true;
     try {
       const res = await callClaude(apiKey, claudeBody);

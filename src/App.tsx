@@ -23,6 +23,7 @@ import PlanActivatedPage from "./pages/PlanActivatedPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotebookPage from "./pages/NotebookPage";
+import DFDGeneratorPage from "./pages/DFDGeneratorPage";
 import LicitantePage from "./pages/LicitantePage";
 import RadarPage from "./pages/licitante/RadarPage";
 import AnalisesPage from "./pages/licitante/AnalisesPage";
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardRoute><DashboardHome /></DashboardRoute>} />
           <Route path="/dashboard/chat" element={<DashboardRoute><ChatPage /></DashboardRoute>} />
           <Route path="/dashboard/documents" element={<DashboardRoute><DocumentsPage /></DashboardRoute>} />
+          <Route path="/dashboard/dfd" element={<DashboardRoute><DFDGeneratorPage /></DashboardRoute>} />
           <Route path="/dashboard/etp" element={<DashboardRoute><ETPGeneratorPage /></DashboardRoute>} />
           <Route path="/dashboard/tr" element={<DashboardRoute><TRGeneratorPage /></DashboardRoute>} />
           <Route path="/dashboard/checklist" element={<DashboardRoute><ChecklistPage /></DashboardRoute>} />

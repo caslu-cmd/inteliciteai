@@ -726,7 +726,16 @@ function Sec7({ form, set, suggesting, onSuggest }: SectionProps) {
 // ── Main component ─────────────────────────────────────────────
 export default function ETPGeneratorPage() {
   const [section, setSection] = useState(1);
-  const [form, setForm] = useState<ETPForm>(FORM0);
+  const [form, setForm] = useState<ETPForm>(() => {
+    try {
+      const prefill = sessionStorage.getItem("dfd_prefill");
+      if (prefill) {
+        sessionStorage.removeItem("dfd_prefill");
+        return { ...FORM0, ...JSON.parse(prefill) };
+      }
+    } catch {}
+    return FORM0;
+  });
   const [aiContent, setAiContent] = useState("");
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);

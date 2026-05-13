@@ -27,6 +27,7 @@ const NAV = [
   {
     label: "Geradores",
     items: [
+      { title: "Gerador de DFD",  icon: FileText,  path: "/dashboard/dfd", badge: "Novo" },
       { title: "Gerador de ETP",  icon: FileText,  path: "/dashboard/etp" },
       { title: "Gerador de TR",   icon: FileText,  path: "/dashboard/tr" },
       { title: "Checklist",       icon: CheckSquare, path: "/dashboard/checklist" },
@@ -56,6 +57,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/chat": "Assistente Jurídico",
   "/dashboard/notebook": "Notebook IA",
   "/dashboard/documents": "Meus Documentos",
+  "/dashboard/dfd": "Gerador de DFD",
   "/dashboard/etp": "Gerador de ETP",
   "/dashboard/tr": "Gerador de TR",
   "/dashboard/checklist": "Checklist",
