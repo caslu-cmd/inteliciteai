@@ -3,7 +3,7 @@ import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
-  Zap, ChevronDown, Command, Layers, ArrowLeft,
+  Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -42,6 +42,13 @@ const NAV = [
     ],
   },
   {
+    label: "Marketplace",
+    items: [
+      { title: "Publicar Projeto", icon: Plus,      path: "/dashboard/publicar-projeto", badge: "Novo" },
+      { title: "Meus Projetos",    icon: Briefcase, path: "/dashboard/meus-projetos" },
+    ],
+  },
+  {
     label: "Conta",
     items: [
       { title: "Relatórios",      icon: BarChart3,  path: "/dashboard/reports" },
@@ -64,6 +71,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/diagnostic": "Diagnóstico de Modalidade",
   "/dashboard/validator": "Validador de Editais",
   "/dashboard/quotation": "Cotação Inteligente",
+  "/dashboard/publicar-projeto": "Publicar Projeto",
+  "/dashboard/meus-projetos": "Meus Projetos",
   "/dashboard/reports": "Relatórios",
   "/dashboard/billing": "Billing",
   "/dashboard/settings": "Configurações",

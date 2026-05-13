@@ -36,6 +36,8 @@ import RelatoriosLicitantePage from "./pages/licitante/RelatoriosPage";
 import PrecificacaoPage from "./pages/licitante/PrecificacaoPage";
 import ContratosPage from "./pages/licitante/ContratosPage";
 import ConsultorPage from "./pages/ConsultorPage";
+import PublishProjectPage from "./pages/PublishProjectPage";
+import MyProjectsPage from "./pages/MyProjectsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import SecurityPage from "./pages/SecurityPage";
@@ -88,6 +90,8 @@ const App = () => (
           <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
           <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
+          <Route path="/dashboard/publicar-projeto" element={<DashboardRoute><PublishProjectPage /></DashboardRoute>} />
+          <Route path="/dashboard/meus-projetos" element={<DashboardRoute><MyProjectsPage /></DashboardRoute>} />
 
           {/* Protected — Licitante */}
           <Route path="/licitante"               element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
