@@ -424,9 +424,11 @@ type Sec5Props = SectionProps & {
   onAddItem: () => void;
   onRemoveItem: (id: string) => void;
   onUpdateItem: (id: string, field: keyof PriceItem, value: string) => void;
+  buscarNoNotebook: boolean;
+  onBuscarNoNotebook: () => void;
 };
 
-function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, onEstimarPrecos, priceItems, priceTotal, onAddItem, onRemoveItem, onUpdateItem }: Sec5Props) {
+function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, onEstimarPrecos, priceItems, priceTotal, onAddItem, onRemoveItem, onUpdateItem, buscarNoNotebook, onBuscarNoNotebook }: Sec5Props) {
   const temItens = priceItems.some(i => i.descricao.trim());
 
   return (
@@ -447,9 +449,15 @@ function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, 
             </Button>
             <Button size="sm" variant="outline"
               className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
-              onClick={onEstimarPrecos} disabled={estimatingPrice || !temItens} type="button">
+              onClick={onEstimarPrecos} disabled={estimatingPrice || buscarNoNotebook || !temItens} type="button">
               {estimatingPrice ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
               {estimatingPrice ? "Estimando..." : "Estimar com IA"}
+            </Button>
+            <Button size="sm" variant="outline"
+              className="h-7 text-[11px] border-blue-500/30 hover:bg-blue-500/10"
+              onClick={onBuscarNoNotebook} disabled={buscarNoNotebook || estimatingPrice || !temItens} type="button">
+              {buscarNoNotebook ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <BookOpen className="mr-1.5 h-3 w-3" />}
+              {buscarNoNotebook ? "Buscando..." : "Notebook IA"}
             </Button>
           </div>
         </div>
@@ -688,6 +696,7 @@ export default function ETPGeneratorPage() {
   const [priceItems, setPriceItems] = useState<PriceItem[]>([
     { id: "1", descricao: "", quantidade: "1", unidade: "UN", valorUnitario: "", referencia: "" },
   ]);
+  const [buscarNoNotebook, setBuscarNoNotebook] = useState(false);
 
   const set = useCallback((field: keyof ETPForm, value: string) => {
     setForm(p => ({ ...p, [field]: value }));
@@ -819,6 +828,66 @@ export default function ETPGeneratorPage() {
       }
     } catch { toast.error("Erro ao estimar preços. Tente novamente."); }
     finally { setEstimatingPrice(false); }
+  }, [priceItems]);
+
+  const handleBuscarNoNotebook = useCallback(async () => {
+    const validos = priceItems.filter(i => i.descricao.trim());
+    if (!validos.length) {
+      toast.warning("Adicione ao menos um item com descrição na tabela de preços.");
+      return;
+    }
+    setBuscarNoNotebook(true);
+    try {
+      const { data: fontes, error } = await supabase
+        .from("notebook_sources")
+        .select("title, content, type")
+        .eq("active", true);
+      if (error) throw error;
+      if (!fontes?.length) {
+        toast.info("Nenhuma fonte ativa no Notebook IA. Adicione fontes em Notebook Jurídico.");
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          tipo: "notebookPrecos",
+          formData: {
+            itens: validos.map(i => ({ descricao: i.descricao, quantidade: i.quantidade, unidade: i.unidade })),
+            fontes: fontes.map(s => ({ title: s.title, content: s.content })),
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.referencias?.length) {
+        setPriceItems(prev => {
+          const updated = [...prev];
+          for (const ref of data.referencias) {
+            const item = validos[ref.itemIndex];
+            if (!item) continue;
+            const idx = updated.findIndex(i => i.id === item.id);
+            if (idx >= 0) {
+              updated[idx] = {
+                ...updated[idx],
+                referencia: ref.referencia || updated[idx].referencia,
+                valorUnitario: ref.valorUnitario || updated[idx].valorUnitario,
+              };
+            }
+          }
+          return updated;
+        });
+        toast.success(`${data.referencias.length} referência(s) encontrada(s) no Notebook!`);
+      } else {
+        toast.info("Nenhuma referência de preço encontrada nas fontes do Notebook.");
+      }
+    } catch (err) {
+      toast.error(`Erro ao buscar no Notebook: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBuscarNoNotebook(false);
+    }
   }, [priceItems]);
 
   const handleSuggest = useCallback(async (campo: string) => {
@@ -1033,7 +1102,7 @@ export default function ETPGeneratorPage() {
                 {section === 2 && <Sec2 {...sectionProps} />}
                 {section === 3 && <Sec3 {...sectionProps} />}
                 {section === 4 && <Sec4 {...sectionProps} aquisicaoItems={aquisicaoItems} analisandoAquisicao={analisandoAquisicao} onAddAquisicao={addAquisicao} onRemoveAquisicao={removeAquisicao} onUpdateAquisicao={updateAquisicao} onAnalisarAquisicao={handleAnalisarAquisicao} />}
-                {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} priceItems={priceItems} priceTotal={priceTotal} onAddItem={addPriceItem} onRemoveItem={removePriceItem} onUpdateItem={updatePriceItem} />}
+                {section === 5 && <Sec5 {...sectionProps} cotacaoData={cotacaoData} estimatingPrice={estimatingPrice} onEstimarPrecos={handleEstimarPrecos} priceItems={priceItems} priceTotal={priceTotal} onAddItem={addPriceItem} onRemoveItem={removePriceItem} onUpdateItem={updatePriceItem} buscarNoNotebook={buscarNoNotebook} onBuscarNoNotebook={handleBuscarNoNotebook} />}
                 {section === 6 && <Sec6 {...sectionProps} />}
                 {section === 7 && <Sec7 {...sectionProps} />}
               </motion.div>

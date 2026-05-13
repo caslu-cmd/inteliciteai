@@ -56,6 +56,17 @@ interface SearchResult {
 // ── Constants ─────────────────────────────────────────────────
 const SOURCES_KEY = "intelicite_notebook_sources";
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+const mapSource = (row: any): Source => ({
+  id: row.id,
+  title: row.title,
+  content: row.content,
+  type: row.type as Source["type"],
+  active: row.active,
+  charCount: row.char_count,
+  sourceUrl: row.source_url ?? undefined,
+  createdAt: row.created_at,
+});
 const nowStr = () =>
   new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -1048,9 +1059,8 @@ const ChatPanel = ({ sources }: { sources: Source[] }) => {
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function NotebookPage() {
-  const [sources, setSources] = useState<Source[]>(() => {
-    try { return JSON.parse(localStorage.getItem(SOURCES_KEY) ?? "[]"); } catch { return []; }
-  });
+  const [sources, setSources] = useState<Source[]>([]);
+  const [loadingSources, setLoadingSources] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [generating, setGenerating] = useState<GeneratorType | null>(null);
@@ -1063,19 +1073,78 @@ export default function NotebookPage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SOURCES_KEY, JSON.stringify(sources));
-  }, [sources]);
+    const load = async () => {
+      const { data: rows, error } = await supabase
+        .from("notebook_sources")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (!error && rows) {
+        if (rows.length === 0) {
+          try {
+            const local: Source[] = JSON.parse(localStorage.getItem(SOURCES_KEY) ?? "[]");
+            if (local.length > 0) {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                const { data: migrated } = await supabase
+                  .from("notebook_sources")
+                  .insert(local.map((s) => ({
+                    user_id: user.id,
+                    title: s.title,
+                    content: s.content,
+                    type: s.type,
+                    active: s.active,
+                    char_count: s.charCount,
+                    source_url: s.sourceUrl || null,
+                    created_at: s.createdAt,
+                  })))
+                  .select();
+                if (migrated) {
+                  setSources(migrated.map(mapSource));
+                  localStorage.removeItem(SOURCES_KEY);
+                  toast.success(`${migrated.length} fonte(s) migradas para a nuvem`);
+                }
+              }
+            }
+          } catch { /* ignore */ }
+        } else {
+          setSources(rows.map(mapSource));
+        }
+      }
+      setLoadingSources(false);
+    };
+    load();
+  }, []);
 
-  const addSource = (data: Omit<Source, "id" | "createdAt">) => {
-    setSources((prev) => [...prev, { ...data, id: uid(), createdAt: new Date().toISOString() }]);
+  const addSource = async (data: Omit<Source, "id" | "createdAt">) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Faça login para salvar fontes"); return; }
+    const { data: row, error } = await supabase
+      .from("notebook_sources")
+      .insert({ user_id: user.id, title: data.title, content: data.content, type: data.type, active: data.active, char_count: data.charCount, source_url: data.sourceUrl || null })
+      .select()
+      .single();
+    if (error || !row) { toast.error("Erro ao salvar fonte"); return; }
+    setSources((prev) => [...prev, mapSource(row)]);
   };
 
-  const toggleSource = (id: string) =>
-    setSources((prev) => prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s)));
+  const toggleSource = async (id: string) => {
+    const src = sources.find((s) => s.id === id);
+    if (!src) return;
+    const { error } = await supabase.from("notebook_sources").update({ active: !src.active }).eq("id", id);
+    if (!error) setSources((prev) => prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s)));
+  };
 
-  const deleteSource = (id: string) => {
-    setSources((prev) => prev.filter((s) => s.id !== id));
-    toast.success("Fonte removida");
+  const deleteSource = async (id: string) => {
+    const { error } = await supabase.from("notebook_sources").delete().eq("id", id);
+    if (!error) { setSources((prev) => prev.filter((s) => s.id !== id)); toast.success("Fonte removida"); }
+    else toast.error("Erro ao remover fonte");
+  };
+
+  const setAllActive = async (active: boolean) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from("notebook_sources").update({ active }).eq("user_id", user.id);
+    if (!error) setSources((prev) => prev.map((s) => ({ ...s, active })));
   };
 
   const generateAnalysis = useCallback(
@@ -1250,7 +1319,11 @@ export default function NotebookPage() {
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             <AnimatePresence mode="popLayout">
-              {sources.length === 0 ? (
+              {loadingSources ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center py-10">
+                  <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                </motion.div>
+              ) : sources.length === 0 ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-10 text-center px-4">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-dashed border-border mb-3">
                     <FileText className="h-6 w-6 text-muted-foreground/40" />
@@ -1273,10 +1346,10 @@ export default function NotebookPage() {
 
           {sources.length > 0 && (
             <div className="border-t border-border px-4 py-3 flex justify-between shrink-0">
-              <button onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: true })))} className="text-[11px] text-muted-foreground hover:text-accent transition-colors font-medium">
+              <button onClick={() => setAllActive(true)} className="text-[11px] text-muted-foreground hover:text-accent transition-colors font-medium">
                 Ativar todas
               </button>
-              <button onClick={() => setSources((prev) => prev.map((s) => ({ ...s, active: false })))} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setAllActive(false)} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
                 Desativar todas
               </button>
             </div>

@@ -83,6 +83,8 @@ Retorne APENAS um JSON válido:
 
 const SYSTEM_SUGESTAO = `Você é um especialista em contratações públicas com domínio da Lei 14.133/2021. Ao receber o nome de um campo de documento oficial (ETP ou TR) e o contexto atual preenchido, sugira um texto técnico, formal e juridicamente fundamentado para aquele campo específico. Retorne APENAS o texto sugerido, sem explicações, sem prefixos como "Sugiro:", sem markdown, sem meta-comentários. O texto deve ser pronto para inserção direta no campo do formulário, escrito na terceira pessoa ou forma impessoal conforme documentos públicos oficiais.`;
 
+const SYSTEM_NOTEBOOK_PRECOS = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras. Analise as fontes de conhecimento fornecidas e extraia referências de preços para os itens listados. Retorne APENAS um JSON válido no formato especificado, sem texto adicional.`;
+
 async function callClaude(apiKey: string, body: object): Promise<Response> {
   let lastErr: Error = new Error("unknown");
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -338,8 +340,33 @@ ${ctxStr || "(formulário vazio)"}${aquisicaoStr}
 
 Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequada para um documento de contratação pública.`;
 
+  } else if (tipo === "notebookPrecos") {
+    systemPrompt = SYSTEM_NOTEBOOK_PRECOS;
+    maxTokens = 2048;
+    const items = formData.itens || [];
+    const fontes = formData.fontes || [];
+    const sourcesText = fontes.length > 0
+      ? fontes.map((s: any, i: number) => `### [Fonte ${i + 1}] ${s.title}\n${String(s.content).slice(0, 4000)}`).join("\n\n---\n\n")
+      : "(nenhuma fonte disponível)";
+    userPrompt = `Fontes de conhecimento do Notebook IA:
+
+${sourcesText}
+
+---
+
+Itens para pesquisa de preços:
+${items.map((item: any, i: number) => `${i + 1}. ${item.descricao || "Item sem descrição"} — Quantidade: ${item.quantidade || 1} ${item.unidade || "UN"}`).join("\n")}
+
+Analise as fontes acima e retorne as referências de preço encontradas para cada item. Formato obrigatório:
+{
+  "referencias": [
+    { "itemIndex": 0, "referencia": "Fonte X — R$ 999,00 (mês/ano)", "valorUnitario": "999.00" }
+  ]
+}
+Regras: itemIndex começa em 0; omita itens sem referência encontrada; valorUnitario é string numérica com ponto decimal e 2 casas; referencia deve citar o nome da fonte e o valor/período encontrado.`;
+
   } else {
-    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, cotacao ou sugestao" }), {
+    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, cotacao, sugestao ou notebookPrecos" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -377,7 +404,7 @@ Sugira o conteúdo para o campo "${campo}" com linguagem técnica e formal adequ
     const data = await res.json();
     const raw = data.content?.[0]?.text ?? "";
 
-    if (tipo === "cotacao") {
+    if (tipo === "cotacao" || tipo === "notebookPrecos") {
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Resposta sem JSON válido");
       return new Response(match[0], { headers: { ...cors, "Content-Type": "application/json" } });
