@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 const FORM0 = {
   orgao: "", cnpjOrgao: "", unidade: "", setor: "",
   responsavel: "", cargo: "", matricula: "", processoSEI: "", dataElaboracao: "",
+  oQueSeraContratado: "",
   descricaoNecessidade: "", problemaSolucionar: "", publicoBeneficiado: "",
   quantidadeUsuarios: "", previsaoPCA: "", numeroPCA: "",
   alinhamentoEstrategico: "", instrumentoPlanejamento: "",
@@ -47,7 +48,7 @@ type ETPForm = typeof FORM0;
 
 // ── Sections metadata ──────────────────────────────────────────
 const SECTIONS = [
-  { id: 1, title: "Identificação",  icon: Building2,     ref: "Art. 18 — Dados do órgão e responsáveis",         required: ["orgao","setor","responsavel"] },
+  { id: 1, title: "Identificação",  icon: Building2,     ref: "Art. 18 — Dados do órgão e responsáveis",         required: ["orgao","setor","responsavel","oQueSeraContratado"] },
   { id: 2, title: "Necessidade",    icon: AlertTriangle,  ref: "Art. 18, §1º, I e II — Necessidade e alinhamento", required: ["descricaoNecessidade","problemaSolucionar","alinhamentoEstrategico"] },
   { id: 3, title: "Requisitos",     icon: Scale,          ref: "Art. 18, §1º, III — Técnicos e legais",            required: ["requisitosNegocio","requisitosTecnicos"] },
   { id: 4, title: "Quantidades",    icon: Calculator,     ref: "Art. 18, §1º, IV e V — Quantidades e mercado",     required: ["descricaoItens","memoriaCalculo","alternativasAvaliadas","decisaoParcelamento"] },
@@ -136,6 +137,18 @@ function Sec1({ form, set }: SectionProps) {
         <FL label="Matrícula"><Input value={form.matricula} onChange={e => set("matricula", e.target.value)} placeholder="Nº matrícula" /></FL>
         <FL label="Nº do Processo" tip="Número SEI, SIPAC ou similar"><Input value={form.processoSEI} onChange={e => set("processoSEI", e.target.value)} placeholder="0000000.000000/0000-00" /></FL>
         <FL label="Data de Elaboração"><Input type="date" value={form.dataElaboracao} onChange={e => set("dataElaboracao", e.target.value)} /></FL>
+      </div>
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+        <FL label="O que será contratado" req
+          tip="Descrição objetiva do objeto da contratação — produto, serviço ou obra. Ex: Contratação de empresa especializada em serviços de limpeza e conservação.">
+          <Textarea
+            rows={3}
+            className="text-sm mt-1 resize-none"
+            value={form.oQueSeraContratado}
+            onChange={e => set("oQueSeraContratado", e.target.value)}
+            placeholder="Descreva de forma objetiva o que será contratado — produto, serviço ou obra. Ex: Contratação de empresa especializada em fornecimento e instalação de equipamentos de informática para as unidades da Secretaria de Educação."
+          />
+        </FL>
       </div>
     </div>
   );
@@ -436,82 +449,112 @@ function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, 
     <div className="space-y-4">
       {/* ── Tabela de Levantamento de Preços ── */}
       <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Table2 className="h-4 w-4 text-amber-500" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Table2 className="h-4 w-4 text-amber-500" />
+            </div>
             <div>
-              <p className="text-xs font-semibold">Tabela de Levantamento de Preços</p>
+              <p className="text-sm font-semibold text-foreground">Tabela de Levantamento de Preços</p>
               <p className="text-[10px] text-muted-foreground">Opcional · Art. 18, §1º, VI · IN SEGES/ME nº 65/2021</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={onAddItem} type="button">
-              <Plus className="mr-1 h-3 w-3" /> Item
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="default" className="h-8 text-xs gap-1.5 bg-primary/90 hover:bg-primary" onClick={onAddItem} type="button">
+              <Plus className="h-3.5 w-3.5" /> Adicionar Item
             </Button>
             <Button size="sm" variant="outline"
-              className="h-7 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+              className="h-8 text-xs gap-1.5 border-amber-400/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 hover:border-amber-400"
               onClick={onEstimarPrecos} disabled={estimatingPrice || buscarNoNotebook || !temItens} type="button">
-              {estimatingPrice ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1.5 h-3 w-3" />}
+              {estimatingPrice ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
               {estimatingPrice ? "Estimando..." : "Estimar com IA"}
             </Button>
             <Button size="sm" variant="outline"
-              className="h-7 text-[11px] border-blue-500/30 hover:bg-blue-500/10"
+              className="h-8 text-xs gap-1.5 border-blue-400/40 text-blue-700 dark:text-blue-400 hover:bg-blue-500/10 hover:border-blue-400"
               onClick={onBuscarNoNotebook} disabled={buscarNoNotebook || estimatingPrice || !temItens} type="button">
-              {buscarNoNotebook ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <BookOpen className="mr-1.5 h-3 w-3" />}
+              {buscarNoNotebook ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
               {buscarNoNotebook ? "Buscando..." : "Notebook IA"}
             </Button>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="text-left py-2 px-3 text-muted-foreground font-medium">Descrição do Item / Serviço</th>
-                <th className="text-center py-2 px-2 text-muted-foreground font-medium w-16">Qtd</th>
-                <th className="text-center py-2 px-2 text-muted-foreground font-medium w-16">Unid.</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium w-28">Valor Unit. (R$)</th>
-                <th className="text-right py-2 px-3 text-muted-foreground font-medium w-28">Total (R$)</th>
-                <th className="text-left py-2 px-2 text-muted-foreground font-medium w-28">Referência</th>
-                <th className="w-8"></th>
+              <tr className="bg-muted/50 border-b-2 border-border">
+                <th className="text-left py-3 px-4 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider min-w-[260px]">Descrição do Item / Serviço</th>
+                <th className="text-center py-3 px-3 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider w-20">Qtd</th>
+                <th className="text-center py-3 px-3 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider w-20">Unid.</th>
+                <th className="text-right py-3 px-4 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider w-36">Valor Unit. (R$)</th>
+                <th className="text-right py-3 px-4 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider w-32">Total (R$)</th>
+                <th className="text-left py-3 px-4 text-muted-foreground font-semibold text-[11px] uppercase tracking-wider w-36">Referência</th>
+                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {priceItems.map((item) => {
+              {priceItems.map((item, idx) => {
                 const qty = parseFloat(item.quantidade.replace(",", ".")) || 0;
                 const unit = parseFloat(item.valorUnitario.replace(/\./g, "").replace(",", ".")) || 0;
                 const rowTotal = qty * unit;
                 return (
-                  <tr key={item.id} className="border-b border-border/40 hover:bg-muted/10 transition-colors">
-                    <td className="py-1.5 px-3">
-                      <Input className="h-7 text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
-                        value={item.descricao} onChange={e => onUpdateItem(item.id, "descricao", e.target.value)}
-                        placeholder="Descreva o item ou serviço..." />
+                  <tr key={item.id} className={`border-b border-border transition-colors group ${idx % 2 === 0 ? "bg-card" : "bg-muted/10"} hover:bg-primary/5`}>
+                    {/* Descrição */}
+                    <td className="py-3 px-3 align-top">
+                      <div className="rounded-lg border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all min-h-[72px] flex">
+                        <textarea
+                          rows={3}
+                          className="w-full text-sm bg-transparent px-3 py-2.5 resize-none outline-none placeholder:text-muted-foreground/40 leading-snug"
+                          value={item.descricao}
+                          onChange={e => {
+                            onUpdateItem(item.id, "descricao", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = e.target.scrollHeight + "px";
+                          }}
+                          placeholder="Descreva o item ou serviço..."
+                        />
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2">
-                      <Input className="h-7 text-[11px] text-center bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
-                        value={item.quantidade} onChange={e => onUpdateItem(item.id, "quantidade", e.target.value)} placeholder="1" />
+                    {/* Quantidade */}
+                    <td className="py-3 px-2 align-top">
+                      <div className="rounded-lg border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all h-[72px] flex items-center">
+                        <Input className="h-full text-sm text-center bg-transparent border-0 shadow-none focus-visible:ring-0 px-2 font-medium"
+                          value={item.quantidade} onChange={e => onUpdateItem(item.id, "quantidade", e.target.value)} placeholder="1" />
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2">
-                      <Input className="h-7 text-[11px] text-center bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
-                        value={item.unidade} onChange={e => onUpdateItem(item.id, "unidade", e.target.value)} placeholder="UN" />
+                    {/* Unidade */}
+                    <td className="py-3 px-2 align-top">
+                      <div className="rounded-lg border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all h-[72px] flex items-center">
+                        <Input className="h-full text-sm text-center bg-transparent border-0 shadow-none focus-visible:ring-0 px-2 font-medium"
+                          value={item.unidade} onChange={e => onUpdateItem(item.id, "unidade", e.target.value)} placeholder="UN" />
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2">
-                      <Input className="h-7 text-[11px] text-right font-mono bg-transparent border-0 shadow-none px-0 focus-visible:ring-0"
-                        value={item.valorUnitario} onChange={e => onUpdateItem(item.id, "valorUnitario", e.target.value)} placeholder="0,00" />
+                    {/* Valor unitário */}
+                    <td className="py-3 px-2 align-top">
+                      <div className="rounded-lg border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all h-[72px] flex items-center">
+                        <Input className="h-full text-sm text-right font-mono bg-transparent border-0 shadow-none focus-visible:ring-0 px-3"
+                          value={item.valorUnitario} onChange={e => onUpdateItem(item.id, "valorUnitario", e.target.value)} placeholder="0,00" />
+                      </div>
                     </td>
-                    <td className="py-1.5 px-3 text-right font-mono font-medium">
-                      {rowTotal > 0 ? rowTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : <span className="text-muted-foreground/40">—</span>}
+                    {/* Total */}
+                    <td className="py-3 px-2 align-top">
+                      <div className={`rounded-lg h-[72px] flex items-center justify-end px-3 text-sm font-mono font-semibold
+                        ${rowTotal > 0 ? "bg-primary/8 border border-primary/20 text-primary" : "bg-muted/20 border border-border text-muted-foreground/30"}`}>
+                        {rowTotal > 0 ? rowTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—"}
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2">
-                      <Input className="h-7 text-[11px] bg-transparent border-0 shadow-none px-0 focus-visible:ring-0 text-muted-foreground"
-                        value={item.referencia} onChange={e => onUpdateItem(item.id, "referencia", e.target.value)}
-                        placeholder="Painel, ata, NF..." />
+                    {/* Referência */}
+                    <td className="py-3 px-2 align-top">
+                      <div className="rounded-lg border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all h-[72px] flex items-center">
+                        <Input className="h-full text-sm bg-transparent border-0 shadow-none focus-visible:ring-0 px-3 text-muted-foreground placeholder:text-muted-foreground/40"
+                          value={item.referencia} onChange={e => onUpdateItem(item.id, "referencia", e.target.value)}
+                          placeholder="Painel, ata, NF..." />
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2">
+                    {/* Excluir */}
+                    <td className="py-3 px-2 align-top">
                       <button type="button" onClick={() => onRemoveItem(item.id)}
-                        className="text-muted-foreground/30 hover:text-red-400 transition-colors">
-                        <X className="h-3.5 w-3.5" />
+                        className="w-8 h-8 mt-[20px] rounded-lg flex items-center justify-center text-muted-foreground/30 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors mx-auto">
+                        <X className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
@@ -522,15 +565,15 @@ function Sec5({ form, set, suggesting, onSuggest, cotacaoData, estimatingPrice, 
         </div>
 
         {priceTotal > 0 && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/20">
-            <span className="text-xs font-semibold text-muted-foreground">Total geral:</span>
+          <div className="flex items-center justify-between px-4 py-3 border-t-2 border-border bg-primary/5">
+            <span className="text-sm font-semibold text-foreground">Total Geral</span>
             <div className="flex items-center gap-3">
-              <span className="font-bold text-sm">
+              <span className="font-bold text-lg text-primary font-mono">
                 R$ {priceTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </span>
-              <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" type="button"
+              <Button size="sm" variant="outline" className="h-7 px-3 text-xs border-primary/30 text-primary hover:bg-primary/10" type="button"
                 onClick={() => set("valorEstimado", priceTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}>
-                Usar como valor estimado
+                Usar como valor estimado ↑
               </Button>
             </div>
           </div>
