@@ -877,25 +877,36 @@ export default function ETPGeneratorPage() {
   const handleBuscarNoNotebook = useCallback(async () => {
     const validos = priceItems.filter(i => i.descricao.trim());
     if (!validos.length) {
-      toast.warning("Preencha a descrição de ao menos um item na tabela antes de buscar no Notebook.");
+      toast.warning("Preencha a descrição de ao menos um item antes de buscar no Notebook.", { duration: 4000 });
       return;
     }
     setBuscarNoNotebook(true);
+    const tid = toast.loading("Buscando referências no Notebook IA...");
     try {
-      const { data: fontes, error } = await supabase
+      const { data: fontes, error: erroFontes } = await supabase
         .from("notebook_sources")
         .select("title, content, type")
         .eq("active", true);
-      if (error) throw error;
-      if (!fontes?.length) {
-        toast.info("Nenhuma fonte ativa no Notebook IA. Adicione fontes em Notebook Jurídico.");
+
+      if (erroFontes) {
+        toast.dismiss(tid);
+        toast.error(`Erro ao acessar o Notebook: ${erroFontes.message}`);
         return;
       }
+
+      if (!fontes?.length) {
+        toast.dismiss(tid);
+        toast.info("Nenhuma fonte ativa no Notebook. Acesse Notebook Jurídico e adicione fontes primeiro.", { duration: 6000 });
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-document`, {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({
           tipo: "notebookPrecos",
           formData: {
@@ -904,7 +915,14 @@ export default function ETPGeneratorPage() {
           },
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      toast.dismiss(tid);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `HTTP ${res.status}`);
+      }
+
       const data = await res.json();
       if (data.referencias?.length) {
         setPriceItems(prev => {
@@ -923,12 +941,13 @@ export default function ETPGeneratorPage() {
           }
           return updated;
         });
-        toast.success(`${data.referencias.length} referência(s) encontrada(s) no Notebook!`);
+        toast.success(`${data.referencias.length} referência(s) preenchida(s) a partir do Notebook!`, { duration: 5000 });
       } else {
-        toast.info("Nenhuma referência de preço encontrada nas fontes do Notebook.");
+        toast.info("Nenhuma referência de preço encontrada nas fontes do Notebook.", { duration: 5000 });
       }
     } catch (err) {
-      toast.error(`Erro ao buscar no Notebook: ${err instanceof Error ? err.message : String(err)}`);
+      toast.dismiss(tid);
+      toast.error(`Erro: ${err instanceof Error ? err.message : String(err)}`, { duration: 6000 });
     } finally {
       setBuscarNoNotebook(false);
     }
