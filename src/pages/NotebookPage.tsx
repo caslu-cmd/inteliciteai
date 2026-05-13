@@ -322,7 +322,7 @@ const AddSourceModal = ({
   onAdd,
   onClose,
 }: {
-  onAdd: (source: Omit<Source, "id" | "createdAt">) => void;
+  onAdd: (source: Omit<Source, "id" | "createdAt">) => Promise<void> | void;
   onClose: () => void;
 }) => {
   type Tab = "text" | "pdf" | "url" | "search";
@@ -390,7 +390,7 @@ const AddSourceModal = ({
     setLoading(true);
     try {
       const data = await fetchUrlContent(result.url);
-      onAdd({
+      await onAdd({
         title: result.title || result.source,
         content: data.text,
         type: "url",
@@ -400,7 +400,7 @@ const AddSourceModal = ({
       });
       toast.success("Página importada como fonte!");
     } catch {
-      onAdd({
+      await onAdd({
         title: result.title || result.source,
         content: `${result.snippet}\n\nFonte: ${result.url}`,
         type: "search",
@@ -414,9 +414,9 @@ const AddSourceModal = ({
     }
   };
 
-  const addInstantAnswer = () => {
+  const addInstantAnswer = async () => {
     if (!instantAnswer) return;
-    onAdd({
+    await onAdd({
       title: `Busca: ${searchQuery}`,
       content: instantAnswer,
       type: "search",
@@ -426,14 +426,15 @@ const AddSourceModal = ({
     toast.success("Resposta imediata adicionada!");
   };
 
-  const handleAddManual = () => {
+  const handleAddManual = async () => {
     if (!content.trim()) return;
-    onAdd({
+    await onAdd({
       title: title.trim() || "Documento sem título",
       content: content.trim(),
-      type: tab === "pdf" ? "pdf" : "text",
+      type: tab === "pdf" ? "pdf" : tab === "url" ? "url" : "text",
       active: true,
       charCount: content.trim().length,
+      sourceUrl: tab === "url" ? urlInput.trim() || undefined : undefined,
     });
     onClose();
   };
