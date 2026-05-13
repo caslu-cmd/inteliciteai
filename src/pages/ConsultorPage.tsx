@@ -106,7 +106,7 @@ function ConsultorDashboard({ verification, userId, onLogout }: { verification: 
 
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
-    const { data } = await (supabase.from("marketplace_projects" as any).select("*, profiles!client_id(full_name, organization)").eq("status", "open").order("created_at", { ascending: false }));
+    const { data } = await (supabase.from("marketplace_projects" as any).select("*").eq("status", "open").order("created_at", { ascending: false }));
     setProjects(data || []);
     setLoadingProjects(false);
   }, []);
@@ -124,7 +124,7 @@ function ConsultorDashboard({ verification, userId, onLogout }: { verification: 
   useEffect(() => { loadProjects(); loadApplications(); loadContracts(); }, [loadProjects, loadApplications, loadContracts]);
 
   const loadMessages = useCallback(async (projectId: string) => {
-    const { data } = await (supabase.from("project_messages" as any).select("*, profiles!sender_id(full_name)").eq("project_id", projectId).order("created_at"));
+    const { data } = await (supabase.from("project_messages" as any).select("*").eq("project_id", projectId).order("created_at"));
     setMessages(data || []);
   }, []);
 
@@ -285,7 +285,7 @@ function ConsultorDashboard({ verification, userId, onLogout }: { verification: 
                           {project.deadline && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(project.deadline).toLocaleDateString("pt-BR")}</span>}
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-white/25">{project.profiles?.organization || "Órgão público"}</span>
+                          <span className="text-[10px] text-white/25">Órgão público</span>
                         </div>
                       </div>
                     </motion.div>
