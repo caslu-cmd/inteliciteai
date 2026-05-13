@@ -361,7 +361,15 @@ const AddSourceModal = ({
       setContent(data.text);
       toast.success(`Página importada: ${data.charCount.toLocaleString()} caracteres`);
     } catch (err) {
-      toast.error(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+      // Fetch failed (site bloqueia scraping, CORS, etc.) — salva a URL como referência mesmo assim
+      try {
+        const hostname = new URL(urlInput.trim()).hostname.replace("www.", "");
+        setTitle(hostname);
+      } catch {
+        setTitle(urlInput.trim().slice(0, 80));
+      }
+      setContent(urlInput.trim());
+      toast.warning("Não foi possível extrair o conteúdo da página. A URL foi salva como referência — edite o conteúdo manualmente se necessário.");
     } finally {
       setLoading(false);
     }
@@ -427,13 +435,14 @@ const AddSourceModal = ({
   };
 
   const handleAddManual = async () => {
-    if (!content.trim()) return;
+    const effectiveContent = content.trim() || (tab === "url" ? urlInput.trim() : "");
+    if (!effectiveContent) return;
     await onAdd({
-      title: title.trim() || "Documento sem título",
-      content: content.trim(),
+      title: title.trim() || (tab === "url" ? urlInput.trim().slice(0, 80) : "Documento sem título"),
+      content: effectiveContent,
       type: tab === "pdf" ? "pdf" : tab === "url" ? "url" : "text",
       active: true,
-      charCount: content.trim().length,
+      charCount: effectiveContent.length,
       sourceUrl: tab === "url" ? urlInput.trim() || undefined : undefined,
     });
     onClose();
@@ -671,10 +680,10 @@ const AddSourceModal = ({
         </div>
 
         {/* Footer — show Add button for text/pdf/url tabs only */}
-        {(tab === "text" || tab === "pdf" || (tab === "url" && content)) && (
+        {(tab === "text" || tab === "pdf" || tab === "url") && (
           <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border shrink-0">
             <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button variant="gold" size="sm" onClick={handleAddManual} disabled={!content.trim()}>
+            <Button variant="gold" size="sm" onClick={handleAddManual} disabled={tab === "url" ? !urlInput.trim() : !content.trim()}>
               <Plus className="h-4 w-4" /> Adicionar Fonte
             </Button>
           </div>
@@ -1124,7 +1133,7 @@ export default function NotebookPage() {
       .insert({ user_id: user.id, title: data.title, content: data.content, type: data.type, active: data.active, char_count: data.charCount, source_url: data.sourceUrl || null })
       .select()
       .single();
-    if (error || !row) { toast.error("Erro ao salvar fonte"); return; }
+    if (error || !row) { toast.error(`Erro ao salvar fonte: ${error?.message ?? "resposta vazia do banco"}`); return; }
     setSources((prev) => [...prev, mapSource(row)]);
   };
 
