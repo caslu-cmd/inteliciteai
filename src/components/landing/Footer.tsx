@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import logoWhite from "@/assets/logo-white.png";
 
 export default function Footer() {
@@ -13,16 +14,16 @@ export default function Footer() {
             />
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-landing-text-muted">
-            <a href="#" className="transition-colors hover:text-landing-cyan">
+            <Link to="/termos" className="transition-colors hover:text-landing-cyan">
               Termos de Uso
-            </a>
-            <a href="#" className="transition-colors hover:text-landing-cyan">
+            </Link>
+            <Link to="/privacidade" className="transition-colors hover:text-landing-cyan">
               Política de Privacidade
-            </a>
-            <a href="#" className="transition-colors hover:text-landing-cyan">
-              LGPD
-            </a>
-            <a href="#" className="transition-colors hover:text-landing-cyan">
+            </Link>
+            <Link to="/seguranca" className="transition-colors hover:text-landing-cyan">
+              Segurança
+            </Link>
+            <a href="mailto:suporte@intelicite.com.br" className="transition-colors hover:text-landing-cyan">
               Contato
             </a>
           </div>

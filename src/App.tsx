@@ -36,6 +36,9 @@ import RelatoriosLicitantePage from "./pages/licitante/RelatoriosPage";
 import PrecificacaoPage from "./pages/licitante/PrecificacaoPage";
 import ContratosPage from "./pages/licitante/ContratosPage";
 import ConsultorPage from "./pages/ConsultorPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
+import SecurityPage from "./pages/SecurityPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -65,6 +68,9 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/pending" element={<PendingApprovalPage />} />
+          <Route path="/privacidade" element={<PrivacyPage />} />
+          <Route path="/termos" element={<TermsPage />} />
+          <Route path="/seguranca" element={<SecurityPage />} />
 
           {/* Protected — Gestor */}
           <Route path="/dashboard" element={<DashboardRoute><DashboardHome /></DashboardRoute>} />
