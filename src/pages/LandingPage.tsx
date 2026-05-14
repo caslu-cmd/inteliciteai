@@ -16,7 +16,7 @@ const verticals = [
   {
     id: "intelicite",
     name: "Intelicite",
-    tagline: "Para gestores públicos",
+    tagline: "Para agentes públicos",
     badge: "Lei 14.133/2021",
     color: "cyan",
     accent: "190 95% 50%",
@@ -139,7 +139,7 @@ function Navbar() {
 
         <nav className="hidden md:flex items-center gap-9 text-sm text-white/65">
           <a href="#ecossistema" className="hover:text-white transition-colors">Ecossistema</a>
-          <a href="#intelicite" className="hover:text-white transition-colors">Gestores</a>
+          <a href="#intelicite" className="hover:text-white transition-colors">Agentes Públicos</a>
           <a href="#licitante" className="hover:text-white transition-colors">Empresas</a>
           <a href="#consultor" className="hover:text-white transition-colors">Consultores</a>
           <a href="#planos" className="hover:text-white transition-colors">Planos</a>
@@ -165,7 +165,7 @@ function Navbar() {
       {open && (
         <div className="md:hidden border-t border-white/5 bg-[hsl(223_27%_7%/0.95)] backdrop-blur-xl">
           <div className="px-6 py-5 flex flex-col gap-4 text-sm text-white/75">
-            <a href="#intelicite" onClick={() => setOpen(false)}>Gestores</a>
+            <a href="#intelicite" onClick={() => setOpen(false)}>Agentes Públicos</a>
             <a href="#licitante" onClick={() => setOpen(false)}>Empresas</a>
             <a href="#consultor" onClick={() => setOpen(false)}>Consultores</a>
             <a href="#planos" onClick={() => setOpen(false)}>Planos</a>
@@ -231,7 +231,7 @@ function Hero() {
 
         <Reveal delay={0.2}>
           <p className="mt-7 mx-auto max-w-2xl text-base md:text-lg text-white/55 leading-relaxed">
-            Três plataformas, um ecossistema. Para gestores públicos, empresas que vendem ao governo
+            Três plataformas, um ecossistema. Para agentes públicos, empresas que vendem ao governo
             e consultores especializados — conectados por IA em conformidade com a Lei 14.133/2021.
           </p>
         </Reveal>
@@ -609,7 +609,7 @@ function FinalCTA() {
                 ?
               </h2>
               <p className="mt-6 mx-auto max-w-xl text-base text-white/60">
-                Junte-se a milhares de gestores, empresas e consultores que já transformaram o ciclo licitatório com IA.
+                Junte-se a milhares de agentes públicos, empresas e consultores que já transformaram o ciclo licitatório com IA.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link
@@ -639,7 +639,7 @@ function Footer() {
     {
       title: "Plataformas",
       links: [
-        { label: "Intelicite (Gestores)", href: "#intelicite" },
+        { label: "Intelicite (Agentes Públicos)", href: "#intelicite" },
         { label: "Licitante (Empresas)", href: "#licitante" },
         { label: "Consultor (Marketplace)", href: "#consultor" },
       ],

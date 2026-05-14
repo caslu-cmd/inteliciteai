@@ -18,7 +18,7 @@ type Role = "gestor" | "licitante" | "consultor";
 const ROLES = [
   {
     id: "gestor" as Role,
-    name: "Gestor Público",
+    name: "Agente Público",
     platform: "Intelicite",
     desc: "Conduza licitações em conformidade com a Lei 14.133/2021",
     icon: Building2,

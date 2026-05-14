@@ -36,7 +36,7 @@ export default function PrivacyPage() {
 
         <Section title="1. Quem somos">
           <p>
-            O Intelicite é uma plataforma SaaS de inteligência artificial voltada para gestores públicos, licitantes e consultores
+            O Intelicite é uma plataforma SaaS de inteligência artificial voltada para agentes públicos, licitantes e consultores
             que atuam em processos licitatórios regulados pela Lei 14.133/2021. O controlador dos dados é a <strong>{COMPANY}</strong>,
             responsável pelas decisões sobre o tratamento das informações pessoais coletadas.
           </p>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           <ul>
             <li>Nome completo e endereço de e-mail</li>
             <li>Organização / órgão de vínculo</li>
-            <li>Perfil de uso (gestor público, licitante ou consultor)</li>
+            <li>Perfil de uso (agente público, licitante ou consultor)</li>
           </ul>
           <SubTitle>2.2 Dados profissionais (consultores)</SubTitle>
           <ul>

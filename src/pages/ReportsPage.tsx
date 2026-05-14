@@ -113,7 +113,7 @@ export default function ReportsPage() {
   const planLabel: Record<string, string> = {
     gratuito: "Gratuito",
     profissional: "Profissional",
-    gestor_publico: "Gestor Público",
+    gestor_publico: "Agente Público",
     empresa: "Empresa",
     institucional: "Institucional",
   };
