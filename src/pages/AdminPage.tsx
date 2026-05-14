@@ -4,7 +4,7 @@ import {
   Users, Shield, BarChart3, Tag, MapPin, Activity,
   CreditCard, AlertTriangle, Settings, DollarSign,
   UserCheck, UserX, Clock, CheckCircle2, XCircle, Gift,
-  TrendingUp, ArrowUpRight,
+  TrendingUp, ArrowUpRight, Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,13 @@ import AdminCouponsTab from "@/components/admin/AdminCouponsTab";
 import AdminSalesTab from "@/components/admin/AdminSalesTab";
 import AdminGeoTab from "@/components/admin/AdminGeoTab";
 import AdminGatewayTab from "@/components/admin/AdminGatewayTab";
+import AdminMarketplaceTab from "@/components/admin/AdminMarketplaceTab";
 
 const tabs = [
   { id: "overview",       label: "Visão Geral",  icon: BarChart3 },
   { id: "users",          label: "Usuários",     icon: Users },
   { id: "verifications",  label: "Consultores",  icon: Shield },
+  { id: "marketplace",    label: "Marketplace",  icon: Briefcase },
   { id: "sales",          label: "Vendas",       icon: CreditCard },
   { id: "gateway",        label: "Gateway",      icon: Settings },
   { id: "coupons",        label: "Cupons",       icon: Tag },
@@ -360,6 +362,7 @@ export default function AdminPage() {
 
       {activeTab === "users"          && <AdminUsersTab />}
       {activeTab === "verifications"  && <AdminVerificationsTab />}
+      {activeTab === "marketplace"    && <AdminMarketplaceTab />}
       {activeTab === "sales"   && <AdminSalesTab />}
       {activeTab === "gateway" && <AdminGatewayTab />}
       {activeTab === "coupons" && <AdminCouponsTab />}

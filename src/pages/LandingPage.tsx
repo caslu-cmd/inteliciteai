@@ -5,7 +5,7 @@ import {
   ArrowRight, CheckCircle2, Menu, X, Shield, FileText, Search, TrendingUp,
   Users, Scale, DollarSign, BookOpen, Building2, Briefcase, ClipboardList,
   BarChart3, MessageSquare, Lock, FileSearch, Handshake, CreditCard,
-  AlertTriangle, Award, Sparkles, Star,
+  AlertTriangle, Award, Sparkles, Star, ChevronRight,
 } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 
@@ -142,6 +142,7 @@ function Navbar() {
           <a href="#intelicite" className="hover:text-white transition-colors">Agentes Públicos</a>
           <a href="#licitante" className="hover:text-white transition-colors">Empresas</a>
           <a href="#consultor" className="hover:text-white transition-colors">Consultores</a>
+          <a href="#como-funciona" className="hover:text-white transition-colors text-amber-400/80 hover:text-amber-300 font-medium">Publicar Projeto</a>
           <a href="#planos" className="hover:text-white transition-colors">Planos</a>
         </nav>
 
@@ -168,6 +169,7 @@ function Navbar() {
             <a href="#intelicite" onClick={() => setOpen(false)}>Agentes Públicos</a>
             <a href="#licitante" onClick={() => setOpen(false)}>Empresas</a>
             <a href="#consultor" onClick={() => setOpen(false)}>Consultores</a>
+            <a href="#como-funciona" onClick={() => setOpen(false)} className="text-amber-400 font-medium">Publicar Projeto</a>
             <a href="#planos" onClick={() => setOpen(false)}>Planos</a>
             <Link to="/login" className="text-white">Entrar</Link>
             <Link to="/signup" className="rounded-full bg-cyan-400 text-black font-semibold py-2.5 text-center">
@@ -591,6 +593,123 @@ function Pricing() {
   );
 }
 
+function MarketplaceHowItWorks() {
+  const steps = [
+    {
+      n: "01",
+      icon: Users,
+      title: "Crie sua conta gratuitamente",
+      desc: "Cadastre-se em menos de 2 minutos. Nenhum conhecimento técnico em licitações é necessário — a plataforma foi feita para quem precisa de ajuda.",
+    },
+    {
+      n: "02",
+      icon: FileText,
+      title: "Descreva o que você precisa",
+      desc: "Publique seu projeto com detalhes: tipo de serviço (ETP, TR, impugnação, etc.), orçamento estimado e prazo. Quanto mais claro, melhores propostas você recebe.",
+    },
+    {
+      n: "03",
+      icon: Handshake,
+      title: "Receba propostas de especialistas verificados",
+      desc: "Consultores com identidade e registro profissional verificados pela Intelicite enviam propostas com valor, prazo e apresentação. Você escolhe com segurança.",
+    },
+    {
+      n: "04",
+      icon: Lock,
+      title: "Contrate e pague com segurança",
+      desc: "O pagamento fica em custódia (escrow) na plataforma e só é liberado após você confirmar a entrega. Sem risco de pagar e não receber.",
+    },
+  ];
+
+  return (
+    <section id="como-funciona" className="relative py-28 overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-amber-500/8 blur-[160px] pointer-events-none" />
+
+      <div className="relative mx-auto max-w-7xl px-6">
+        <Reveal className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.06] px-4 py-1.5 text-xs font-semibold text-amber-400 mb-6">
+            <Handshake className="h-3.5 w-3.5" />
+            Marketplace de Consultores
+          </div>
+          <h2 className="mx-auto max-w-3xl font-display text-4xl md:text-5xl font-bold tracking-tight text-white">
+            Precisa de um consultor?{" "}
+            <span className="bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(38_95%_58%),hsl(45_95%_70%))]">
+              É simples assim.
+            </span>
+          </h2>
+          <p className="mt-5 mx-auto max-w-2xl text-base text-white/55 leading-relaxed">
+            Conectamos quem precisa de consultoria especializada em licitações com os melhores profissionais do país — verificados, avaliados e prontos para ajudar.
+          </p>
+        </Reveal>
+
+        {/* Steps */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          {steps.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <Reveal key={s.n} delay={i * 0.08}>
+                <div className="relative h-full rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 hover:border-amber-400/20 hover:bg-amber-400/[0.03] transition-all duration-300 group">
+                  {/* Step number */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400/10 border border-amber-400/20 group-hover:bg-amber-400/15 transition-colors">
+                      <Icon className="h-5 w-5 text-amber-400" />
+                    </div>
+                    <span className="text-3xl font-bold text-white/[0.06]">{s.n}</span>
+                  </div>
+                  <h3 className="font-semibold text-white text-sm leading-snug mb-2">{s.title}</h3>
+                  <p className="text-sm text-white/50 leading-relaxed">{s.desc}</p>
+
+                  {/* Connector arrow for desktop */}
+                  {i < steps.length - 1 && (
+                    <div className="hidden lg:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                      <ChevronRight className="h-5 w-5 text-amber-400/30" />
+                    </div>
+                  )}
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+
+        {/* Bottom card */}
+        <Reveal>
+          <div className="relative overflow-hidden rounded-2xl border border-amber-400/15 bg-gradient-to-br from-amber-400/[0.07] to-amber-500/[0.02] p-8 md:p-10">
+            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-amber-500/15 blur-[80px]" />
+            <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+              <div>
+                <h3 className="text-xl md:text-2xl font-bold text-white">
+                  Pronto para encontrar o consultor ideal?
+                </h3>
+                <p className="mt-2 text-white/55 text-sm max-w-lg">
+                  Publique seu projeto agora e receba propostas de consultores verificados em licitações. Sem compromisso, sem burocracia.
+                </p>
+                <div className="flex flex-wrap gap-4 mt-4 text-xs text-white/40">
+                  {["Consultores verificados com documento e OAB/CRC/CREA", "Pagamento seguro com escrow", "Sem mensalidade para quem publica projetos"].map(f => (
+                    <span key={f} className="flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-amber-400/70 shrink-0" />
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-400 hover:bg-amber-300 transition-colors px-7 py-3.5 text-sm font-semibold text-black shadow-[0_0_32px_-4px_hsl(38_95%_58%/0.6)]"
+                >
+                  Publicar meu projeto
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 function FinalCTA() {
   return (
     <section className="relative py-28">
@@ -723,6 +842,7 @@ export default function LandingPage() {
           <VerticalSection key={v.id} v={v} index={i} />
         ))}
         <StatsBar />
+        <MarketplaceHowItWorks />
         <Pricing />
         <FinalCTA />
       </main>

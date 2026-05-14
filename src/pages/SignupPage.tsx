@@ -30,6 +30,7 @@ const ROLES = [
     text: "text-cyan-400",
     btn: "bg-cyan-400 hover:bg-cyan-300 text-[#080D14]",
     dot: "bg-cyan-400",
+    redirect: "/dashboard",
     features: ["Gerador de ETP e TR", "Checklist de conformidade", "Notebook IA Jurídico", "Validador de editais"],
   },
   {
@@ -46,6 +47,7 @@ const ROLES = [
     text: "text-violet-400",
     btn: "bg-violet-500 hover:bg-violet-400 text-white",
     dot: "bg-violet-400",
+    redirect: "/licitante",
     features: ["Scanner de editais", "Radar de oportunidades", "Análise competitiva", "Precificação IA"],
   },
   {
@@ -62,19 +64,32 @@ const ROLES = [
     text: "text-amber-400",
     btn: "bg-amber-400 hover:bg-amber-300 text-[#080D14]",
     dot: "bg-amber-400",
+    redirect: "/consultor",
     features: ["Receba projetos", "Envie propostas", "Pagamento seguro (escrow)", "Chat direto"],
   },
+  {
+    id: "gestor" as Role,
+    name: "Preciso de um Consultor",
+    platform: "Marketplace",
+    desc: "Publique um projeto e receba propostas de especialistas verificados em licitações",
+    icon: Handshake,
+    badge: "Publicar Projeto",
+    color: "orange",
+    border: "border-orange-400/30",
+    bg: "bg-orange-400/5",
+    badgeCss: "bg-orange-400/10 text-orange-400 border border-orange-400/20",
+    text: "text-orange-400",
+    btn: "bg-orange-400 hover:bg-orange-300 text-[#080D14]",
+    dot: "bg-orange-400",
+    redirect: "/dashboard/publicar-projeto",
+    features: ["Publique seu projeto grátis", "Propostas de especialistas verificados", "Pagamento seguro (escrow)", "Sem mensalidade"],
+  },
 ];
-
-const REDIRECT: Record<Role, string> = {
-  gestor: "/dashboard",
-  licitante: "/licitante",
-  consultor: "/consultor",
-};
 
 export default function SignupPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [role, setRole] = useState<Role | null>(null);
+  const [redirect, setRedirect] = useState("/dashboard");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -93,10 +108,11 @@ export default function SignupPage() {
   ], [password]);
 
   const passwordValid = passwordRules.every((r) => r.valid);
-  const selectedRole = ROLES.find((r) => r.id === role);
+  const selectedRole = ROLES.find((r) => r.redirect === redirect && r.id === role);
 
-  const handleSelectRole = (r: Role) => {
-    setRole(r);
+  const handleSelectRole = (r: typeof ROLES[number]) => {
+    setRole(r.id);
+    setRedirect(r.redirect);
     setStep(2);
   };
 
@@ -117,7 +133,7 @@ export default function SignupPage() {
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
-      navigate(REDIRECT[role]);
+      navigate(redirect);
     }
   };
 
@@ -154,17 +170,17 @@ export default function SignupPage() {
                 <p className="text-white/50">Escolha o perfil que melhor descreve como você usará o Intelicite.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 {ROLES.map((r, i) => (
                   <motion.button
-                    key={r.id}
+                    key={r.redirect}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1, duration: 0.4 }}
-                    onClick={() => handleSelectRole(r.id)}
+                    onClick={() => handleSelectRole(r)}
                     className={`relative rounded-2xl border p-7 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${r.border} ${r.bg} group`}
                   >
-                    <div className={`absolute top-0 left-8 right-8 h-px bg-gradient-to-r opacity-50 ${r.color === "cyan" ? "from-cyan-400/0 via-cyan-400 to-cyan-400/0" : r.color === "purple" ? "from-violet-400/0 via-violet-400 to-violet-400/0" : "from-amber-400/0 via-amber-400 to-amber-400/0"}`} />
+                    <div className={`absolute top-0 left-8 right-8 h-px bg-gradient-to-r opacity-50 ${r.color === "cyan" ? "from-cyan-400/0 via-cyan-400 to-cyan-400/0" : r.color === "purple" ? "from-violet-400/0 via-violet-400 to-violet-400/0" : r.color === "orange" ? "from-orange-400/0 via-orange-400 to-orange-400/0" : "from-amber-400/0 via-amber-400 to-amber-400/0"}`} />
 
                     <div className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium mb-5 ${r.badgeCss}`}>
                       {r.badge}
