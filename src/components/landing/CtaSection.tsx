@@ -45,7 +45,7 @@ export default function CtaSection() {
           custom={1}
           className="mx-auto mt-5 max-w-xl text-landing-text-muted"
         >
-          Junte-se a gestores públicos e empresas que já utilizam a Intelicite
+          Junte-se a agentes públicos e empresas que já utilizam a Intelicite
           para garantir conformidade e agilidade nos processos licitatórios.
         </motion.p>
         <motion.div

@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <Section title="1. O que é o Intelicite">
           <p>
-            O Intelicite é uma plataforma de inteligência artificial que auxilia gestores públicos, licitantes e
+            O Intelicite é uma plataforma de inteligência artificial que auxilia agentes públicos, licitantes e
             consultores na elaboração de documentos licitatórios (ETP, TR, DFD, minutas de impugnação, entre outros)
             com base na Lei 14.133/2021 e demais normas aplicáveis às contratações públicas brasileiras.
           </p>

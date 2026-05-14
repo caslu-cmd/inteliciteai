@@ -145,7 +145,7 @@ export default function AdminPage() {
   ];
 
   const ROLE_LABELS: Record<string, string> = {
-    gestor: "Gestor", licitante: "Licitante", consultor: "Consultor",
+    gestor: "Agente Público", licitante: "Licitante", consultor: "Consultor",
   };
 
   return (
