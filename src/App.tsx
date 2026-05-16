@@ -43,6 +43,7 @@ import TermsPage from "./pages/TermsPage";
 import SecurityPage from "./pages/SecurityPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminSwitcher from "./components/AdminSwitcher";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AdminSwitcher />
         <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
