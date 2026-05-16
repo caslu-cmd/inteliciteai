@@ -64,6 +64,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AdminSwitcher />
         <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
