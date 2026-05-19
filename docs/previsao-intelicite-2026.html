@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Previsão Intelicite IA — PNAE Fortaleza 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #15803d; --green-dark: #14532d; --green-light: #f0fdf4;
+    --amber: #d97706; --amber-light: #fffbeb;
+    --red: #dc2626; --red-light: #fef2f2;
+    --blue: #2563eb; --blue-light: #eff6ff;
+    --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+    --gray-500: #6b7280; --gray-700: #374151; --gray-900: #111827;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: var(--gray-900); }
+
+  /* ── AI badge bar ── */
+  .ai-bar { background: linear-gradient(90deg, #14532d 0%, #166534 60%, #15803d 100%); color: white; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 100; }
+  .ai-bar-left { display: flex; align-items: center; gap: 10px; }
+  .ai-badge { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+  .ai-bar-title { font-size: 13px; font-weight: 600; }
+  .ai-bar-sub { font-size: 11px; opacity: .75; }
+  .ai-bar-right { font-size: 11px; opacity: .7; }
+  .pulse { display: inline-block; width: 8px; height: 8px; background: #4ade80; border-radius: 50%; animation: pulse 1.8s infinite; margin-right: 6px; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  /* ── Layout ── */
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  /* ── Cover card ── */
+  .cover-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.08); margin-bottom: 24px; }
+  .cover-header { background: linear-gradient(135deg, #14532d 0%, #052e16 100%); color: white; padding: 36px 40px; position: relative; overflow: hidden; }
+  .cover-header::before { content:""; position:absolute; top:-80px; right:-80px; width:260px; height:260px; background:rgba(74,222,128,.1); border-radius:50%; }
+  .cover-tag { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: .7; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .cover-h1 { font-size: 26px; font-weight: 800; line-height: 1.25; margin-bottom: 6px; }
+  .cover-h1 span { color: #4ade80; }
+  .cover-sub { font-size: 13px; opacity: .75; margin-bottom: 24px; }
+  .cover-sources { display: flex; gap: 8px; flex-wrap: wrap; }
+  .source-chip { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 6px; font-size: 11px; padding: 4px 10px; display: flex; align-items: center; gap: 5px; }
+  .cover-body { padding: 24px 40px; display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  .kpi { text-align: center; }
+  .kpi-val { font-size: 22px; font-weight: 800; color: var(--green); display: block; }
+  .kpi-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+  /* ── Section titles ── */
+  .section { background: white; border-radius: 14px; padding: 28px 32px; box-shadow: 0 2px 12px rgba(0,0,0,.06); margin-bottom: 20px; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--green-dark); display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--green-light); }
+  .section-title svg { flex-shrink: 0; }
+
+  /* ── Analysis grid ── */
+  .analysis-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .year-card { border: 1px solid var(--gray-200); border-radius: 10px; padding: 16px; }
+  .year-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .year-badge { font-size: 10px; font-weight: 700; background: var(--green-light); color: var(--green-dark); padding: 3px 8px; border-radius: 20px; }
+  .year-label { font-size: 11px; color: var(--gray-500); }
+  .year-stat { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--gray-100); }
+  .year-stat:last-child { border: none; }
+  .year-stat span:last-child { font-weight: 600; color: var(--gray-700); }
+  .arrow-card { display: flex; align-items: center; justify-content: center; color: var(--green); font-size: 24px; }
+
+  /* ── Trend items ── */
+  .trend-list { display: flex; flex-direction: column; gap: 12px; }
+  .trend-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px; border-radius: 10px; }
+  .trend-item.up { background: var(--green-light); border: 1px solid #bbf7d0; }
+  .trend-item.warn { background: var(--amber-light); border: 1px solid #fde68a; }
+  .trend-item.info { background: var(--blue-light); border: 1px solid #bfdbfe; }
+  .trend-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+  .trend-item.up .trend-icon { background: #dcfce7; }
+  .trend-item.warn .trend-icon { background: #fef9c3; }
+  .trend-item.info .trend-icon { background: #dbeafe; }
+  .trend-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .trend-item.up .trend-title { color: var(--green-dark); }
+  .trend-item.warn .trend-title { color: #92400e; }
+  .trend-item.info .trend-title { color: #1e3a8a; }
+  .trend-desc { font-size: 12px; line-height: 1.6; color: var(--gray-700); }
+
+  /* ── Forecast table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--green-dark); color: white; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); }
+  tr:nth-child(even) td { background: var(--gray-50); }
+  .tag-up { color: var(--green); font-weight: 700; }
+  .tag-warn { color: var(--amber); font-weight: 700; }
+  tfoot td { background: var(--green-light); font-weight: 700; color: var(--green-dark); border-top: 2px solid #86efac; }
+
+  /* ── Risk table ── */
+  .risk-table th { background: #7f1d1d; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .badge-alto { background: #fecaca; color: #991b1b; }
+  .badge-medio { background: #fde68a; color: #92400e; }
+  .badge-baixo { background: #bbf7d0; color: #166534; }
+
+  /* ── Budget breakdown ── */
+  .budget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .budget-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+  .budget-bar-label { width: 160px; flex-shrink: 0; color: var(--gray-700); }
+  .budget-bar-track { flex: 1; height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; background: var(--green); border-radius: 4px; }
+  .budget-bar-val { width: 110px; text-align: right; font-weight: 600; color: var(--gray-700); flex-shrink: 0; }
+  .budget-total { background: var(--green-light); border: 2px solid #86efac; border-radius: 10px; padding: 20px; text-align: center; }
+  .budget-total-val { font-size: 28px; font-weight: 800; color: var(--green-dark); display: block; }
+  .budget-total-label { font-size: 11px; color: var(--gray-500); margin-top: 4px; }
+
+  /* ── Recommendations ── */
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .rec-card { border-left: 4px solid var(--green); background: var(--green-light); border-radius: 0 10px 10px 0; padding: 14px 16px; }
+  .rec-num { font-size: 10px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .rec-title { font-size: 13px; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+  .rec-desc { font-size: 12px; color: var(--gray-700); line-height: 1.5; }
+
+  /* ── Footer ── */
+  .doc-footer { background: white; border-radius: 14px; padding: 20px 32px; text-align: center; font-size: 11px; color: var(--gray-500); box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  .doc-footer strong { color: var(--green); }
+
+  @media print { .ai-bar { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- AI header bar -->
+<div class="ai-bar">
+  <div class="ai-bar-left">
+    <span class="pulse"></span>
+    <div class="ai-badge">Intelicite IA</div>
+    <div>
+      <div class="ai-bar-title">Relatório de Previsão Alimentação Escolar — 2026</div>
+      <div class="ai-bar-sub">Gerado por análise cruzada de 3 relatórios históricos · Lei 11.947/2009 · PNAE</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="ai-bar-right">Fortaleza/CE · Gerado em 19/05/2026</div>
+    <button onclick="window.close()" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:white;border-radius:6px;font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Voltar
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Cover card -->
+  <div class="cover-card">
+    <div class="cover-header">
+      <div class="cover-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Análise preditiva · Intelicite IA
+      </div>
+      <div class="cover-h1">Previsão PNAE Fortaleza<br><span>Exercício 2026</span></div>
+      <div class="cover-sub">Baseado em análise cruzada dos relatórios históricos de 2022, 2023 e 2024 — série de 3 anos com 200 dias letivos cada</div>
+      <div class="cover-sources">
+        <div class="source-chip">📄 Relatório PNAE 2022</div>
+        <div class="source-chip">📄 Execução Merenda 2023</div>
+        <div class="source-chip">📄 Prestação de Contas 2024</div>
+        <div class="source-chip" style="background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.4);">✦ Análise Intelicite IA</div>
+      </div>
+    </div>
+    <div class="cover-body">
+      <div class="kpi"><span class="kpi-val">249.600</span><span class="kpi-label">Alunos projetados</span></div>
+      <div class="kpi"><span class="kpi-val">534</span><span class="kpi-label">Unidades escolares</span></div>
+      <div class="kpi"><span class="kpi-val">R$ 38,8 M</span><span class="kpi-label">Estimativa total</span></div>
+      <div class="kpi"><span class="kpi-val">≥ 40%</span><span class="kpi-label">Meta AF</span></div>
+    </div>
+  </div>
+
+  <!-- Historical Analysis -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Análise da Série Histórica
+    </div>
+    <div class="analysis-grid">
+      <div class="year-card">
+        <div class="year-card-header"><span class="year-badge">2022</span><span class="year-label">Base</span></div>
+        <div class="year-stat"><span>Alunos</span><span>219.340</span></div>
+        <div class="year-stat"><span>Escolas</span><span>492</span></div>
+        <div class="year-stat"><span>Valor total</span><span>R$ 27,4 M</span></div>
+        <div class="year-stat"><span>Per capita/dia</span><span>R$ 0,47</span></div>
+        <div class="year-stat"><span>% AF</span><span>37,2%</span></div>
+      </div>
+      <div class="year-card">
+        <div class="year-card-header"><span class="year-badge">2023</span><span class="year-label">Intermediário</span></div>
+        <div class="year-stat"><span>Alunos</span><span>226.890 <span class="tag-up">+3,4%</span></span></div>
+        <div class="year-stat"><span>Escolas</span><span>504 <span class="tag-up">+2,4%</span></span></div>
+        <div class="year-stat"><span>Valor total</span><span>R$ 30,8 M <span class="tag-up">+12,5%</span></span></div>
+        <div class="year-stat"><span>Per capita/dia</span><span>R$ 0,51 <span class="tag-up">+8,5%</span></span></div>
+        <div class="year-stat"><span>% AF</span><span>39,8% <span class="tag-up">+2,6pp</span></span></div>
+      </div>
+      <div class="year-card">
+        <div class="year-card-header"><span class="year-badge">2024</span><span class="year-label">Referência</span></div>
+        <div class="year-stat"><span>Alunos</span><span>233.847 <span class="tag-up">+3,1%</span></span></div>
+        <div class="year-stat"><span>Escolas</span><span>518 <span class="tag-up">+2,8%</span></span></div>
+        <div class="year-stat"><span>Valor total</span><span>R$ 33,6 M <span class="tag-up">+9,1%</span></span></div>
+        <div class="year-stat"><span>Per capita/dia</span><span>R$ 0,54 <span class="tag-up">+5,9%</span></span></div>
+        <div class="year-stat"><span>% AF</span><span>42,1% <span class="tag-up">+2,3pp</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trends identified -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      Tendências Identificadas pela IA
+    </div>
+    <div class="trend-list">
+      <div class="trend-item up">
+        <div class="trend-icon">📈</div>
+        <div>
+          <div class="trend-title">Crescimento constante de matrículas (+3,2% ao ano)</div>
+          <div class="trend-desc">Os três relatórios mostram crescimento consistente de 3,1–3,4% ao ano no número de alunos atendidos. A Intelicite IA projeta <strong>249.600 alunos em 2026</strong>, com abertura de 8 a 10 novas unidades escolares estimadas com base na expansão das regionais III e VI de Fortaleza.</div>
+        </div>
+      </div>
+      <div class="trend-item up">
+        <div class="trend-icon">🌿</div>
+        <div>
+          <div class="trend-title">Avanço contínuo na aquisição da Agricultura Familiar</div>
+          <div class="trend-desc">O percentual AF cresceu de 37,2% (2022) para 42,1% (2024), média de +2,4 pp/ano. A tendência indica que, mantida a trajetória, Fortaleza alcançará <strong>44–46% em 2026</strong>. Recomendamos manutenção de pelo menos 2 Chamadas Públicas anuais para diversificar a base de cooperativas credenciadas.</div>
+        </div>
+      </div>
+      <div class="trend-item warn">
+        <div class="trend-icon">⚠️</div>
+        <div>
+          <div class="trend-title">Pressão de custos em proteínas animais e cereais</div>
+          <div class="trend-desc">A análise cruzada revela reajuste médio de <strong>7,8% ao ano</strong> em proteínas animais (frango +10,5%, carne bovina +9,3%) e 6,4% em cereais, acima do IPCA geral. Contratos sem cláusula de reajuste semestral geraram apostilamentos emergenciais em 2023 e 2024 — padrão que tende a se repetir sem ajuste preventivo nos editais 2026.</div>
+        </div>
+      </div>
+      <div class="trend-item warn">
+        <div class="trend-icon">🌧️</div>
+        <div>
+          <div class="trend-title">Sazonalidade climática impacta frutas e hortaliças</div>
+          <div class="trend-desc">Os relatórios de 2023 e 2024 registram falhas de entrega nos meses de julho–setembro, coincidindo com período de estiagem no Semiárido cearense. Para 2026, recomenda-se contratar <strong>estoque estratégico equivalente a 30 dias</strong> e incluir cláusula de substituição de item equivalente sem penalidade durante estiagem declarada.</div>
+        </div>
+      </div>
+      <div class="trend-item info">
+        <div class="trend-icon">🏛️</div>
+        <div>
+          <div class="trend-title">Sistema de Registro de Preços demonstrou eficácia</div>
+          <div class="trend-desc">Em 2024, o SRP permitiu substituição de fornecedores sem abertura de novo processo licitatório em 3 ocasiões, evitando interrupção do fornecimento. A Intelicite IA recomenda manter o modelo SRP com <strong>atas para ao menos 3 fornecedores por item crítico</strong> nos certames de 2026.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forecast table -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Projeção Quantitativa por Item — 2026
+    </div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px;">Projeção calculada com base no CAGR de cada item (2022–2024) + crescimento de alunos (+3,2%) + IPCA estimado 4,2% para 2026.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qtd. 2024 (real)</th>
+          <th>Qtd. Projetada 2026</th>
+          <th>Unid.</th>
+          <th>Custo Estimado (R$/un)</th>
+          <th>Total Estimado (R$)</th>
+          <th>Δ %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Arroz tipo 1</td><td>514.620</td><td>548.200</td><td>kg</td><td>5,98</td><td>3.278.236</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Feijão carioca</td><td>180.200</td><td>192.040</td><td>kg</td><td>7,84</td><td>1.505.594</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Frango (cortes)</td><td>102.680</td><td>109.360</td><td>kg</td><td>15,80</td><td>1.727.888</td><td class="tag-warn">+15,8%</td></tr>
+        <tr><td>Carne bovina moída</td><td>77.010</td><td>82.020</td><td>kg</td><td>34,40</td><td>2.821.488</td><td class="tag-warn">+23,8%</td></tr>
+        <tr><td>Leite UHT</td><td>468.810</td><td>499.420</td><td>L</td><td>5,26</td><td>2.626.749</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Frutas frescas</td><td>410.030</td><td>436.860</td><td>kg</td><td>4,80</td><td>2.096.928</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Hortaliças</td><td>205.010</td><td>218.340</td><td>kg</td><td>5,34</td><td>1.165.936</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Pão integral</td><td>153.790</td><td>163.790</td><td>kg</td><td>11,30</td><td>1.850.827</td><td class="tag-up">+7,3%</td></tr>
+        <tr><td>Macarrão espaguete</td><td>102.540</td><td>109.240</td><td>kg</td><td>7,08</td><td>773.419</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Azeite / óleos vegetais</td><td>25.630</td><td>27.300</td><td>L</td><td>16,42</td><td>448.266</td><td class="tag-up">+6,5%</td></tr>
+        <tr><td>Agricultura Familiar</td><td>—</td><td>—</td><td>—</td><td>—</td><td>4.812.960</td><td class="tag-up">+17,0%</td></tr>
+        <tr><td>Outros gêneros</td><td>—</td><td>—</td><td>—</td><td>—</td><td>3.104.109</td><td>—</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="5"><strong>TOTAL ESTIMADO 2026</strong></td><td><strong>R$ 26.212.400</strong></td><td>—</td></tr>
+      </tfoot>
+    </table>
+    <p style="font-size:11px;color:var(--gray-500);margin-top:8px;">* Complementação municipal estimada: R$ 12.600.000. Total com complementação: <strong>R$ 38.812.400</strong>.</p>
+  </div>
+
+  <!-- Budget -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Estimativa Orçamentária 2026
+    </div>
+    <div class="budget-grid">
+      <div>
+        <div class="budget-bar-row">
+          <div class="budget-bar-label">FNDE (federal)</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" style="width:68%"></div></div>
+          <div class="budget-bar-val">R$ 26.212.400</div>
+        </div>
+        <div class="budget-bar-row">
+          <div class="budget-bar-label">Complementação mun.</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" style="width:32%;background:#86efac"></div></div>
+          <div class="budget-bar-val">R$ 12.600.000</div>
+        </div>
+        <div class="budget-bar-row" style="margin-top:16px;">
+          <div class="budget-bar-label">Pregão Eletrônico SRP</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" style="width:80%;background:#6ee7b7"></div></div>
+          <div class="budget-bar-val">R$ 31.049.920</div>
+        </div>
+        <div class="budget-bar-row">
+          <div class="budget-bar-label">Chamada Pública AF</div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" style="width:20%;background:#a7f3d0"></div></div>
+          <div class="budget-bar-val">R$ 7.762.480</div>
+        </div>
+      </div>
+      <div class="budget-total">
+        <span class="budget-total-val">R$ 38.812.400</span>
+        <div class="budget-total-label">Estimativa total 2026<br>(FNDE + Complementação Municipal)</div>
+        <div style="margin-top:12px;font-size:11px;color:var(--gray-500)">Base: CAGR 3 anos · IPCA 4,2% · Crescimento alunos 3,2%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risks -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Riscos Identificados pela Análise IA
+    </div>
+    <table class="risk-table">
+      <thead>
+        <tr><th>Risco</th><th>Probabilidade</th><th>Impacto</th><th>Nível</th><th>Medida de Mitigação</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Alta de preços em proteínas animais acima do IPCA</td>
+          <td>Alta (histórico 3 anos)</td>
+          <td>Orçamentário</td>
+          <td><span class="badge badge-alto">ALTO</span></td>
+          <td>Cláusula de reajuste semestral no edital; SRP com 3 fornecedores</td>
+        </tr>
+        <tr>
+          <td>Estiagem no Semiárido compromete entrega de frutas/hortaliças (jul–set)</td>
+          <td>Média (recorrente)</td>
+          <td>Operacional</td>
+          <td><span class="badge badge-alto">ALTO</span></td>
+          <td>Cláusula de estoque mínimo 30 dias; substituição equivalente sem penalidade</td>
+        </tr>
+        <tr>
+          <td>Insuficiência de cooperativas credenciadas para meta AF</td>
+          <td>Baixa (tendência positiva)</td>
+          <td>Legal/FNDE</td>
+          <td><span class="badge badge-medio">MÉDIO</span></td>
+          <td>Ampliar cadastro de CAFs antes da Chamada Pública; ATER para novos cooperados</td>
+        </tr>
+        <tr>
+          <td>Atraso na publicação dos editais (início do ano letivo)</td>
+          <td>Média (ocorreu em 2022)</td>
+          <td>Operacional</td>
+          <td><span class="badge badge-medio">MÉDIO</span></td>
+          <td>Publicar PE até 31/01/2026 e Chamada Pública até 30/11/2025</td>
+        </tr>
+        <tr>
+          <td>Variação cambial impactando insumos importados (óleos, trigo)</td>
+          <td>Baixa</td>
+          <td>Orçamentário</td>
+          <td><span class="badge badge-baixo">BAIXO</span></td>
+          <td>Reserva de contingência de 3% sobre o valor contratado</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Recomendações para o ETP 2026
+    </div>
+    <div class="rec-grid">
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 01</div>
+        <div class="rec-title">Cláusula de reajuste semestral</div>
+        <div class="rec-desc">Incluir cláusula vinculada ao IPCA-IBGE com reajuste automático a cada 6 meses para contratos de proteínas animais e cereais, eliminando a necessidade de apostilamentos emergenciais.</div>
+      </div>
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 02</div>
+        <div class="rec-title">SRP com fornecedores substitutos</div>
+        <div class="rec-desc">Manter Ata de Registro de Preços com no mínimo 3 fornecedores por item crítico (carnes, laticínios) para garantir continuidade do fornecimento sem nova licitação.</div>
+      </div>
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 03</div>
+        <div class="rec-title">Ampliar base de Agricultura Familiar</div>
+        <div class="rec-desc">Lançar Chamada Pública até 30/11/2025 e promover evento de credenciamento de novas cooperativas para atingir meta de 44% em 2026, acima do mínimo legal de 30%.</div>
+      </div>
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 04</div>
+        <div class="rec-title">Antecipação do calendário licitatório</div>
+        <div class="rec-desc">Publicar Pregão Eletrônico SRP até 31/01/2026 para garantir contratos assinados antes do início do ano letivo (fevereiro/2026), evitando descontinuidade registrada em 2022.</div>
+      </div>
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 05</div>
+        <div class="rec-title">Estoque mínimo contratual</div>
+        <div class="rec-desc">Exigir dos fornecedores de frutas e hortaliças a manutenção de estoque equivalente a 30 dias de fornecimento, com comprovação mensal, especialmente para os meses de julho a setembro.</div>
+      </div>
+      <div class="rec-card">
+        <div class="rec-num">Recomendação 06</div>
+        <div class="rec-title">Revisão dos cardápios nutricionais</div>
+        <div class="rec-desc">Com base no crescimento de alunos do AEE (Atendimento Educacional Especializado), atualizar cardápios para garantir adequação nutricional às novas unidades especializadas previstas para 2026.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="doc-footer">
+    <div style="margin-bottom:6px;">
+      Este relatório foi gerado automaticamente pela <strong>Intelicite IA</strong> com base na análise cruzada de 3 relatórios históricos (2022, 2023, 2024).
+    </div>
+    <div>Os dados e projeções são estimativas de planejamento — sempre valide com a equipe técnica da SME antes da formalização do processo licitatório.</div>
+    <div style="margin-top:10px;color:#d1d5db;">Prefeitura de Fortaleza · SME · ETP nº 001/2026-DIAE · Intelicite IA · Lei 14.133/2021 + Lei 11.947/2009</div>
+  </div>
+
+</div>
+
+</body>
+</html>
