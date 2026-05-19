@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETP Demo — Intelicite AI</title>
+  <style>
+    :root {
+      --amber: #f59e0b;
+      --amber-light: #fef3c7;
+      --amber-dark: #d97706;
+      --blue: #3b82f6;
+      --green: #10b981;
+      --red: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* ── Print button bar ── */
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .print-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: var(--amber);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: .5px;
+    }
+    .print-bar h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+    .print-bar p {
+      font-size: 11px;
+      color: var(--gray-400);
+    }
+    .btn-print {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--amber);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-print:hover { background: var(--amber-dark); }
+    .btn-print svg { width: 16px; height: 16px; }
+
+    /* ── Page layout ── */
+    .page {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 16px 80px;
+    }
+
+    /* ── IA Badge ── */
+    .ia-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--amber-light);
+      color: var(--amber-dark);
+      border: 1px solid #fcd34d;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      margin-bottom: 4px;
+    }
+
+    /* ── Forecast panel ── */
+    .forecast-panel {
+      background: white;
+      border: 1.5px solid #fcd34d;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .forecast-header {
+      background: var(--amber-light);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #fcd34d;
+    }
+    .forecast-header-icon {
+      background: var(--amber);
+      color: white;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .forecast-header h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--amber-dark);
+    }
+    .forecast-header p {
+      font-size: 11px;
+      color: #92400e;
+    }
+    .forecast-body {
+      padding: 20px;
+    }
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .forecast-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .forecast-card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--gray-500);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .forecast-card-title span { font-size: 13px; }
+    .forecast-card ul {
+      list-style: none;
+      space-y: 4px;
+    }
+    .forecast-card ul li {
+      font-size: 11px;
+      color: var(--gray-700);
+      padding: 2px 0;
+      display: flex;
+      gap: 6px;
+    }
+    .forecast-card ul li::before {
+      content: "▸";
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+    .forecast-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--amber-dark);
+    }
+    .forecast-value-sub {
+      font-size: 10px;
+      color: var(--gray-500);
+      margin-top: 2px;
+    }
+    .reports-used {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .report-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      font-size: 10px;
+      color: var(--gray-600);
+      padding: 3px 8px;
+    }
+    .report-chip::before { content: "📄"; }
+
+    /* ── ETP Document ── */
+    .etp-document {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+    }
+    .etp-cover {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: white;
+      padding: 40px 40px 32px;
+      position: relative;
+      overflow: hidden;
+    }
+    .etp-cover::before {
+      content: "";
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 200px;
+      height: 200px;
+      background: rgba(245,158,11,.1);
+      border-radius: 50%;
+    }
+    .etp-cover-badge {
+      display: inline-block;
+      background: var(--amber);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .etp-cover h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+    .etp-cover-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 28px;
+    }
+    .etp-cover-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .etp-meta-item label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: #64748b;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .etp-meta-item span {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    /* ── Sections ── */
+    .etp-body { padding: 40px; }
+
+    .section {
+      margin-bottom: 36px;
+      page-break-inside: avoid;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--gray-100);
+    }
+    .section-number {
+      background: var(--amber);
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+    .section-ref {
+      font-size: 10px;
+      color: var(--gray-400);
+      margin-top: 2px;
+    }
+    .section-content {
+      font-size: 13px;
+      color: var(--gray-700);
+      line-height: 1.75;
+    }
+    .section-content p { margin-bottom: 10px; }
+    .section-content strong { color: var(--gray-900); }
+
+    .subsection {
+      margin-bottom: 14px;
+    }
+    .subsection-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .subsection-title::before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: var(--amber);
+      border-radius: 2px;
+    }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th {
+      background: var(--gray-900);
+      color: white;
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: var(--gray-50); }
+    .td-right { text-align: right; font-variant-numeric: tabular-nums; }
+    .td-total {
+      font-weight: 700;
+      color: var(--gray-900);
+      background: var(--amber-light) !important;
+    }
+
+    /* ── Callout boxes ── */
+    .callout {
+      border-left: 4px solid var(--amber);
+      background: var(--amber-light);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 12px;
+      color: #78350f;
+    }
+    .callout-risk {
+      border-left-color: var(--red);
+      background: #fef2f2;
+      color: #7f1d1d;
+    }
+    .callout-ok {
+      border-left-color: var(--green);
+      background: #ecfdf5;
+      color: #064e3b;
+    }
+
+    /* ── Tag badges ── */
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin: 2px 2px 2px 0;
+    }
+    .tag-amber { background: var(--amber-light); color: var(--amber-dark); }
+    .tag-green { background: #dcfce7; color: #15803d; }
+    .tag-blue  { background: #dbeafe; color: #1d4ed8; }
+    .tag-red   { background: #fee2e2; color: #b91c1c; }
+
+    /* ── Compliance checklist ── */
+    .compliance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 6px;
+    }
+    .compliance-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--gray-700);
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    .compliance-item::before {
+      content: "✓";
+      color: var(--green);
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    /* ── Signature block ── */
+    .signature-block {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 2px solid var(--gray-200);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px;
+    }
+    .signature-line {
+      text-align: center;
+    }
+    .signature-line hr {
+      border: none;
+      border-top: 1px solid var(--gray-400);
+      margin-bottom: 8px;
+    }
+    .signature-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+    .signature-role {
+      font-size: 10px;
+      color: var(--gray-500);
+    }
+
+    /* ── Footer ── */
+    .etp-footer {
+      background: var(--gray-50);
+      border-top: 1px solid var(--gray-200);
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--gray-400);
+    }
+    .etp-footer strong { color: var(--amber-dark); }
+
+    /* ── Print styles ── */
+    @media print {
+      body { background: white; }
+      .print-bar { display: none !important; }
+      .page { margin: 0; padding: 0; max-width: 100%; }
+      .etp-document { border: none; border-radius: 0; }
+      .etp-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section-number { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .forecast-panel { display: none; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Print bar -->
+<div class="print-bar">
+  <div class="print-bar-left">
+    <span class="logo-badge">INTELICITE AI</span>
+    <div>
+      <h1>ETP gerado com Previsão Histórica IA</h1>
+      <p>Demonstração · Prefeitura Municipal de Exemplo · Lei 14.133/2021</p>
+    </div>
+  </div>
+  <button class="btn-print" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="6 9 6 2 18 2 18 9"></polyline>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+      <rect x="6" y="14" width="12" height="8"></rect>
+    </svg>
+    Imprimir / Salvar PDF
+  </button>
+</div>
+
+<div class="page">
+
+  <!-- IA Forecast Panel -->
+  <div class="forecast-panel">
+    <div class="forecast-header">
+      <div class="forecast-header-icon">📊</div>
+      <div>
+        <h2>Previsão gerada pela IA · Exercício 2026</h2>
+        <p>Claude analisou 3 relatórios históricos (2022, 2023, 2024) e pré-preencheu o ETP automaticamente</p>
+      </div>
+    </div>
+    <div class="forecast-body">
+      <div class="forecast-grid">
+        <div class="forecast-card">
+          <div class="forecast-card-title"><span>📈</span> Tendências Observadas</div>
+          <ul>
+            <li>Crescimento médio de 12% a.a. no consumo de material de escritório</li>
+            <li>Aumento de 18% em demanda por serviços de TI (2022→2024)</li>
+            <li>Inflação acumulada nos insumos: 9,3% (IPCA setorial)</li>
+            <li>Concentração de gastos no 2º semestre histórico</li>
+          </ul>
+        </div>
+        <div class="forecast-card">
+          <div class="forecast-card-title"><span>⚠️</span> Riscos Identificados</div>
+          <ul>
+            <li>Ruptura de fornecimento detectada em 2023 (itens de limpeza)</li>
+            <li>Subfornecimento recorrente de papel A4 nos meses de março</li>
+            <li>Cotações desatualizadas em 2 das 3 pesquisas históricas</li>
+            <li>Dependência de fornecedor único para TI (2022-2024)</li>
+          </ul>
+        </div>
+        <div class="forecast-card">
+          <div class="forecast-card-title"><span>💰</span> Estimativa de Valor</div>
+          <div class="forecast-value">R$ 487.320,00</div>
+          <div class="forecast-value-sub">Projeção para 2026 com IPCA +4,5%</div>
+        </div>
+      </div>
+      <div class="reports-used">
+        <strong style="font-size:10px;color:#6b7280;margin-right:4px;">Relatórios analisados:</strong>
+        <span class="report-chip">Relatório Anual 2022.pdf</span>
+        <span class="report-chip">Prestação de Contas 2023.pdf</span>
+        <span class="report-chip">Balancete Geral 2024.pdf</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ETP Document -->
+  <div class="etp-document">
+
+    <!-- Cover -->
+    <div class="etp-cover">
+      <div class="etp-cover-badge">Gerado com Intelicite AI</div>
+      <h1>Estudo Técnico Preliminar</h1>
+      <p class="etp-cover-sub">Art. 18, §1º · Lei nº 14.133/2021 · IN SEGES/ME nº 58/2022</p>
+      <div class="etp-cover-meta">
+        <div class="etp-meta-item">
+          <label>Órgão</label>
+          <span>Prefeitura Municipal de Horizonte Verde</span>
+        </div>
+        <div class="etp-meta-item">
+          <label>CNPJ</label>
+          <span>12.345.678/0001-90</span>
+        </div>
+        <div class="etp-meta-item">
+          <label>Processo SEI</label>
+          <span>2025.001.004.789</span>
+        </div>
+        <div class="etp-meta-item">
+          <label>Data de Elaboração</label>
+          <span>19 de maio de 2026</span>
+        </div>
+        <div class="etp-meta-item">
+          <label>Responsável</label>
+          <span>Ana Paula Ferreira Souza</span>
+        </div>
+        <div class="etp-meta-item">
+          <label>Cargo</label>
+          <span>Diretora de Administração e Suprimentos</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="etp-body">
+
+      <!-- Conformidade -->
+      <div class="section">
+        <div class="compliance-grid">
+          <div class="compliance-item">I — Necessidade da Contratação</div>
+          <div class="compliance-item">II — Previsão no PCA</div>
+          <div class="compliance-item">III — Requisitos Técnicos</div>
+          <div class="compliance-item">IV — Estimativa de Quantidades</div>
+          <div class="compliance-item">V — Levantamento de Mercado</div>
+          <div class="compliance-item">VI — Estimativa de Valor</div>
+          <div class="compliance-item">VII — Parcelamento</div>
+          <div class="compliance-item">VIII — Resultados Pretendidos</div>
+          <div class="compliance-item">X — Riscos e Mitigação</div>
+          <div class="compliance-item">XI — Contratações Correlatas</div>
+          <div class="compliance-item">XII — Impactos Ambientais</div>
+          <div class="compliance-item">XIII — Viabilidade Conclusiva</div>
+        </div>
+      </div>
+
+      <!-- Seção 1 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">1</div>
+          <div>
+            <div class="section-title">Identificação do Documento</div>
+            <div class="section-ref">Art. 18 — Dados do órgão e responsáveis</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="table-wrap">
+            <table>
+              <tr><th colspan="2">Dados Institucionais</th></tr>
+              <tr><td><strong>Órgão/Entidade</strong></td><td>Prefeitura Municipal de Horizonte Verde — Secretaria Municipal de Administração</td></tr>
+              <tr><td><strong>CNPJ</strong></td><td>12.345.678/0001-90</td></tr>
+              <tr><td><strong>Unidade Demandante</strong></td><td>Departamento de Compras e Licitações</td></tr>
+              <tr><td><strong>Processo SEI</strong></td><td>2025.001.004.789</td></tr>
+              <tr><td><strong>Responsável pela Elaboração</strong></td><td>Ana Paula Ferreira Souza — Diretora de Administração · Mat. 12.456</td></tr>
+              <tr><td><strong>Data de Elaboração</strong></td><td>19 de maio de 2026</td></tr>
+              <tr><td><strong>Objeto Resumido</strong></td><td>Registro de preços para aquisição de material de consumo (escritório, limpeza e higiene) e contratação de serviço de suporte de TI para o exercício de 2026</td></tr>
+            </table>
+          </div>
+          <div class="ia-badge">✦ Preenchido automaticamente pela análise histórica IA</div>
+        </div>
+      </div>
+
+      <!-- Seção 2 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">2</div>
+          <div>
+            <div class="section-title">Descrição da Necessidade da Contratação</div>
+            <div class="section-ref">Art. 18, §1º, I e II — Necessidade e alinhamento estratégico</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="subsection">
+            <div class="subsection-title">Por que contratar?</div>
+            <p>A Prefeitura Municipal de Horizonte Verde necessita garantir o suprimento contínuo de materiais de consumo e serviços de suporte de TI para o exercício de 2026. A análise dos relatórios históricos dos exercícios de 2022, 2023 e 2024 evidenciou crescimento médio anual de <strong>12%</strong> no consumo de materiais de escritório e <strong>18%</strong> na demanda por serviços de TI, impulsionado pela expansão dos programas municipais de atendimento ao cidadão e pela digitalização de processos internos.</p>
+            <p>A ausência de contratos vigentes para esses itens no início do exercício 2026 implicaria paralisação das atividades administrativas, comprometendo o atendimento à população e a execução dos programas de governo, em violação ao princípio da continuidade do serviço público (Art. 6º, XXVI, Lei 14.133/2021).</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Para que contratar?</div>
+            <p>Prover os insumos necessários ao funcionamento das 14 unidades administrativas do município, assegurando: (i) operação ininterrupta dos setores de atendimento; (ii) manutenção da infraestrutura de TI com SLA garantido; (iii) cumprimento das normas sanitárias relativas à higienização dos espaços públicos.</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Para quem contratar?</div>
+            <p>Os beneficiários diretos são os aproximadamente <strong>340 servidores municipais</strong> e, indiretamente, os <strong>28.500 habitantes</strong> atendidos pelos serviços municipais, incluindo usuários das Unidades Básicas de Saúde, Centro de Referência em Assistência Social (CRAS) e secretarias de educação.</p>
+          </div>
+          <div class="callout">
+            <strong>Alinhamento com o PCA 2026:</strong> A presente contratação está prevista no Plano de Contratações Anual 2026 (Resolução nº 002/2026-SMA), aprovado pelo Ordenador de Despesas em 15/01/2026, atendendo ao disposto no Art. 12, VII da Lei 14.133/2021.
+          </div>
+          <div class="ia-badge">✦ Justificativa gerada com base na análise histórica de 3 exercícios anteriores</div>
+        </div>
+      </div>
+
+      <!-- Seção 3 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">3</div>
+          <div>
+            <div class="section-title">Requisitos da Contratação</div>
+            <div class="section-ref">Art. 18, §1º, III — Técnicos, legais e de sustentabilidade</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="subsection">
+            <div class="subsection-title">Requisitos de Negócio</div>
+            <p>Entrega parcelada conforme demanda das unidades; prazo máximo de 5 dias úteis para entrega de material de consumo e 4 horas para atendimento de TI presencial (SLA crítico). Cobertura de todas as 14 unidades administrativas do município.</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Requisitos Técnicos</div>
+            <p>
+              <span class="tag tag-amber">ABNT NBR 14724</span>
+              <span class="tag tag-amber">ISO 9001:2015</span>
+              <span class="tag tag-blue">ITIL v4</span>
+              <span class="tag tag-blue">LGPD (Lei 13.709/2018)</span>
+            </p>
+            <p style="margin-top:8px;">Para serviços de TI: exige-se profissional certificado (CompTIA A+ ou equivalente), com experiência comprovada mínima de 2 anos em suporte a ambientes Windows/Linux com Active Directory. Para materiais: conformidade com especificações técnicas da ABNT e vedação a materiais com substâncias tóxicas acima dos limites da RDC ANVISA 306/2004.</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Sustentabilidade (Art. 11, IV)</div>
+            <p>Preferência por papel com certificação FSC ou equivalente; materiais de limpeza biodegradáveis; embalagens com programa de logística reversa conforme Decreto 10.936/2022; vedada a aquisição de itens com mais de 30% de material não reciclável.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 4 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">4</div>
+          <div>
+            <div class="section-title">Estimativa de Quantidades e Memória de Cálculo</div>
+            <div class="section-ref">Art. 18, §1º, IV — Com memória de cálculo detalhada · Projeção IA</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <p>As quantidades foram projetadas com base na <strong>média de consumo dos exercícios 2022–2024</strong>, acrescida do crescimento histórico identificado (12% materiais / 18% TI) e ajustadas por sazonalidade (concentração no 2º semestre):</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Descrição do Item</th>
+                  <th>Unid.</th>
+                  <th style="text-align:right">Qtd. 2024 (real)</th>
+                  <th style="text-align:right">Crescim. IA</th>
+                  <th style="text-align:right">Qtd. Prev. 2026</th>
+                  <th style="text-align:right">Vlr. Unit. (R$)</th>
+                  <th style="text-align:right">Vlr. Total (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>Papel A4 75g/m² (resma 500 fls)</td>
+                  <td>Resma</td>
+                  <td class="td-right">1.800</td>
+                  <td class="td-right">+12%</td>
+                  <td class="td-right">2.016</td>
+                  <td class="td-right">24,90</td>
+                  <td class="td-right">50.198,40</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>Caneta esferográfica azul (cx 50 un)</td>
+                  <td>Caixa</td>
+                  <td class="td-right">210</td>
+                  <td class="td-right">+10%</td>
+                  <td class="td-right">231</td>
+                  <td class="td-right">38,50</td>
+                  <td class="td-right">8.893,50</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>Detergente neutro 500mL</td>
+                  <td>Unid.</td>
+                  <td class="td-right">960</td>
+                  <td class="td-right">+8%</td>
+                  <td class="td-right">1.037</td>
+                  <td class="td-right">4,20</td>
+                  <td class="td-right">4.355,40</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td>Desinfetante 2L (bactericida)</td>
+                  <td>Unid.</td>
+                  <td class="td-right">480</td>
+                  <td class="td-right">+8%</td>
+                  <td class="td-right">518</td>
+                  <td class="td-right">12,80</td>
+                  <td class="td-right">6.630,40</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td>Álcool gel 70% 500mL</td>
+                  <td>Unid.</td>
+                  <td class="td-right">720</td>
+                  <td class="td-right">+15%</td>
+                  <td class="td-right">828</td>
+                  <td class="td-right">9,90</td>
+                  <td class="td-right">8.197,20</td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td>Suporte técnico TI (h/mês contrato)</td>
+                  <td>Meses</td>
+                  <td class="td-right">12</td>
+                  <td class="td-right">+18%</td>
+                  <td class="td-right">12</td>
+                  <td class="td-right">34.170,45</td>
+                  <td class="td-right">410.045,40</td>
+                </tr>
+                <tr>
+                  <td class="td-total">—</td>
+                  <td class="td-total" colspan="6"><strong>TOTAL GERAL ESTIMADO</strong></td>
+                  <td class="td-total td-right"><strong>R$ 487.320,00</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ia-badge">✦ Quantidades projetadas pela IA com base nos relatórios 2022–2024 + crescimento histórico</div>
+        </div>
+      </div>
+
+      <!-- Seção 5 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">5</div>
+          <div>
+            <div class="section-title">Levantamento de Mercado e Estimativa de Valor</div>
+            <div class="section-ref">Art. 18, §1º, V e VI — IN SEGES/ME nº 65/2021</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="subsection">
+            <div class="subsection-title">Fontes de Pesquisa de Preços</div>
+            <p><strong>Fonte 1:</strong> Painel de Preços do Governo Federal (paineldeprecos.economia.gov.br) — consulta em 15/05/2026, código CATMAT 7510-00-F-0020.</p>
+            <p><strong>Fonte 2:</strong> PNCP — Contratos similares firmados por municípios de porte equivalente nos últimos 12 meses (média de 7 contratos analisados).</p>
+            <p><strong>Fonte 3:</strong> Cotações diretas obtidas com 3 fornecedores locais (Suprimentos São Jorge LTDA, Distribuidora Capital e TechSuporte ME).</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Metodologia</div>
+            <p>Valor estimado calculado pela média aritmética das três fontes, com descarte de outliers acima de 25% da mediana, conforme Art. 5º, §1º da IN 65/2021. Os valores históricos do órgão foram utilizados como referência de controle e ajustados pelo IPCA acumulado dos últimos 12 meses (4,83% — IBGE, abr/2026).</p>
+          </div>
+          <div class="callout callout-ok">
+            <strong>Valor total estimado: R$ 487.320,00</strong> — dentro do intervalo de razoabilidade identificado nas pesquisas de mercado (R$ 461.000,00 a R$ 512.000,00). Modalidade indicada: <strong>Pregão Eletrônico (SRP)</strong>, conforme Art. 28, I c/c Art. 82, §1º da Lei 14.133/2021.
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 6 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">6</div>
+          <div>
+            <div class="section-title">Análise de Riscos e Contratações Correlatas</div>
+            <div class="section-ref">Art. 18, §1º, X e XI — Riscos, mitigações e interdependências</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Risco Identificado</th>
+                  <th>Origem</th>
+                  <th>Probabilidade</th>
+                  <th>Impacto</th>
+                  <th>Medida de Mitigação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Ruptura de fornecimento de itens de limpeza (recorrente em 2023)</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag tag-red">Alta</span></td>
+                  <td><span class="tag tag-red">Alto</span></td>
+                  <td>Exigir estoque mínimo de 30 dias; cláusula de substituição em 24h; cadastro de 2º fornecedor</td>
+                </tr>
+                <tr>
+                  <td>Subfornecimento de papel A4 em março (sazonalidade identificada)</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag tag-amber">Média</span></td>
+                  <td><span class="tag tag-amber">Médio</span></td>
+                  <td>Emissão de ordem de compra com 45 dias de antecedência no 1º trimestre</td>
+                </tr>
+                <tr>
+                  <td>Dependência de fornecedor único para TI</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag tag-amber">Média</span></td>
+                  <td><span class="tag tag-red">Alto</span></td>
+                  <td>Exigir equipe mínima de 3 técnicos; vedação à subcontratação total; SLA com multa diária</td>
+                </tr>
+                <tr>
+                  <td>Frustração de licitação (ausência de propostas válidas)</td>
+                  <td>Mercado</td>
+                  <td><span class="tag tag-green">Baixa</span></td>
+                  <td><span class="tag tag-amber">Médio</span></td>
+                  <td>Dividir em lotes por categoria; ampliar prazo de publicação para 20 dias úteis</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout callout-risk" style="margin-top:12px;">
+            <strong>⚠ Atenção — Risco crítico identificado pela IA:</strong> A ruptura de fornecimento de itens de limpeza em 2023 causou paralisação parcial por 11 dias nas UBS municipais. A inclusão de cláusula de garantia de estoque mínimo é imprescindível neste contrato.
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 7 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">7</div>
+          <div>
+            <div class="section-title">Posicionamento Conclusivo sobre Viabilidade</div>
+            <div class="section-ref">Art. 18, §1º, VIII, IX e XIII — Resultados, providências e conclusão</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="subsection">
+            <div class="subsection-title">Resultados Pretendidos</div>
+            <p>I — Garantia de suprimento contínuo de materiais por 12 meses, com índice de atendimento ≥ 98% das solicitações no prazo; II — Redução de 15% nas ocorrências de ruptura de estoque em relação a 2024; III — Manutenção da infraestrutura de TI com disponibilidade ≥ 99% dos sistemas críticos; IV — Economia projetada de R$ 24.600,00 em relação ao custo histórico por unidade corrigido (ganho de escala pelo SRP).</p>
+          </div>
+          <div class="subsection">
+            <div class="subsection-title">Providências a Serem Adotadas</div>
+            <p>(a) Designação formal de fiscal técnico e administrativo (Art. 117 da Lei 14.133/2021); (b) Elaboração do Termo de Referência com base neste ETP; (c) Publicação no PNCP em até 20 dias; (d) Aprovação orçamentária no elemento de despesa 3.3.90.30 (material de consumo) e 3.3.90.39 (serviços de TI).</p>
+          </div>
+          <div class="callout callout-ok">
+            <strong>✓ CONCLUSÃO: CONTRATAÇÃO VIÁVEL E RECOMENDADA</strong><br>
+            Com base na análise histórica de 3 exercícios anteriores, no levantamento de mercado e na conformidade com o PCA 2026, este ETP conclui pela <strong>viabilidade técnica, econômica e jurídica</strong> da contratação, mediante Pregão Eletrônico pelo Sistema de Registro de Preços, pelo valor estimado de <strong>R$ 487.320,00</strong>, nos termos do Art. 18, §1º, XIII da Lei 14.133/2021.
+          </div>
+        </div>
+      </div>
+
+      <!-- Assinaturas -->
+      <div class="signature-block">
+        <div class="signature-line">
+          <hr />
+          <div class="signature-name">Ana Paula Ferreira Souza</div>
+          <div class="signature-role">Diretora de Administração e Suprimentos · Mat. 12.456</div>
+          <div class="signature-role">Elaboradora do ETP</div>
+        </div>
+        <div class="signature-line">
+          <hr />
+          <div class="signature-name">Carlos Eduardo Lima</div>
+          <div class="signature-role">Secretário Municipal de Administração</div>
+          <div class="signature-role">Autoridade Demandante</div>
+        </div>
+        <div class="signature-line">
+          <hr />
+          <div class="signature-name">Marcos Vinícius Pereira</div>
+          <div class="signature-role">Prefeito Municipal</div>
+          <div class="signature-role">Ordenador de Despesas</div>
+        </div>
+      </div>
+
+    </div><!-- /etp-body -->
+
+    <div class="etp-footer">
+      <span>Horizonte Verde — MG · Processo SEI 2025.001.004.789 · ETP nº 001/2026-SMA</span>
+      <span>Gerado por <strong>Intelicite AI</strong> · Lei 14.133/2021 · IN SEGES/ME nº 58/2022</span>
+    </div>
+
+  </div><!-- /etp-document -->
+</div><!-- /page -->
+
+</body>
+</html>

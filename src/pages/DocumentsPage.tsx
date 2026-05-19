@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Search, Download, Eye, Trash2, FileText, Filter,
-  Plus, Loader2, RefreshCw, BookOpen, AlertCircle,
+  Plus, Loader2, RefreshCw, BookOpen, AlertCircle, Paperclip,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import ReactMarkdown from "react-markdown";
 
 interface Doc {
   id: string;
-  tipo: "etp" | "tr";
+  tipo: "etp" | "tr" | "dfd";
   titulo: string;
   orgao: string;
   objeto: string;
@@ -26,7 +27,23 @@ interface Doc {
   updated_at: string;
 }
 
-const tipoLabel: Record<string, string> = { etp: "ETP", tr: "TR" };
+interface Attachment {
+  id: string;
+  document_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  ano_referencia: number | null;
+  tipo: string;
+  created_at: string;
+}
+
+const tipoLabel: Record<string, string> = { etp: "ETP", tr: "TR", dfd: "DFD" };
+const tipoColor: Record<string, string> = {
+  etp: "bg-amber-500/10 text-amber-600",
+  tr:  "bg-primary/10 text-primary",
+  dfd: "bg-blue-600/10 text-blue-600",
+};
 const statusColors: Record<string, string> = {
   finalizado: "bg-success/10 text-success",
   rascunho:   "bg-muted/60 text-muted-foreground",
@@ -35,13 +52,20 @@ const statusColors: Record<string, string> = {
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
+const fmtSize = (bytes: number) =>
+  bytes > 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.round(bytes / 1024)} KB`;
+
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [viewDoc, setViewDoc] = useState<Doc | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [openingFile, setOpeningFile] = useState<string | null>(null);
 
   useEffect(() => { loadDocs(); }, []);
 
@@ -53,11 +77,45 @@ export default function DocumentsPage() {
         .select("id, tipo, titulo, orgao, objeto, conteudo, status, created_at, updated_at")
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      setDocs((data as Doc[]) || []);
+      const docs = (data as Doc[]) || [];
+      setDocs(docs);
+      if (docs.length > 0) {
+        await loadAttachments(docs.map(d => d.id));
+      }
     } catch {
       toast.error("Erro ao carregar documentos");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAttachments = async (docIds: string[]) => {
+    const { data } = await supabase
+      .from("document_attachments")
+      .select("*")
+      .in("document_id", docIds)
+      .order("ano_referencia", { ascending: true });
+    if (!data) return;
+    const map: Record<string, Attachment[]> = {};
+    for (const att of data as Attachment[]) {
+      if (!map[att.document_id]) map[att.document_id] = [];
+      map[att.document_id].push(att);
+    }
+    setAttachments(map);
+  };
+
+  const handleOpenFile = async (att: Attachment) => {
+    setOpeningFile(att.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("historical-reports")
+        .createSignedUrl(att.file_path, 3600);
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank");
+    } catch {
+      toast.error("Erro ao abrir o arquivo. Tente novamente.");
+    } finally {
+      setOpeningFile(null);
     }
   };
 
@@ -67,6 +125,7 @@ export default function DocumentsPage() {
       const { error } = await supabase.from("documents").delete().eq("id", id);
       if (error) throw error;
       setDocs((prev) => prev.filter((d) => d.id !== id));
+      setAttachments(prev => { const n = { ...prev }; delete n[id]; return n; });
       if (viewDoc?.id === id) setViewDoc(null);
       toast.success("Documento excluído");
     } catch {
@@ -98,6 +157,8 @@ export default function DocumentsPage() {
     const matchType = typeFilter === "all" || d.tipo === typeFilter;
     return matchSearch && matchType;
   });
+
+  const viewDocAttachments = viewDoc ? (attachments[viewDoc.id] || []) : [];
 
   return (
     <div className="max-w-5xl">
@@ -151,6 +212,7 @@ export default function DocumentsPage() {
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="etp">ETP</SelectItem>
             <SelectItem value="tr">TR</SelectItem>
+            <SelectItem value="dfd">DFD</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -198,80 +260,127 @@ export default function DocumentsPage() {
             <div className="col-span-2 text-right">Ações</div>
           </div>
           <AnimatePresence>
-            {filtered.map((doc, i) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ delay: i * 0.03 }}
-                className="grid grid-cols-12 gap-4 items-center border-b border-border px-4 py-3 hover:bg-secondary/30 transition-colors last:border-b-0"
-              >
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold
-                    ${doc.tipo === "etp" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                    {tipoLabel[doc.tipo]}
+            {filtered.map((doc, i) => {
+              const docAtts = attachments[doc.id] || [];
+              return (
+                <motion.div
+                  key={doc.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="grid grid-cols-12 gap-4 items-center border-b border-border px-4 py-3 hover:bg-secondary/30 transition-colors last:border-b-0"
+                >
+                  <div className="col-span-5 flex items-center gap-3 min-w-0">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${tipoColor[doc.tipo] || "bg-accent/10 text-accent"}`}>
+                      {tipoLabel[doc.tipo] || doc.tipo.toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.titulo}</p>
+                      <div className="flex items-center gap-2">
+                        {doc.orgao && <p className="text-xs text-muted-foreground truncate">{doc.orgao}</p>}
+                        {docAtts.length > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                            <Paperclip className="h-2.5 w-2.5" />
+                            {docAtts.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{doc.titulo}</p>
-                    {doc.orgao && <p className="text-xs text-muted-foreground truncate">{doc.orgao}</p>}
+                  <div className="col-span-2">
+                    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
+                      {tipoLabel[doc.tipo] || doc.tipo.toUpperCase()}
+                    </span>
                   </div>
-                </div>
-                <div className="col-span-2">
-                  <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
-                    {tipoLabel[doc.tipo]}
-                  </span>
-                </div>
-                <div className="col-span-2 text-sm text-muted-foreground">{fmtDate(doc.created_at)}</div>
-                <div className="col-span-1">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColors[doc.status]}`}>
-                    {doc.status}
-                  </span>
-                </div>
-                <div className="col-span-2 flex justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewDoc(doc)} title="Visualizar">
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExport(doc)} title="Exportar PDF">
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive"
-                    onClick={() => handleDelete(doc.id)}
-                    disabled={deleting === doc.id}
-                    title="Excluir">
-                    {deleting === doc.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Trash2 className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="col-span-2 text-sm text-muted-foreground">{fmtDate(doc.created_at)}</div>
+                  <div className="col-span-1">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColors[doc.status]}`}>
+                      {doc.status}
+                    </span>
+                  </div>
+                  <div className="col-span-2 flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewDoc(doc)} title="Visualizar">
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExport(doc)} title="Exportar PDF">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive"
+                      onClick={() => handleDelete(doc.id)}
+                      disabled={deleting === doc.id}
+                      title="Excluir">
+                      {deleting === doc.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}
 
       {/* View Document Dialog */}
       <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold
-                ${viewDoc?.tipo === "etp" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${viewDoc ? tipoColor[viewDoc.tipo] : ""}`}>
                 {viewDoc ? tipoLabel[viewDoc.tipo] : ""}
               </div>
               {viewDoc?.titulo}
             </DialogTitle>
           </DialogHeader>
           {viewDoc && (
-            <div className="flex flex-col gap-3 overflow-hidden flex-1">
-              <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-col gap-3 overflow-hidden flex-1 min-h-0">
+              {/* Meta row */}
+              <div className="flex flex-wrap gap-2 text-xs shrink-0">
                 {viewDoc.orgao && <span className="bg-secondary px-2 py-1 rounded-md">{viewDoc.orgao}</span>}
                 <span className="bg-secondary px-2 py-1 rounded-md">{fmtDate(viewDoc.created_at)}</span>
                 <span className={`rounded-full px-2 py-1 font-semibold ${statusColors[viewDoc.status]}`}>
                   {viewDoc.status}
                 </span>
               </div>
-              <div className="flex-1 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-4">
+
+              {/* Attachments section */}
+              {viewDocAttachments.length > 0 && (
+                <div className="shrink-0 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                  <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <Paperclip className="h-3 w-3" />
+                    Relatórios Históricos Anexados ({viewDocAttachments.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {viewDocAttachments.map(att => (
+                      <div key={att.id} className="flex items-center gap-3 rounded-md bg-white/60 dark:bg-background/40 border border-border px-3 py-2">
+                        <FileText className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{att.file_name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {att.ano_referencia && `Ano ${att.ano_referencia} · `}{fmtSize(att.file_size)}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 shrink-0 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                          onClick={() => handleOpenFile(att)}
+                          disabled={openingFile === att.id}
+                        >
+                          {openingFile === att.id
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <ExternalLink className="h-3 w-3" />}
+                          Abrir PDF
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Document content */}
+              <div className="flex-1 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-4 min-h-0">
                 {viewDoc.conteudo ? (
                   <div className="prose prose-sm max-w-none text-foreground [&>p]:leading-relaxed [&>ul]:space-y-1">
                     <ReactMarkdown>{viewDoc.conteudo}</ReactMarkdown>
@@ -288,6 +397,8 @@ export default function DocumentsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Actions */}
               <div className="flex justify-end gap-2 shrink-0 flex-wrap">
                 <Button variant="outline" onClick={() => setViewDoc(null)}>Fechar</Button>
                 <Button variant="outline" onClick={() => handleExport(viewDoc, "docx")} className="gap-2">

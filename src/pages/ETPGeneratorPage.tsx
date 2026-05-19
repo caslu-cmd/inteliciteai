@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import HistoricalReportsSection, { ForecastData } from "@/components/documents/HistoricalReportsSection";
+import HistoricalReportsSection, { ForecastData, UploadedReport } from "@/components/documents/HistoricalReportsSection";
 
 // ── Form schema ────────────────────────────────────────────────
 const FORM0 = {
@@ -743,6 +743,7 @@ export default function ETPGeneratorPage() {
   const [suggesting, setSuggesting] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [attachedReports, setAttachedReports] = useState<UploadedReport[]>([]);
   const [cotacaoData, setCotacaoData] = useState<any>(null);
   const [estimatingPrice, setEstimatingPrice] = useState(false);
   const [aquisicaoItems, setAquisicaoItems] = useState<AquisicaoItem[]>([]);
@@ -1044,13 +1045,24 @@ export default function ETPGeneratorPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error();
-      await supabase.from("documents").insert({
+      const { data: saved, error } = await supabase.from("documents").insert({
         user_id: user.id, tipo: "etp",
         titulo: `ETP — ${form.descricaoItens?.slice(0, 60) || form.orgao || "Sem objeto"}`,
         orgao: form.orgao, objeto: form.descricaoItens,
         conteudo: aiContent, form_data: form,
         status: aiContent ? "finalizado" : "rascunho",
-      });
+      }).select("id").single();
+      if (error) throw error;
+      const ready = attachedReports.filter(r => !r.uploading && r.filePath);
+      if (saved && ready.length > 0) {
+        await supabase.from("document_attachments").insert(
+          ready.map(r => ({
+            document_id: saved.id, user_id: user.id,
+            tipo: "relatorio_historico", file_name: r.fileName,
+            file_path: r.filePath, file_size: r.size, ano_referencia: r.ano,
+          }))
+        );
+      }
       toast.success("ETP salvo com sucesso!");
     } catch { toast.error("Erro ao salvar. Tente novamente."); }
     finally { setSaving(false); }
@@ -1123,6 +1135,7 @@ export default function ETPGeneratorPage() {
           orgao={form.orgao}
           accent="amber"
           onApply={handleApplyForecast}
+          onReportsChange={setAttachedReports}
         />
 
         {/* 3-column layout */}

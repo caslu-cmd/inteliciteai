@@ -79,6 +79,33 @@ const DEMO_PROJECTS = [
     deadline: "2026-10-15",
     requirements: "Experiência comprovada em implantação de SRP. Conhecimento do Decreto 11.462/2023 e das normas do PNCP.",
   },
+  {
+    title: "Assessoria em Dispensa Eletrônica — Contratação de Serviços de TI",
+    description: "Universidade Federal do Ceará (UFC) busca consultor para estruturar processo de dispensa eletrônica destinado à contratação de serviços de suporte técnico de TI, no limite legal previsto no art. 75, II da Lei 14.133/2021. O consultor elaborará o aviso de contratação, verificará o enquadramento legal e instruirá o processo completo no ComprasGov.",
+    category: "dispensa",
+    budget_min: 120000,
+    budget_max: 250000,
+    deadline: "2026-06-15",
+    requirements: "Experiência em dispensa de licitação pela Lei 14.133/2021. Conhecimento do ComprasGov e do PNCP. Desejável experiência com contratações de TI em instituições federais de ensino.",
+  },
+  {
+    title: "Gestão de Ata de Registro de Preços — Medicamentos e Insumos Hospitalares",
+    description: "Central de Abastecimento Farmacêutico do Estado do Piauí busca profissional para gerenciar 3 atas de registro de preços vigentes referentes a medicamentos e insumos hospitalares, com saldo total de R$ 22 milhões. Atividades: acompanhamento de saldo, pedidos de adesão, controle de prazos de vigência, emissão de relatórios e interface com fornecedores.",
+    category: "gestao",
+    budget_min: 380000,
+    budget_max: 720000,
+    deadline: "2026-11-30",
+    requirements: "Farmacêutico, administrador ou advogado com experiência em gestão de atas de SRP. Conhecimento em logística de medicamentos e da legislação de assistência farmacêutica.",
+  },
+  {
+    title: "Pregão Eletrônico para Aquisição de Frota de Veículos Elétricos",
+    description: "Secretaria de Mobilidade Urbana de Curitiba/PR busca consultor para conduzir pregão eletrônico destinado à aquisição de 30 veículos elétricos para a frota municipal (valor estimado: R$ 6 milhões). Escopo inclui pesquisa de preços, elaboração do edital com especificações técnicas, condução do certame e julgamento das propostas.",
+    category: "pregao",
+    budget_min: 480000,
+    budget_max: 920000,
+    deadline: "2026-09-15",
+    requirements: "Pregoeiro certificado com experiência em licitações de veículos. Conhecimento de especificações técnicas para veículos elétricos. Familiaridade com o COMPRASNET e a IN SEGES nº 65/2021.",
+  },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {

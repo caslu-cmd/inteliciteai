@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, FileText, X, Sparkles, Loader2, ChevronDown, ChevronUp,
-  Check, TrendingUp, AlertTriangle, DollarSign, ClipboardList,
+  Check, TrendingUp, AlertTriangle, DollarSign, ClipboardList, Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,27 +29,30 @@ export type ForecastData = {
   objeto: string;
 };
 
-type UploadedReport = {
+export type UploadedReport = {
   id: string;
   ano: number;
   fileName: string;
   texto: string;
   size: number;
+  filePath: string;
+  uploading: boolean;
 };
 
 type AccentKey = "amber" | "blue" | "green";
 
 type Props = {
   onApply: (data: ForecastData) => void;
+  onReportsChange?: (reports: UploadedReport[]) => void;
   documentType: "etp" | "tr" | "dfd";
   orgao?: string;
   accent?: AccentKey;
 };
 
-const ACCENTS: Record<AccentKey, { bg: string; text: string; border: string; btn: string; bar: string }> = {
-  amber: { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/30", btn: "bg-amber-500 hover:bg-amber-600", bar: "bg-amber-500" },
-  blue:  { bg: "bg-blue-500/10",  text: "text-blue-500",  border: "border-blue-500/30",  btn: "bg-blue-600 hover:bg-blue-700",  bar: "bg-blue-500"  },
-  green: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/30", btn: "bg-emerald-500 hover:bg-emerald-600", bar: "bg-emerald-500" },
+const ACCENTS: Record<AccentKey, { bg: string; text: string; border: string; btn: string }> = {
+  amber: { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/30", btn: "bg-amber-500 hover:bg-amber-600" },
+  blue:  { bg: "bg-blue-500/10",  text: "text-blue-500",  border: "border-blue-500/30",  btn: "bg-blue-600 hover:bg-blue-700"  },
+  green: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/30", btn: "bg-emerald-500 hover:bg-emerald-600" },
 };
 
 async function extractTextFromPdf(file: File): Promise<string> {
@@ -64,7 +67,9 @@ async function extractTextFromPdf(file: File): Promise<string> {
   return pages.join("\n").trim();
 }
 
-export default function HistoricalReportsSection({ onApply, documentType, orgao = "", accent = "amber" }: Props) {
+export default function HistoricalReportsSection({
+  onApply, onReportsChange, documentType, orgao = "", accent = "amber",
+}: Props) {
   const [open, setOpen] = useState(false);
   const [reports, setReports] = useState<UploadedReport[]>([]);
   const [extracting, setExtracting] = useState<string | null>(null);
@@ -75,6 +80,22 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
   const a = ACCENTS[accent];
   const anoAlvo = new Date().getFullYear() + 1;
 
+  useEffect(() => {
+    onReportsChange?.(reports);
+  }, [reports, onReportsChange]);
+
+  const uploadToStorage = async (file: File, reportId: string): Promise<string> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Não autenticado");
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/${reportId}.${ext}`;
+    const { error } = await supabase.storage
+      .from("historical-reports")
+      .upload(path, file, { upsert: true });
+    if (error) throw error;
+    return path;
+  };
+
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files) return;
     for (const file of Array.from(files)) {
@@ -82,28 +103,46 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
         toast.error(`${file.name}: apenas PDFs são suportados`);
         continue;
       }
+      const reportId = crypto.randomUUID();
+      const yearMatch = file.name.match(/20\d{2}/);
+      const ano = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear() - 1;
+
+      const newReport: UploadedReport = {
+        id: reportId, ano, fileName: file.name,
+        texto: "", size: file.size, filePath: "", uploading: true,
+      };
+      setReports(prev => [...prev, newReport]);
       setExtracting(file.name);
+
       try {
-        const texto = await extractTextFromPdf(file);
-        const yearMatch = file.name.match(/20\d{2}/);
-        const ano = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear() - 1;
-        setReports(prev => [...prev, { id: crypto.randomUUID(), ano, fileName: file.name, texto, size: file.size }]);
-      } catch {
-        toast.error(`Erro ao extrair texto de ${file.name}`);
+        const [texto, filePath] = await Promise.all([
+          extractTextFromPdf(file),
+          uploadToStorage(file, reportId),
+        ]);
+        setReports(prev => prev.map(r =>
+          r.id === reportId ? { ...r, texto, filePath, uploading: false } : r
+        ));
+      } catch (err: any) {
+        toast.error(`Erro ao processar ${file.name}: ${err?.message ?? "tente novamente"}`);
+        setReports(prev => prev.filter(r => r.id !== reportId));
       } finally {
         setExtracting(null);
       }
     }
   }, []);
 
-  const removeReport = (id: string) => {
-    setReports(prev => prev.filter(r => r.id !== id));
+  const removeReport = async (report: UploadedReport) => {
+    if (report.filePath) {
+      await supabase.storage.from("historical-reports").remove([report.filePath]);
+    }
+    setReports(prev => prev.filter(r => r.id !== report.id));
     setForecast(null);
     setApplied(false);
   };
 
   const handleGenerate = async () => {
-    if (reports.length === 0) { toast.error("Adicione pelo menos um relatório"); return; }
+    const ready = reports.filter(r => !r.uploading && r.texto);
+    if (ready.length === 0) { toast.error("Aguarde o processamento dos arquivos"); return; }
     setGenerating(true);
     setForecast(null);
     setApplied(false);
@@ -120,10 +159,8 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
         body: JSON.stringify({
           tipo: "previsao-anual",
           formData: {
-            relatorios: reports.map(r => ({ ano: r.ano, texto: r.texto.slice(0, 8000) })),
-            orgao,
-            anoAlvo,
-            tipoDocumento: documentType,
+            relatorios: ready.map(r => ({ ano: r.ano, texto: r.texto.slice(0, 8000) })),
+            orgao, anoAlvo, tipoDocumento: documentType,
           },
         }),
       });
@@ -131,8 +168,7 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
       const raw = await res.text();
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Resposta inválida");
-      const data: ForecastData = JSON.parse(match[0]);
-      setForecast(data);
+      setForecast(JSON.parse(match[0]));
       toast.success("Previsão gerada! Clique em 'Aplicar ao formulário'.");
     } catch {
       toast.error("Erro ao gerar previsão. Tente novamente.");
@@ -148,6 +184,9 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
     toast.success("Previsão aplicada ao formulário!");
   };
 
+  const uploading = reports.some(r => r.uploading);
+  const readyCount = reports.filter(r => !r.uploading).length;
+
   return (
     <div className={cn("rounded-xl border bg-card overflow-hidden", open ? a.border : "border-border")}>
       <button
@@ -162,14 +201,17 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
             <p className="text-sm font-semibold">Relatórios Históricos + Previsão IA</p>
             <p className="text-xs text-muted-foreground">
               {reports.length > 0
-                ? `${reports.length} relatório(s) · ${forecast ? "Previsão pronta" : "Pronto para analisar"}`
+                ? `${readyCount} relatório(s) prontos${uploading ? " · enviando…" : ""} · ${forecast ? "Previsão pronta" : "Pronto para analisar"}`
                 : "Anexe relatórios anuais para gerar previsão inteligente do próximo exercício"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {reports.length > 0 && (
-            <Badge variant="secondary" className="text-xs">{reports.length} arquivo{reports.length !== 1 ? "s" : ""}</Badge>
+            <Badge variant="secondary" className="text-xs gap-1">
+              <Paperclip className="h-2.5 w-2.5" />
+              {reports.length} arquivo{reports.length !== 1 ? "s" : ""}
+            </Badge>
           )}
           {forecast && (
             <Badge className={cn("text-xs text-white", a.btn.split(" ")[0])}>
@@ -193,7 +235,7 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
               {/* Upload area */}
               <label className={cn(
                 "mt-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
-                extracting ? "border-muted cursor-default" : cn("hover:border-current", a.text, "border-border"),
+                extracting ? "border-muted cursor-default" : "border-border hover:border-current",
               )}>
                 <input
                   type="file" multiple accept=".pdf"
@@ -204,7 +246,7 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
                 {extracting ? (
                   <>
                     <Loader2 className={cn("h-6 w-6 animate-spin mb-2", a.text)} />
-                    <p className="text-xs text-muted-foreground">Extraindo texto de {extracting}…</p>
+                    <p className="text-xs text-muted-foreground">Processando {extracting}…</p>
                   </>
                 ) : (
                   <>
@@ -215,33 +257,44 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
                 )}
               </label>
 
-              {/* List of uploaded reports */}
+              {/* Uploaded reports list */}
               {reports.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Relatórios carregados</p>
                   {reports.map(r => (
                     <div key={r.id} className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
-                      <FileText className={cn("h-4 w-4 shrink-0", a.text)} />
+                      {r.uploading
+                        ? <Loader2 className={cn("h-4 w-4 shrink-0 animate-spin", a.text)} />
+                        : <FileText className={cn("h-4 w-4 shrink-0", a.text)} />
+                      }
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">{r.fileName}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          Ano: {r.ano} · {Math.round(r.size / 1024)} KB · {r.texto.length.toLocaleString()} chars extraídos
+                          {r.uploading
+                            ? "Enviando para o servidor…"
+                            : `Ano: ${r.ano} · ${Math.round(r.size / 1024)} KB · ${r.texto.length.toLocaleString()} chars · salvo no servidor`
+                          }
                         </p>
                       </div>
-                      <button onClick={() => removeReport(r.id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      {!r.uploading && (
+                        <button
+                          onClick={() => removeReport(r)}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
               {/* Generate button */}
-              {reports.length > 0 && (
+              {readyCount > 0 && (
                 <Button
                   className={cn("w-full text-white gap-2", a.btn)}
                   onClick={handleGenerate}
-                  disabled={generating}
+                  disabled={generating || uploading}
                 >
                   {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   {generating
@@ -269,10 +322,9 @@ export default function HistoricalReportsSection({ onApply, documentType, orgao 
                     </Button>
                   </div>
 
-                  {/* Narrative */}
                   {forecast.narrativa && (
                     <div className={cn("rounded-lg border p-3 text-xs", a.border, a.bg)}>
-                      <div className="prose prose-sm max-w-none dark:prose-invert [&>*]:text-xs [&>h1]:text-xs [&>h2]:text-xs [&>h3]:text-xs [&>p]:leading-relaxed">
+                      <div className="prose prose-sm max-w-none dark:prose-invert [&>*]:text-xs [&>h1]:text-xs [&>h2]:text-xs [&>p]:leading-relaxed">
                         <ReactMarkdown>{forecast.narrativa}</ReactMarkdown>
                       </div>
                     </div>

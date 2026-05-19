@@ -173,6 +173,33 @@ VALUES
     320000, 650000,
     '2026-10-15',
     'Experiência comprovada em implantação de SRP, preferencialmente em consórcios ou entes municipais. Conhecimento do Decreto 11.462/2023 e das normas do PNCP.'
+  ),
+  (
+    NULL,
+    'Assessoria em Dispensa Eletrônica — Contratação de Serviços de TI',
+    'Universidade Federal do Ceará (UFC) busca consultor para estruturar processo de dispensa eletrônica destinado à contratação de serviços de suporte técnico de TI, no limite legal previsto no art. 75, inciso II da Lei 14.133/2021. O consultor elaborará o aviso de contratação, verificará o enquadramento legal e instruirá o processo completo no ComprasGov até a homologação.',
+    'dispensa',
+    120000, 250000,
+    '2026-06-15',
+    'Experiência em dispensa de licitação pela Lei 14.133/2021. Conhecimento do ComprasGov e do Portal Nacional de Contratações Públicas (PNCP). Desejável experiência com contratações de TI em instituições federais de ensino.'
+  ),
+  (
+    NULL,
+    'Gestão de Ata de Registro de Preços — Medicamentos e Insumos Hospitalares',
+    'Central de Abastecimento Farmacêutico do Estado do Piauí busca profissional para gerenciar 3 atas de registro de preços vigentes referentes a medicamentos e insumos hospitalares, com saldo total de R$ 22 milhões. Atividades: acompanhamento de saldo, pedidos de adesão, controle de prazos de vigência, emissão de relatórios e interface com fornecedores.',
+    'gestao',
+    380000, 720000,
+    '2026-11-30',
+    'Farmacêutico, administrador ou advogado com experiência em gestão de atas de SRP. Conhecimento em logística de medicamentos e da legislação de assistência farmacêutica (Portaria GM/MS nº 3.916/1998).'
+  ),
+  (
+    NULL,
+    'Pregão Eletrônico para Aquisição de Frota de Veículos Elétricos',
+    'Secretaria de Mobilidade Urbana do Município de Curitiba/PR busca consultor especializado para conduzir pregão eletrônico destinado à aquisição de 30 veículos elétricos para a frota municipal, no valor estimado de R$ 6 milhões. O escopo inclui pesquisa de preços, elaboração do edital com especificações técnicas, condução do certame e julgamento das propostas.',
+    'pregao',
+    480000, 920000,
+    '2026-09-15',
+    'Pregoeiro certificado com experiência em licitações de veículos. Conhecimento de especificações técnicas para veículos elétricos. Familiaridade com o COMPRASNET e a IN SEGES nº 65/2021. Desejável experiência em contratações sustentáveis.'
   )
 ON CONFLICT DO NOTHING;
 

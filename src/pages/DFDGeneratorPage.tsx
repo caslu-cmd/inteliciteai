@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import HistoricalReportsSection, { ForecastData } from "@/components/documents/HistoricalReportsSection";
+import HistoricalReportsSection, { ForecastData, UploadedReport } from "@/components/documents/HistoricalReportsSection";
 
 // ── Form schema ──────────────────────────────────────────────────
 const FORM0 = {
@@ -366,6 +366,7 @@ export default function DFDGeneratorPage() {
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [estimating, setEstimating] = useState(false);
+  const [attachedReports, setAttachedReports] = useState<UploadedReport[]>([]);
   const [items, setItems] = useState<DFDItem[]>([
     { id: "1", descricao: "", unidade: "UN", quantidade: "1", valorUnitario: "" },
   ]);
@@ -494,7 +495,7 @@ export default function DFDGeneratorPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error();
-      const { error } = await supabase.from("documents").insert({
+      const { data: saved, error } = await supabase.from("documents").insert({
         user_id: user.id,
         tipo: "dfd",
         titulo: `DFD — ${form.objeto?.slice(0, 60) || form.secretaria || "Sem objeto"}`,
@@ -503,8 +504,18 @@ export default function DFDGeneratorPage() {
         conteudo: aiContent,
         form_data: { ...form, itens: items },
         status: aiContent ? "finalizado" : "rascunho",
-      });
+      }).select("id").single();
       if (error) throw error;
+      const ready = attachedReports.filter(r => !r.uploading && r.filePath);
+      if (saved && ready.length > 0) {
+        await supabase.from("document_attachments").insert(
+          ready.map(r => ({
+            document_id: saved.id, user_id: user.id,
+            tipo: "relatorio_historico", file_name: r.fileName,
+            file_path: r.filePath, file_size: r.size, ano_referencia: r.ano,
+          }))
+        );
+      }
       toast.success("DFD salvo com sucesso!");
     } catch (err: any) { toast.error(`Erro ao salvar: ${err?.message ?? "tente novamente."}`); }
     finally { setSaving(false); }
@@ -610,6 +621,7 @@ export default function DFDGeneratorPage() {
           orgao={form.secretaria}
           accent="blue"
           onApply={handleApplyForecast}
+          onReportsChange={setAttachedReports}
         />
 
         {/* 3-column layout */}
