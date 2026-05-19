@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Search, Download, Eye, Trash2, FileText, Filter,
   Plus, Loader2, RefreshCw, BookOpen, AlertCircle, Paperclip,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -346,36 +345,26 @@ export default function DocumentsPage() {
 
               {/* Attachments section */}
               {viewDocAttachments.length > 0 && (
-                <div className="shrink-0 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
-                  <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Paperclip className="h-3 w-3" />
-                    Relatórios Históricos Anexados ({viewDocAttachments.length})
+                <div className="shrink-0 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-500">
+                    Relatórios analisados:
                   </p>
-                  <div className="space-y-1.5">
-                    {viewDocAttachments.map(att => (
-                      <div key={att.id} className="flex items-center gap-3 rounded-md bg-white/60 dark:bg-background/40 border border-border px-3 py-2">
-                        <FileText className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate">{att.file_name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {att.ano_referencia && `Ano ${att.ano_referencia} · `}{fmtSize(att.file_size)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 shrink-0 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
-                          onClick={() => handleOpenFile(att)}
-                          disabled={openingFile === att.id}
-                        >
-                          {openingFile === att.id
-                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                            : <ExternalLink className="h-3 w-3" />}
-                          Abrir PDF
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                  {viewDocAttachments.map(att => (
+                    <button
+                      key={att.id}
+                      onClick={() => handleOpenFile(att)}
+                      disabled={openingFile === att.id}
+                      className="flex items-center gap-2 w-full text-left group disabled:opacity-60"
+                    >
+                      {openingFile === att.id
+                        ? <Loader2 className="h-3.5 w-3.5 text-amber-500 shrink-0 animate-spin" />
+                        : <FileText className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      }
+                      <span className="text-sm text-amber-700 dark:text-amber-400 group-hover:underline underline-offset-2 truncate">
+                        {att.file_name}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               )}
 
