@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import HistoricalReportsSection, { ForecastData } from "@/components/documents/HistoricalReportsSection";
 
 // ── Form schema ──────────────────────────────────────────────────
 const FORM0 = {
@@ -527,6 +528,21 @@ export default function DFDGeneratorPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleApplyForecast = (forecast: ForecastData) => {
+    if (forecast.objeto) set("objeto", forecast.objeto);
+    if (forecast.justificativa) set("justificativa", forecast.justificativa);
+    if (forecast.valorTotal > 0) set("valorEstimado", forecast.valorTotal.toFixed(2));
+    if (forecast.itens.length > 0) {
+      setItems(forecast.itens.map(item => ({
+        id: crypto.randomUUID(),
+        descricao: item.descricao,
+        unidade: item.unidade || "UN",
+        quantidade: String(item.quantidade),
+        valorUnitario: item.valorUnitario > 0 ? item.valorUnitario.toFixed(2) : "",
+      })));
+    }
+  };
+
   const handleGerarETP = () => {
     sessionStorage.setItem("dfd_prefill", JSON.stringify({
       unidade: form.secretaria,
@@ -587,6 +603,14 @@ export default function DFDGeneratorPage() {
             <span>{sectionStatus.filter(s => s.filled === s.total).length}/{SECTIONS.length} seções completas</span>
           </div>
         </div>
+
+        {/* Relatórios históricos + previsão IA */}
+        <HistoricalReportsSection
+          documentType="dfd"
+          orgao={form.secretaria}
+          accent="blue"
+          onApply={handleApplyForecast}
+        />
 
         {/* 3-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_380px] gap-4">

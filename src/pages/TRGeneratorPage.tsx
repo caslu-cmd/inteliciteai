@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import HistoricalReportsSection, { ForecastData } from "@/components/documents/HistoricalReportsSection";
 
 // ── Form schema ────────────────────────────────────────────────
 const FORM0 = {
@@ -584,6 +585,13 @@ export default function TRGeneratorPage() {
     finally { setGenerating(false); }
   }, [form, pct]);
 
+  const handleApplyForecast = (forecast: ForecastData) => {
+    if (forecast.objeto) set("objeto", forecast.objeto);
+    if (forecast.justificativa) set("fundamentacaoLegal", forecast.justificativa);
+    if (forecast.requisitos.length > 0) set("especificacoesTecnicas", forecast.requisitos.join("\n"));
+    if (forecast.valorTotal > 0) set("valorEstimado", forecast.valorTotal.toFixed(2));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -661,6 +669,14 @@ export default function TRGeneratorPage() {
             <span>{sectionStatus.filter(s => s.filled === s.total).length}/{SECTIONS.length} seções completas</span>
           </div>
         </div>
+
+        {/* Relatórios históricos + previsão IA */}
+        <HistoricalReportsSection
+          documentType="tr"
+          orgao={form.orgao}
+          accent="amber"
+          onApply={handleApplyForecast}
+        />
 
         {/* 3-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[210px_1fr_400px] gap-4">

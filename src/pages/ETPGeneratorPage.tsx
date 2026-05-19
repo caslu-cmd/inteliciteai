@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import HistoricalReportsSection, { ForecastData } from "@/components/documents/HistoricalReportsSection";
 
 // ── Form schema ────────────────────────────────────────────────
 const FORM0 = {
@@ -1022,6 +1023,22 @@ export default function ETPGeneratorPage() {
     finally { setGenerating(false); }
   }, [form, pct]);
 
+  const handleApplyForecast = (forecast: ForecastData) => {
+    if (forecast.objeto) set("oQueSeraContratado", forecast.objeto);
+    if (forecast.justificativa) set("descricaoNecessidade", forecast.justificativa);
+    if (forecast.requisitos.length > 0) set("requisitosTecnicos", forecast.requisitos.join("\n"));
+    if (forecast.itens.length > 0) {
+      set("descricaoItens", forecast.itens.map(i => `${i.descricao}: ${i.quantidade} ${i.unidade}`).join("\n"));
+      set("memoriaCalculo", forecast.itens.map(i =>
+        `${i.descricao}: ${i.quantidade} ${i.unidade}${i.valorUnitario > 0 ? ` × R$ ${i.valorUnitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}`
+      ).join("\n"));
+    }
+    if (forecast.valorTotal > 0) set("valorEstimado", forecast.valorTotal.toFixed(2));
+    if (forecast.riscos.length > 0) set("riscosIdentificados", forecast.riscos.join("\n"));
+    if (forecast.medidasMitigacao.length > 0) set("medidasMitigacao", forecast.medidasMitigacao.join("\n"));
+    if (forecast.tendencias.length > 0) set("alinhamentoEstrategico", forecast.tendencias.join("\n"));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -1099,6 +1116,14 @@ export default function ETPGeneratorPage() {
             <span>{sectionStatus.filter(s => s.filled === s.total).length}/{SECTIONS.length} seções completas</span>
           </div>
         </div>
+
+        {/* Relatórios históricos + previsão IA */}
+        <HistoricalReportsSection
+          documentType="etp"
+          orgao={form.orgao}
+          accent="amber"
+          onApply={handleApplyForecast}
+        />
 
         {/* 3-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[210px_1fr_400px] gap-4">

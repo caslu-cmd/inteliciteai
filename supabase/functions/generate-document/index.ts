@@ -85,6 +85,32 @@ const SYSTEM_SUGESTAO = `Você é um especialista em contratações públicas co
 
 const SYSTEM_NOTEBOOK_PRECOS = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras. Analise as fontes de conhecimento fornecidas e extraia referências de preços para os itens listados. Retorne APENAS um JSON válido no formato especificado, sem texto adicional.`;
 
+const SYSTEM_PREVISAO = `Você é um especialista sênior em planejamento e contratações públicas brasileiras.
+Com base nos relatórios históricos fornecidos, analise os dados e gere uma PREVISÃO TÉCNICA para o próximo exercício fiscal.
+
+A previsão deve:
+1. Identificar padrões, tendências e variações nos dados históricos
+2. Estimar quantidades de itens para o próximo ano com base na média histórica e tendência de crescimento
+3. Projetar valores corrigidos pela inflação (IPCA estimado ~4,5%) e variação de mercado
+4. Identificar riscos recorrentes e medidas de mitigação
+5. Sugerir texto técnico de justificativa e objeto para o documento solicitado
+6. Destacar itens críticos ou com maior variação histórica
+
+Retorne APENAS um JSON válido no seguinte formato (sem texto adicional fora do JSON):
+{
+  "narrativa": "## Análise Histórica\\n\\n[markdown com análise narrativa dos relatórios, tendências e fundamentos da previsão]",
+  "itens": [
+    { "descricao": "Nome do item", "quantidade": 0, "unidade": "UN", "valorUnitario": 0.0 }
+  ],
+  "valorTotal": 0.0,
+  "tendencias": ["Tendência observada 1", "Tendência 2"],
+  "riscos": ["Risco identificado 1", "Risco 2"],
+  "medidasMitigacao": ["Medida de mitigação 1", "Medida 2"],
+  "justificativa": "Texto de justificativa técnica pronto para inserção no documento",
+  "requisitos": ["Requisito técnico 1", "Requisito 2"],
+  "objeto": "Descrição objetiva do que deve ser contratado no próximo exercício"
+}`;
+
 const SYSTEM_DFD = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
 Redija um DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA (DFD) completo, técnico, formal e juridicamente fundamentado conforme Art. 12, VII da Lei 14.133/2021.
 
@@ -428,8 +454,28 @@ Analise as fontes acima e retorne as referências de preço encontradas para cad
 }
 Regras: itemIndex começa em 0; omita itens sem referência encontrada; valorUnitario é string numérica com ponto decimal e 2 casas; referencia deve citar o nome da fonte e o valor/período encontrado.`;
 
+  } else if (tipo === "previsao-anual") {
+    systemPrompt = SYSTEM_PREVISAO;
+    maxTokens = 4096;
+    const relatorios = formData.relatorios || [];
+    const anoAlvo = formData.anoAlvo || new Date().getFullYear() + 1;
+    const tipoDoc = formData.tipoDocumento || "etp";
+    const orgaoStr = formData.orgao ? `\nÓrgão: ${formData.orgao}` : "";
+    const relatStr = relatorios.length > 0
+      ? relatorios
+          .sort((a: any, b: any) => a.ano - b.ano)
+          .map((r: any) => `### Relatório — Ano ${r.ano}\n${String(r.texto).slice(0, 8000)}`)
+          .join("\n\n---\n\n")
+      : "(nenhum relatório fornecido)";
+    userPrompt = `Analise os relatórios históricos abaixo e gere uma previsão técnica para o exercício ${anoAlvo}.${orgaoStr}
+Tipo de documento que será gerado com esta previsão: ${tipoDoc.toUpperCase()}
+
+${relatStr}
+
+Com base nesses dados históricos, gere a previsão estruturada conforme o formato JSON solicitado.`;
+
   } else {
-    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, dfd, cotacao, sugestao ou notebookPrecos" }), {
+    return new Response(JSON.stringify({ error: "tipo deve ser etp, tr, dfd, cotacao, sugestao, notebookPrecos ou previsao-anual" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -467,7 +513,7 @@ Regras: itemIndex começa em 0; omita itens sem referência encontrada; valorUni
     const data = await res.json();
     const raw = data.content?.[0]?.text ?? "";
 
-    if (tipo === "cotacao" || tipo === "notebookPrecos") {
+    if (tipo === "cotacao" || tipo === "notebookPrecos" || tipo === "previsao-anual") {
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Resposta sem JSON válido");
       return new Response(match[0], { headers: { ...cors, "Content-Type": "application/json" } });
