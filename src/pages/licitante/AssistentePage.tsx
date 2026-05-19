@@ -93,7 +93,7 @@ export default function AssistentePage() {
             <h1 className="font-display font-semibold text-base text-foreground flex items-center gap-1.5">
               Assistente IA <Sparkles className="w-4 h-4 text-primary" />
             </h1>
-            <p className="text-xs text-muted-foreground">Especialista em licitações · Lei 14.133/2021 · Claude AI</p>
+            <p className="text-xs text-muted-foreground">Especialista em licitações · Lei 14.133/2021 · Intelicite IA</p>
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export default function AssistentePage() {
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground/40 text-center mt-2">
-            Respostas geradas por Claude AI · sempre verifique com profissional jurídico habilitado
+            Respostas geradas por Intelicite IA · sempre verifique com profissional jurídico habilitado
           </p>
         </div>
       </div>

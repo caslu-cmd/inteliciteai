@@ -751,7 +751,7 @@ export default function DFDGeneratorPage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-blue-600 text-xs font-medium">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Claude está redigindo o DFD...
+                    Intelicite IA está redigindo o DFD...
                   </div>
                   {aiContent && (
                     <div className="prose prose-sm max-w-none dark:prose-invert [&>h1]:text-sm [&>h2]:text-xs [&>h3]:text-xs [&>p]:text-xs [&>p]:leading-relaxed [&>ul]:text-xs [&>ol]:text-xs">

@@ -144,7 +144,7 @@ export default function ScannerPage() {
                 Arraste o PDF ou clique para selecionar
               </p>
               <p className="text-xs text-muted-foreground/60">
-                Claude Sonnet analisa o edital completo em segundos — Lei 14.133/2021
+                Intelicite IA analisa o edital completo em segundos — Lei 14.133/2021
               </p>
             </div>
             <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onFileChange} />

@@ -153,7 +153,7 @@ export default function MinutasPage() {
             <h1 className="font-display font-bold text-2xl text-foreground flex items-center gap-2">
               <FileText className="w-6 h-6 text-primary" /> Minutas
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Impugnações e esclarecimentos gerados por Claude AI</p>
+            <p className="text-sm text-muted-foreground mt-1">Impugnações e esclarecimentos gerados por Intelicite IA</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" className="gap-2 text-sm" onClick={() => { setFormTipo("impugnacao"); setShowForm(true); }}>
@@ -229,7 +229,7 @@ export default function MinutasPage() {
                 <Button onClick={generate} disabled={generating} className="gap-2">
                   {generating
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Gerando documento...</>
-                    : <><Sparkles className="w-4 h-4" /> Gerar com Claude AI</>}
+                    : <><Sparkles className="w-4 h-4" /> Gerar com Intelicite IA</>}
                 </Button>
               </div>
             </motion.div>

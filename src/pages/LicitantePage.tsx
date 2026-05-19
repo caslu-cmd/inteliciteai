@@ -109,7 +109,7 @@ export default function LicitantePage() {
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="font-display font-bold text-xl text-white mb-1">Analise um edital com Claude AI</h2>
+              <h2 className="font-display font-bold text-xl text-white mb-1">Analise um edital com Intelicite IA</h2>
               <p className="text-white/70 text-sm max-w-md">
                 Envie um PDF e receba diagnóstico completo: score, riscos, habilitação, prazos e recomendações — em segundos.
               </p>
@@ -158,7 +158,7 @@ export default function LicitantePage() {
             <h3 className="font-display font-semibold text-base text-card-foreground mb-4">Ações Rápidas</h3>
             <div className="space-y-2">
               {[
-                { label: "Analisar Edital (PDF)", icon: FileSearch, route: "/licitante/scanner", desc: "Claude AI analisa em segundos" },
+                { label: "Analisar Edital (PDF)", icon: FileSearch, route: "/licitante/scanner", desc: "Intelicite IA analisa em segundos" },
                 { label: "Gerar Impugnação",       icon: FileText,   route: "/licitante/minutas",    desc: "Documento jurídico com IA" },
                 { label: "Pedido de Esclarecimento", icon: HelpCircle, route: "/licitante/minutas",  desc: "Formal e fundamentado" },
                 { label: "Verificar Habilitação",  icon: Building2,  route: "/licitante/habilitacao", desc: "Consulta Receita Federal" },
