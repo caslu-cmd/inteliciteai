@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prestação de Contas SME 2024</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', serif; background: #f5f5f5; color: #1a1a1a; }
+  .demo-bar { background: #7c3aed; color: white; text-align: center; padding: 8px; font-size: 12px; font-family: sans-serif; position: sticky; top: 0; z-index: 99; }
+  .page { max-width: 820px; margin: 24px auto 48px; background: white; box-shadow: 0 2px 16px rgba(0,0,0,.15); }
+  .cover { background: linear-gradient(160deg, #6d28d9 0%, #4c1d95 100%); color: white; padding: 48px 48px 40px; }
+  .brasao { width: 64px; height: 64px; background: rgba(255,255,255,.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 20px; }
+  .cover-org { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .8; margin-bottom: 4px; }
+  .cover-title { font-size: 22px; font-weight: bold; line-height: 1.3; margin-bottom: 6px; }
+  .cover-sub { font-size: 13px; opacity: .75; margin-bottom: 24px; }
+  .cover-meta { display: flex; gap: 32px; font-size: 11px; opacity: .7; border-top: 1px solid rgba(255,255,255,.2); padding-top: 16px; flex-wrap: wrap; }
+  .body { padding: 40px 48px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #5b21b6; border-bottom: 2px solid #7c3aed; padding-bottom: 6px; margin: 32px 0 16px; }
+  h2:first-child { margin-top: 0; }
+  p { font-size: 13px; line-height: 1.8; margin-bottom: 12px; text-align: justify; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; }
+  th { background: #4c1d95; color: white; padding: 8px 10px; text-align: left; font-weight: 600; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+  tr:nth-child(even) td { background: #faf5ff; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .kpi { background: #faf5ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 14px; text-align: center; }
+  .kpi-val { font-size: 18px; font-weight: bold; color: #6d28d9; display: block; }
+  .kpi-label { font-size: 10px; color: #6b7280; margin-top: 4px; display: block; text-transform: uppercase; letter-spacing: .5px; }
+  .alert { background: #fefce8; border-left: 4px solid #ca8a04; padding: 12px 16px; font-size: 12px; color: #713f12; margin: 16px 0; border-radius: 0 6px 6px 0; }
+  .ok { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; font-size: 12px; color: #14532d; margin: 16px 0; border-radius: 0 6px 6px 0; }
+  .info { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; font-size: 12px; color: #1e3a8a; margin: 16px 0; border-radius: 0 6px 6px 0; }
+  .footer { background: #f8fafc; border-top: 1px solid #e5e7eb; padding: 16px 48px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
+  .stamp { display: inline-block; border: 2px solid #6d28d9; color: #6d28d9; font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 4px; letter-spacing: 1px; margin-top: 8px; }
+  .trend-up { color: #16a34a; font-weight: bold; }
+  .trend-down { color: #dc2626; font-weight: bold; }
+  @media print { .demo-bar { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">📄 Documento de Demonstração — Intelicite IA · Dados fictícios para fins ilustrativos</div>
+
+<div class="page">
+  <div class="cover">
+    <div class="brasao">📊</div>
+    <div class="cover-org">Prefeitura de Fortaleza · Secretaria Municipal de Educação</div>
+    <div class="cover-title">Prestação de Contas — Alimentação Escolar<br>Exercício 2024</div>
+    <div class="cover-sub">Diretoria de Infraestrutura e Apoio ao Ensino · DIAE/SME · Base: Exercício completo 2024</div>
+    <div class="cover-meta">
+      <span>Processo: SEI 2025.SME.001.00392</span>
+      <span>Data: 28/02/2025</span>
+      <span>Responsável: DIAE/SME</span>
+      <span>Versão: 2.0 — Final</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <h2>1. Sumário Executivo</h2>
+    <p>A Secretaria Municipal de Educação de Fortaleza apresenta a prestação de contas do Programa de Alimentação Escolar referente ao exercício de 2024, consolidando dados de 200 dias letivos na rede municipal. O programa alcançou todos os índices de eficiência previstos, com execução orçamentária de <strong>98,8%</strong> e superação da meta mínima de aquisição da Agricultura Familiar pelo terceiro ano consecutivo.</p>
+    <div class="stamp">APROVADO · CAE FORTALEZA · MARÇO/2025</div>
+
+    <h2>2. Indicadores de Desempenho 2024</h2>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <span class="kpi-val">233.847</span>
+        <span class="kpi-label">Alunos atendidos</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-val">518</span>
+        <span class="kpi-label">Unidades escolares</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-val">R$ 33,6 M</span>
+        <span class="kpi-label">Valor executado</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-val">42,1%</span>
+        <span class="kpi-label">Agricultura Familiar</span>
+      </div>
+    </div>
+
+    <h2>3. Série Histórica 2022–2024</h2>
+    <table>
+      <thead>
+        <tr><th>Indicador</th><th>2022</th><th>2023</th><th>2024</th><th>CAGR</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Alunos atendidos</td><td>219.340</td><td>226.890</td><td>233.847</td><td class="trend-up">+3,2%/ano</td></tr>
+        <tr><td>Unidades escolares</td><td>492</td><td>504</td><td>518</td><td class="trend-up">+2,6%/ano</td></tr>
+        <tr><td>Valor total (R$ milhões)</td><td>27,4</td><td>30,8</td><td>33,6</td><td class="trend-up">+10,7%/ano</td></tr>
+        <tr><td>Per capita médio (R$/dia)</td><td>0,47</td><td>0,51</td><td>0,54</td><td class="trend-up">+7,1%/ano</td></tr>
+        <tr><td>% Agricultura Familiar</td><td>37,2%</td><td>39,8%</td><td>42,1%</td><td class="trend-up">+2,4 p.p./ano</td></tr>
+        <tr><td>Execução orçamentária</td><td>98,3%</td><td>97,1%</td><td>98,8%</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h2>4. Execução Detalhada por Item 2024</h2>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Qtd. Executada</th><th>Unid.</th><th>Custo Médio (R$)</th><th>Total (R$)</th><th>Δ vs 2023</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Arroz tipo 1</td><td>514.620</td><td>kg</td><td>5,48</td><td>2.820.118</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Feijão carioca</td><td>180.200</td><td>kg</td><td>7,20</td><td>1.297.440</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Frango (cortes)</td><td>102.680</td><td>kg</td><td>13,40</td><td>1.375.912</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Carne bovina moída</td><td>77.010</td><td>kg</td><td>29,60</td><td>2.279.496</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Leite UHT</td><td>468.810</td><td>L</td><td>4,82</td><td>2.259.664</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Frutas frescas</td><td>410.030</td><td>kg</td><td>4,42</td><td>1.812.333</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Hortaliças</td><td>205.010</td><td>kg</td><td>4,90</td><td>1.004.549</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Pão integral</td><td>153.790</td><td>kg</td><td>10,40</td><td>1.599.416</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Macarrão</td><td>102.540</td><td>kg</td><td>6,50</td><td>666.510</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Azeite/óleos</td><td>25.630</td><td>L</td><td>15,10</td><td>387.013</td><td class="trend-up">+3,3%</td></tr>
+        <tr><td>Agricultura Familiar</td><td>—</td><td>—</td><td>—</td><td>4.112.840</td><td class="trend-up">+13,6%</td></tr>
+        <tr><td>Demais gêneros</td><td>—</td><td>—</td><td>—</td><td>2.684.709</td><td>—</td></tr>
+        <tr><td><strong>TOTAL</strong></td><td>—</td><td>—</td><td>—</td><td><strong>22.299.000</strong></td><td><strong class="trend-up">+10,2%</strong></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:11px;color:#6b7280;">* Complementação municipal: R$ 11.301.000. Federal (FNDE): R$ 22.299.000. Total: R$ 33.600.000.</p>
+
+    <h2>5. Processos Licitatórios 2024</h2>
+    <table>
+      <thead>
+        <tr><th>Processo</th><th>Modalidade</th><th>Objeto</th><th>Atas/Contratos</th><th>Valor (R$)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PE 008/2024</td><td>Pregão Eletrônico SRP</td><td>Gêneros secos e cereais</td><td>4 atas, 8 fornecedores</td><td>7.418.200</td></tr>
+        <tr><td>PE 009/2024</td><td>Pregão Eletrônico SRP</td><td>Proteínas animais</td><td>3 atas, 5 fornecedores</td><td>5.932.820</td></tr>
+        <tr><td>PE 010/2024</td><td>Pregão Eletrônico SRP</td><td>Laticínios e derivados</td><td>2 atas, 3 fornecedores</td><td>2.648.677</td></tr>
+        <tr><td>PE 011/2024</td><td>Pregão Eletrônico SRP</td><td>Hortifruti convencional</td><td>3 atas, 4 fornecedores</td><td>2.186.463</td></tr>
+        <tr><td>CP 001/2024</td><td>Chamada Pública AF</td><td>Hortifrutigranjeiros AF</td><td>2 contratos DAP</td><td>2.480.000</td></tr>
+        <tr><td>CP 002/2024</td><td>Chamada Pública AF</td><td>Polpas, frutas e laticínios AF</td><td>3 contratos CAF</td><td>1.632.840</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6. Análise de Custos e Variações de Preço</h2>
+    <p>O IPCA acumulado em 2024 atingiu <strong>4,83%</strong>, pressionando especialmente os grupos de proteínas animais (+7,2%) e laticínios (+5,9%). Carne bovina apresentou volatilidade acima da média nacional, com picos de até 12% em setembro/2024, contornada pelo Sistema de Registro de Preços que permitiu renegociação sem abertura de novo processo.</p>
+    <div class="info">ℹ️ <strong>Lição aprendida:</strong> O SRP demonstrou eficácia no controle de custos, permitindo substituição de fornecedores sem descontinuidade. Recomendamos manter e ampliar o uso do SRP para 2025 e 2026.</div>
+    <div class="alert">⚠️ <strong>Arroz e feijão:</strong> Redução de estoque dos fornecedores regionais em julho/2024 por estiagem no Semiárido. Contornada via ata de registro de preços backup. Recomenda-se cláusula de estoque mínimo de 30 dias nos próximos contratos.</div>
+
+    <h2>7. Projeção para 2025 e 2026</h2>
+    <table>
+      <thead>
+        <tr><th>Parâmetro</th><th>2024 (Realizado)</th><th>2025 (Projetado)</th><th>2026 (Projetado)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Alunos</td><td>233.847</td><td>241.600</td><td>249.600</td></tr>
+        <tr><td>Unidades escolares</td><td>518</td><td>526</td><td>534</td></tr>
+        <tr><td>IPCA estimado</td><td>4,83%</td><td>4,5%</td><td>4,2%</td></tr>
+        <tr><td>Reajuste per capita federal</td><td>+3,5%</td><td>+4,0% (estimado)</td><td>+4,5% (estimado)</td></tr>
+        <tr><td>Valor total estimado (R$)</td><td>33.600.000</td><td>36.210.000</td><td>38.812.400</td></tr>
+        <tr><td>% AF meta</td><td>42,1%</td><td>≥ 40%</td><td>≥ 40%</td></tr>
+      </tbody>
+    </table>
+    <div class="ok">✅ <strong>Base para ETP 2026:</strong> Este relatório foi utilizado como fonte primária para a elaboração do Estudo Técnico Preliminar ETP nº 001/2026-DIAE, com projeção de R$ 34.812.400 para o exercício 2026, via Intelicite IA.</div>
+
+    <h2>8. Conclusão e Recomendações</h2>
+    <p>O exercício de 2024 encerra-se com desempenho superior ao ano anterior em todos os indicadores de gestão. A execução orçamentária de 98,8% e o percentual de 42,1% em Agricultura Familiar consolidam Fortaleza entre os cinco maiores municípios brasileiros em adesão ao PNAE. Para 2026, recomenda-se:</p>
+    <p><strong>(i)</strong> Antecipar publicação dos editais para janeiro/2026; <strong>(ii)</strong> incluir cláusula de reajuste semestral atrelado ao IPCA nos contratos de proteínas; <strong>(iii)</strong> ampliar o número de cooperativas credenciadas na Chamada Pública para reduzir dependência de fornecedores únicos; <strong>(iv)</strong> manter sistema SRP com atas para no mínimo 3 fornecedores por item crítico.</p>
+  </div>
+
+  <div class="footer">
+    <span>Prefeitura de Fortaleza · SME · Processo SEI 2025.SME.001.00392</span>
+    <span>Gerado por <strong>Intelicite IA</strong> · Documento de Demonstração</span>
+  </div>
+</div>
+
+</body>
+</html>
