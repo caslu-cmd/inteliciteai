@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETP — Merenda Escolar · Prefeitura de Fortaleza</title>
+  <style>
+    :root {
+      --amber: #f59e0b; --amber-light: #fef3c7; --amber-dark: #d97706;
+      --green: #10b981; --green-light: #ecfdf5; --green-dark: #059669;
+      --red: #ef4444; --blue: #3b82f6;
+      --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+      --gray-300: #d1d5db; --gray-400: #9ca3af; --gray-500: #6b7280;
+      --gray-700: #374151; --gray-900: #111827;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f1f5f9; color: var(--gray-900); line-height: 1.6; }
+
+    .print-bar {
+      position: sticky; top: 0; z-index: 100; background: white;
+      border-bottom: 1px solid var(--gray-200); padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .print-bar-left { display: flex; align-items: center; gap: 12px; }
+    .logo-badge { background: var(--green-dark); color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; letter-spacing: .5px; }
+    .print-bar h1 { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+    .print-bar p { font-size: 11px; color: var(--gray-400); }
+    .btn-print {
+      display: flex; align-items: center; gap: 8px; background: var(--green-dark);
+      color: white; border: none; border-radius: 8px; padding: 10px 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s;
+    }
+    .btn-print:hover { background: #047857; }
+    .btn-print svg { width: 16px; height: 16px; }
+
+    .page { max-width: 920px; margin: 32px auto; padding: 0 16px 80px; }
+
+    /* IA badge */
+    .ia-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--green-light); color: var(--green-dark);
+      border: 1px solid #6ee7b7; border-radius: 20px;
+      font-size: 11px; font-weight: 600; padding: 3px 10px; margin-top: 6px;
+    }
+
+    /* Forecast panel */
+    .forecast-panel { background: white; border: 1.5px solid #6ee7b7; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .forecast-header { background: var(--green-light); padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #6ee7b7; }
+    .forecast-icon { background: var(--green-dark); color: white; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .forecast-header h2 { font-size: 14px; font-weight: 700; color: var(--green-dark); }
+    .forecast-header p { font-size: 11px; color: #065f46; }
+    .forecast-body { padding: 20px; }
+    .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .fc { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px; }
+    .fc-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-500); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+    .fc ul { list-style: none; }
+    .fc ul li { font-size: 11px; color: var(--gray-700); padding: 2px 0; display: flex; gap: 6px; }
+    .fc ul li::before { content: "▸"; color: var(--green-dark); flex-shrink: 0; }
+    .forecast-value { font-size: 24px; font-weight: 800; color: var(--green-dark); }
+    .forecast-value-sub { font-size: 10px; color: var(--gray-500); margin-top: 2px; }
+    .reports-used { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-200); align-items: center; }
+    .report-chip { display: inline-flex; align-items: center; gap: 5px; background: white; border: 1px solid var(--gray-200); border-radius: 6px; font-size: 10px; color: var(--gray-600); padding: 3px 8px; }
+
+    /* Document */
+    .etp-document { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: hidden; }
+
+    /* Cover */
+    .etp-cover { background: linear-gradient(135deg, #14532d 0%, #052e16 100%); color: white; padding: 40px 40px 32px; position: relative; overflow: hidden; }
+    .etp-cover::before { content: ""; position: absolute; top: -60px; right: -60px; width: 220px; height: 220px; background: rgba(16,185,129,.12); border-radius: 50%; }
+    .etp-cover::after { content: ""; position: absolute; bottom: -40px; left: -40px; width: 160px; height: 160px; background: rgba(16,185,129,.08); border-radius: 50%; }
+    .cover-badge { display: inline-block; background: var(--green-dark); color: white; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; }
+    .etp-cover h1 { font-size: 28px; font-weight: 800; margin-bottom: 6px; line-height: 1.2; }
+    .cover-sub { font-size: 13px; color: #86efac; margin-bottom: 28px; }
+    .cover-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+    .meta-item label { font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: #4ade80; display: block; margin-bottom: 3px; }
+    .meta-item span { font-size: 12px; font-weight: 600; color: #dcfce7; }
+
+    /* Sections */
+    .etp-body { padding: 40px; }
+    .section { margin-bottom: 36px; page-break-inside: avoid; }
+    .section-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-100); }
+    .section-number { background: var(--green-dark); color: white; font-size: 12px; font-weight: 800; min-width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .section-title { font-size: 15px; font-weight: 700; color: var(--gray-900); }
+    .section-ref { font-size: 10px; color: var(--gray-400); margin-top: 2px; }
+    .section-content { font-size: 13px; color: var(--gray-700); line-height: 1.75; }
+    .section-content p { margin-bottom: 10px; }
+    .sub { margin-bottom: 14px; }
+    .sub-title { font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .sub-title::before { content: ""; display: inline-block; width: 3px; height: 14px; background: var(--green-dark); border-radius: 2px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #14532d; color: white; text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; letter-spacing: .3px; }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: top; }
+    tr:nth-child(even) td { background: var(--gray-50); }
+    .td-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .td-total { font-weight: 700; color: var(--gray-900); background: var(--green-light) !important; }
+
+    /* Callouts */
+    .callout { border-left: 4px solid var(--green-dark); background: var(--green-light); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 12px 0; font-size: 12px; color: #065f46; }
+    .callout-risk { border-left-color: var(--red); background: #fef2f2; color: #7f1d1d; }
+    .callout-warn { border-left-color: var(--amber); background: var(--amber-light); color: #78350f; }
+
+    /* Tags */
+    .tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin: 2px 2px 2px 0; }
+    .tg { background: var(--green-light); color: var(--green-dark); }
+    .ta { background: var(--amber-light); color: var(--amber-dark); }
+    .tb { background: #dbeafe; color: #1d4ed8; }
+    .tr { background: #fee2e2; color: #b91c1c; }
+
+    /* Compliance */
+    .compliance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; }
+    .ci { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--gray-700); background: var(--green-light); border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px; }
+    .ci::before { content: "✓"; color: var(--green-dark); font-weight: 800; flex-shrink: 0; }
+
+    /* Signature */
+    .sig-block { margin-top: 40px; padding-top: 24px; border-top: 2px solid var(--gray-200); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 32px; }
+    .sig { text-align: center; }
+    .sig hr { border: none; border-top: 1px solid var(--gray-400); margin-bottom: 8px; }
+    .sig-name { font-size: 12px; font-weight: 600; color: var(--gray-900); }
+    .sig-role { font-size: 10px; color: var(--gray-500); }
+
+    /* Footer */
+    .etp-footer { background: var(--gray-50); border-top: 1px solid var(--gray-200); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--gray-400); }
+    .etp-footer strong { color: var(--green-dark); }
+
+    @media print {
+      body { background: white; }
+      .print-bar, .forecast-panel { display: none !important; }
+      .page { margin: 0; padding: 0; max-width: 100%; }
+      .etp-document { border: none; border-radius: 0; }
+      .etp-cover, .section-number, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-bar">
+  <div class="print-bar-left">
+    <span class="logo-badge">INTELICITE AI</span>
+    <div>
+      <h1>ETP — Aquisição de Gêneros Alimentícios para Merenda Escolar</h1>
+      <p>Prefeitura Municipal de Fortaleza · SME · Lei 14.133/2021 + Lei 11.947/2009</p>
+    </div>
+  </div>
+  <button class="btn-print" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="6 9 6 2 18 2 18 9"></polyline>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+      <rect x="6" y="14" width="12" height="8"></rect>
+    </svg>
+    Imprimir / Salvar PDF
+  </button>
+</div>
+
+<div class="page">
+
+  <!-- Forecast Panel -->
+  <div class="forecast-panel">
+    <div class="forecast-header">
+      <div class="forecast-icon">📊</div>
+      <div>
+        <h2>Previsão gerada pela Intelicite IA · Exercício 2026</h2>
+        <p>Análise cruzada de 3 relatórios históricos — cardápio, consumo e execução PNAE 2022–2024</p>
+      </div>
+    </div>
+    <div class="forecast-body">
+      <div class="forecast-grid">
+        <div class="fc">
+          <div class="fc-title"><span>📈</span> Tendências Observadas</div>
+          <ul>
+            <li>Crescimento de 8,3% no nº de alunos atendidos (2022→2024)</li>
+            <li>Alta de 14,7% nos preços de hortifrutigranjeiros (CEPEA)</li>
+            <li>Aumento de 22% na demanda por produtos da agricultura familiar</li>
+            <li>Redução de 11% no desperdício após implantação do novo cardápio</li>
+          </ul>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><span>⚠️</span> Riscos Identificados</div>
+          <ul>
+            <li>Sazonalidade de frutas e verduras no 1º trimestre (chuvas CE)</li>
+            <li>Dependência de fornecedor único para proteínas (2023)</li>
+            <li>Atraso histórico de 18 dias na entrega de grãos (jan/2024)</li>
+            <li>Variação cambial impactando preço do trigo e derivados</li>
+          </ul>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><span>💰</span> Estimativa de Valor</div>
+          <div class="forecast-value">R$ 34.812.400,00</div>
+          <div class="forecast-value-sub">Projeção 2026 · IPCA +4,5% + crescimento alunos</div>
+        </div>
+      </div>
+      <div class="reports-used">
+        <strong style="font-size:10px;color:#6b7280;margin-right:4px;">Relatórios analisados:</strong>
+        <span class="report-chip">Relatório PNAE Fortaleza 2022.pdf</span>
+        <span class="report-chip">Execução Merenda Escolar 2023.pdf</span>
+        <span class="report-chip">Prestação de Contas SME 2024.pdf</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ETP Document -->
+  <div class="etp-document">
+
+    <div class="etp-cover">
+      <div class="cover-badge">Gerado com Intelicite IA</div>
+      <h1>Estudo Técnico Preliminar</h1>
+      <p class="cover-sub">Aquisição de Gêneros Alimentícios para a Alimentação Escolar — PNAE · Exercício 2026</p>
+      <div class="cover-meta">
+        <div class="meta-item"><label>Órgão</label><span>Prefeitura Municipal de Fortaleza</span></div>
+        <div class="meta-item"><label>CNPJ</label><span>07.954.605/0001-44</span></div>
+        <div class="meta-item"><label>Secretaria</label><span>Secretaria Municipal de Educação — SME</span></div>
+        <div class="meta-item"><label>Processo SEI</label><span>2025.SME.004.12891</span></div>
+        <div class="meta-item"><label>Data de Elaboração</label><span>19 de maio de 2026</span></div>
+        <div class="meta-item"><label>Responsável</label><span>Dra. Fernanda Castelo Branco Lima</span></div>
+        <div class="meta-item"><label>Cargo</label><span>Diretora de Alimentação Escolar · DIAE/SME</span></div>
+        <div class="meta-item"><label>Modalidade Prevista</label><span>Pregão Eletrônico (SRP) + Chamada Pública AF</span></div>
+      </div>
+    </div>
+
+    <div class="etp-body">
+
+      <!-- Conformidade -->
+      <div class="section">
+        <div class="compliance-grid">
+          <div class="ci">I — Necessidade da Contratação</div>
+          <div class="ci">II — Previsão no PCA 2026</div>
+          <div class="ci">III — Requisitos Técnicos e Nutricionais</div>
+          <div class="ci">IV — Estimativa de Quantidades</div>
+          <div class="ci">V — Levantamento de Mercado</div>
+          <div class="ci">VI — Estimativa de Valor</div>
+          <div class="ci">VII — Parcelamento / Solução</div>
+          <div class="ci">VIII — Resultados Pretendidos</div>
+          <div class="ci">X — Riscos e Mitigação</div>
+          <div class="ci">XI — Contratações Correlatas</div>
+          <div class="ci">XII — Impactos Ambientais</div>
+          <div class="ci">XIII — Viabilidade Conclusiva</div>
+        </div>
+      </div>
+
+      <!-- Seção 1 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">1</div>
+          <div>
+            <div class="section-title">Identificação do Documento</div>
+            <div class="section-ref">Art. 18 · Lei 14.133/2021 — Dados do órgão e responsáveis</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="table-wrap">
+            <table>
+              <tr><th colspan="2">Dados Institucionais</th></tr>
+              <tr><td><strong>Órgão/Entidade</strong></td><td>Prefeitura Municipal de Fortaleza — Secretaria Municipal de Educação (SME)</td></tr>
+              <tr><td><strong>CNPJ</strong></td><td>07.954.605/0001-44</td></tr>
+              <tr><td><strong>Unidade Demandante</strong></td><td>Diretoria de Alimentação Escolar — DIAE/SME</td></tr>
+              <tr><td><strong>Processo SEI</strong></td><td>2025.SME.004.12891</td></tr>
+              <tr><td><strong>Responsável pela Elaboração</strong></td><td>Dra. Fernanda Castelo Branco Lima — Diretora DIAE · CRN 3 nº 8.842</td></tr>
+              <tr><td><strong>Revisor Técnico</strong></td><td>Eng. Carlos Alberto Pinheiro Mota — Assessor Jurídico de Licitações · OAB/CE 28.340</td></tr>
+              <tr><td><strong>Data de Elaboração</strong></td><td>19 de maio de 2026</td></tr>
+              <tr><td><strong>Objeto Resumido</strong></td><td>Aquisição de gêneros alimentícios perecíveis e não perecíveis destinados à alimentação escolar de 518 unidades de ensino da Rede Municipal de Fortaleza, no exercício letivo de 2026, nos termos do PNAE (Lei 11.947/2009) e Lei 14.133/2021</td></tr>
+              <tr><td><strong>Base Legal Principal</strong></td><td>Lei nº 14.133/2021 (Art. 18, §1º) · Lei nº 11.947/2009 (PNAE) · Resolução CD/FNDE nº 06/2020 · IN SEGES/ME nº 58/2022</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 2 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">2</div>
+          <div>
+            <div class="section-title">Descrição da Necessidade da Contratação</div>
+            <div class="section-ref">Art. 18, §1º, I e II · Por que, para que e para quem contratar</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="sub">
+            <div class="sub-title">Por que contratar?</div>
+            <p>A alimentação escolar é direito constitucional dos estudantes da educação básica pública, assegurado pelo Art. 208, VII da Constituição Federal e regulamentado pela Lei nº 11.947/2009. A Prefeitura de Fortaleza atende, pelo Programa Nacional de Alimentação Escolar (PNAE), <strong>233.847 alunos</strong> matriculados em 518 unidades de ensino da rede municipal, distribuídas nos 12 regionais administrativos do município.</p>
+            <p>A análise dos relatórios históricos dos exercícios 2022, 2023 e 2024 evidenciou crescimento médio de <strong>8,3% ao ano</strong> no número de estudantes atendidos, com incremento de 22% na participação de produtos da agricultura familiar, em cumprimento ao Art. 14 da Lei 11.947/2009 (mínimo de 30% dos recursos do FNDE destinados à AF). A ausência de contratos vigentes para 2026 implicaria interrupção da oferta de refeições a mais de 233 mil crianças e adolescentes, com grave impacto no desenvolvimento cognitivo e na frequência escolar.</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Para que contratar?</div>
+            <p>Garantir o fornecimento contínuo de gêneros alimentícios perecíveis (hortifrutigranjeiros, carnes, laticínios) e não perecíveis (cereais, leguminosas, óleos, temperos) para a preparação de <strong>4 refeições diárias</strong> (café da manhã, lanche, almoço e jantar) nas escolas de tempo integral e <strong>2 refeições</strong> nas unidades de tempo parcial, durante os <strong>200 dias letivos</strong> do calendário escolar 2026, conforme cardápio elaborado pela equipe de nutricionistas da DIAE/SME.</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Para quem contratar?</div>
+            <p>Os beneficiários diretos são os <strong>233.847 alunos</strong> da rede municipal de Fortaleza (pré-escola, ensino fundamental I e II, EJA e educação especial), sendo 67.420 em escolas de tempo integral e 166.427 em tempo parcial. Estima-se impacto indireto sobre aproximadamente <strong>180 mil famílias</strong> — para muitas delas, a refeição escolar representa a principal ou única refeição nutricionalmente equilibrada do dia.</p>
+          </div>
+          <div class="callout">
+            <strong>Alinhamento com o PCA 2026:</strong> Contratação prevista no Plano de Contratações Anual 2026 da SME (Portaria SME nº 003/2026, publicada no DOM de 10/01/2026), com dotação orçamentária aprovada pela Câmara Municipal na LOA 2026 (Lei nº 11.720/2025). Recursos: FNDE/PNAE + contrapartida municipal.
+          </div>
+          <div class="ia-badge">✦ Justificativa fundamentada com base nos relatórios históricos 2022–2024 pela Intelicite IA</div>
+        </div>
+      </div>
+
+      <!-- Seção 3 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">3</div>
+          <div>
+            <div class="section-title">Requisitos da Contratação</div>
+            <div class="section-ref">Art. 18, §1º, III · Técnicos, nutricionais, legais e de sustentabilidade</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="sub">
+            <div class="sub-title">Requisitos Nutricionais e Técnicos</div>
+            <p>
+              <span class="tag tg">Resolução FNDE nº 06/2020</span>
+              <span class="tag tg">RDC ANVISA nº 275/2002</span>
+              <span class="tag tb">ABNT NBR ISO 22000</span>
+              <span class="tag tg">Portaria MS nº 2.914/2011</span>
+            </p>
+            <p style="margin-top:8px;">Os gêneros alimentícios deverão atender ao <strong>Cardápio Anual 2026</strong> elaborado pela equipe de nutricionistas da DIAE/SME, com variação mínima de 20 cardápios semanais distintos, respeitando: (i) valor calórico mínimo de 350 kcal por refeição (tempo parcial) e 700 kcal (tempo integral); (ii) limites de sódio, gorduras saturadas e açúcar conforme Tabela TACO/TBCA; (iii) obrigatoriedade de oferta de frutas regionais do Ceará em pelo menos 3 dias semanais; (iv) vedação a alimentos ultraprocessados (NOVA Grupo 4).</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Requisitos de Habilitação dos Fornecedores</div>
+            <p>Registro ou Alvará Sanitário vigente emitido pela VISA municipal/estadual; Declaração de Aptidão ao Pronaf (DAP) ou CAF vigente para fornecedores da agricultura familiar; certificação de Boas Práticas de Fabricação (BPF) para industrializados; rastreabilidade de origem para carnes (SIF/SIPOA/SIE obrigatório).</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Sustentabilidade e Logística Reversa</div>
+            <p>Preferência por produtos orgânicos certificados (IN MAPA nº 46/2011); embalagens com material reciclável ou biodegradável (Decreto 10.936/2022); vedação a produtos com agrotóxicos acima dos limites da IN ANVISA nº 2/2023; fornecedores locais e regionais têm preferência de até 10% no critério de julgamento, conforme Art. 26 da Lei 14.133/2021.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 4 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">4</div>
+          <div>
+            <div class="section-title">Estimativa de Quantidades e Memória de Cálculo</div>
+            <div class="section-ref">Art. 18, §1º, IV · Projeção IA baseada nos relatórios históricos 2022–2024</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <p>Quantidades calculadas com base no consumo médio per capita histórico corrigido pelo crescimento de <strong>8,3%</strong> no número de alunos e pela variação de preços setoriais (CEPEA/IPCA). Fórmula aplicada: <em>Qtd. 2026 = Consumo médio 2022-2024 × (1 + crescimento alunos) × dias letivos 2026</em>.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item / Grupo Alimentar</th>
+                  <th>Unid.</th>
+                  <th style="text-align:right">Consumo Médio Histórico</th>
+                  <th style="text-align:right">Cresc. IA</th>
+                  <th style="text-align:right">Qtd. 2026</th>
+                  <th style="text-align:right">Vlr. Unit. (R$)</th>
+                  <th style="text-align:right">Vlr. Total (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td><td>Arroz branco tipo 1 (5 kg)</td><td>Fardo</td>
+                  <td class="td-r">48.200</td><td class="td-r">+8,3%</td><td class="td-r">52.200</td>
+                  <td class="td-r">48,90</td><td class="td-r">2.552.580,00</td>
+                </tr>
+                <tr>
+                  <td>2</td><td>Feijão-carioca tipo 1 (1 kg)</td><td>Kg</td>
+                  <td class="td-r">184.600</td><td class="td-r">+8,3%</td><td class="td-r">199.920</td>
+                  <td class="td-r">7,85</td><td class="td-r">1.569.372,00</td>
+                </tr>
+                <tr>
+                  <td>3</td><td>Frango inteiro resfriado (AF)</td><td>Kg</td>
+                  <td class="td-r">228.400</td><td class="td-r">+10,1%</td><td class="td-r">251.490</td>
+                  <td class="td-r">16,20</td><td class="td-r">4.074.138,00</td>
+                </tr>
+                <tr>
+                  <td>4</td><td>Carne bovina moída (SIF)</td><td>Kg</td>
+                  <td class="td-r">96.800</td><td class="td-r">+8,3%</td><td class="td-r">104.840</td>
+                  <td class="td-r">32,40</td><td class="td-r">3.396.816,00</td>
+                </tr>
+                <tr>
+                  <td>5</td><td>Leite UHT integral (1L)</td><td>Caixa</td>
+                  <td class="td-r">312.000</td><td class="td-r">+8,3%</td><td class="td-r">337.896</td>
+                  <td class="td-r">4,98</td><td class="td-r">1.682.722,08</td>
+                </tr>
+                <tr>
+                  <td>6</td><td>Hortifrutigranjeiros (mix sazonal)</td><td>Kg</td>
+                  <td class="td-r">486.200</td><td class="td-r">+14,7%</td><td class="td-r">557.650</td>
+                  <td class="td-r">6,40</td><td class="td-r">3.568.960,00</td>
+                </tr>
+                <tr>
+                  <td>7</td><td>Óleo de soja refinado (900mL)</td><td>Unid.</td>
+                  <td class="td-r">72.400</td><td class="td-r">+8,3%</td><td class="td-r">78.410</td>
+                  <td class="td-r">7,20</td><td class="td-r">564.552,00</td>
+                </tr>
+                <tr>
+                  <td>8</td><td>Pão francês integral (AF)</td><td>Kg</td>
+                  <td class="td-r">114.800</td><td class="td-r">+12,4%</td><td class="td-r">129.040</td>
+                  <td class="td-r">9,80</td><td class="td-r">1.264.592,00</td>
+                </tr>
+                <tr>
+                  <td>9</td><td>Macarrão espaguete (500g)</td><td>Pct.</td>
+                  <td class="td-r">98.200</td><td class="td-r">+8,3%</td><td class="td-r">106.350</td>
+                  <td class="td-r">4,60</td><td class="td-r">489.210,00</td>
+                </tr>
+                <tr>
+                  <td>10</td><td>Frutas regionais (banana, melancia, mamão)</td><td>Kg</td>
+                  <td class="td-r">198.400</td><td class="td-r">+22,0%</td><td class="td-r">242.048</td>
+                  <td class="td-r">4,20</td><td class="td-r">1.016.601,60</td>
+                </tr>
+                <tr>
+                  <td>11</td><td>Ovos brancos tipo A (cartela 30 un)</td><td>Cartela</td>
+                  <td class="td-r">48.600</td><td class="td-r">+8,3%</td><td class="td-r">52.630</td>
+                  <td class="td-r">24,50</td><td class="td-r">1.289.435,00</td>
+                </tr>
+                <tr>
+                  <td>12</td><td>Sal refinado iodado (1 kg)</td><td>Kg</td>
+                  <td class="td-r">18.200</td><td class="td-r">+8,3%</td><td class="td-r">19.710</td>
+                  <td class="td-r">2,40</td><td class="td-r">47.304,00</td>
+                </tr>
+                <tr>
+                  <td>13</td><td>Açúcar cristal (1 kg)</td><td>Kg</td>
+                  <td class="td-r">42.800</td><td class="td-r">+8,3%</td><td class="td-r">46.350</td>
+                  <td class="td-r">4,90</td><td class="td-r">227.115,00</td>
+                </tr>
+                <tr>
+                  <td>14</td><td>Café torrado e moído (500g)</td><td>Pct.</td>
+                  <td class="td-r">36.400</td><td class="td-r">+18,2%</td><td class="td-r">43.020</td>
+                  <td class="td-r">24,80</td><td class="td-r">1.066.896,00</td>
+                </tr>
+                <tr>
+                  <td>15</td><td>Demais itens do cardápio (temperos, enlatados, massas diversas)</td><td>Vlr.</td>
+                  <td class="td-r">—</td><td class="td-r">+9,5%</td><td class="td-r">—</td>
+                  <td class="td-r">—</td><td class="td-r">12.002.306,32</td>
+                </tr>
+                <tr>
+                  <td class="td-total">—</td>
+                  <td class="td-total" colspan="6"><strong>TOTAL GERAL ESTIMADO (200 dias letivos · 233.847 alunos)</strong></td>
+                  <td class="td-total td-r"><strong>R$ 34.812.400,00</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ia-badge">✦ Quantidades projetadas pela Intelicite IA com base nos relatórios históricos 2022–2024 + crescimento de 8,3% a.a. no número de alunos</div>
+        </div>
+      </div>
+
+      <!-- Seção 5 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">5</div>
+          <div>
+            <div class="section-title">Levantamento de Mercado e Estimativa de Valor</div>
+            <div class="section-ref">Art. 18, §1º, V e VI · Res. FNDE nº 06/2020 · IN SEGES/ME nº 65/2021</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="sub">
+            <div class="sub-title">Fontes de Pesquisa de Preços</div>
+            <p><strong>Fonte 1:</strong> CEPEA/ESALQ — cotações semanais de hortifrutigranjeiros e grãos (jan–abr/2026).</p>
+            <p><strong>Fonte 2:</strong> PNCP — contratos similares firmados por municípios do Nordeste com porte ≥ 200 mil alunos nos últimos 12 meses (média de 11 contratos analisados, incluindo Recife, Salvador e Manaus).</p>
+            <p><strong>Fonte 3:</strong> Cotações diretas com 5 fornecedores locais habilitados pelo cadastro da SME/Fortaleza e 3 cooperativas da agricultura familiar credenciadas pela EMATERCE.</p>
+            <p><strong>Fonte 4 (IA):</strong> Histórico de preços praticados nos exercícios 2022–2024 corrigidos pelo IPCA acumulado de 13,1% (jan/22 a mar/26).</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Metodologia e Estrutura da Contratação</div>
+            <p>A contratação será estruturada em <strong>dois instrumentos complementares</strong>, conforme exige o Art. 14 da Lei 11.947/2009:</p>
+            <p><strong>(a) Pregão Eletrônico — SRP (80% do valor total — R$ 27.849.920,00):</strong> para gêneros industrializados e de larga escala, cujos preços referenciais foram apurados pela metodologia da IN 65/2021 (média das três fontes acima, com descarte de outliers ± 25% da mediana).</p>
+            <p><strong>(b) Chamada Pública (20% do valor total — R$ 6.962.480,00):</strong> destinada exclusivamente à aquisição de gêneros da agricultura familiar e empreendedor familiar rural, conforme Art. 14 da Lei 11.947/2009 e Resolução CD/FNDE nº 06/2020.</p>
+          </div>
+          <div class="callout">
+            <strong>Valor total estimado: R$ 34.812.400,00</strong> — financiamento: FNDE/PNAE R$ 23.248.600,00 (66,8%) + contrapartida municipal R$ 11.563.800,00 (33,2%), conforme Lei Municipal nº 11.720/2025 (LOA 2026) e nota de empenho prévio SME/DIOF.
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 6 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">6</div>
+          <div>
+            <div class="section-title">Análise de Riscos e Contratações Correlatas</div>
+            <div class="section-ref">Art. 18, §1º, X e XI · Riscos identificados pela análise histórica IA</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Risco Identificado</th>
+                  <th>Origem</th>
+                  <th>Prob.</th>
+                  <th>Impacto</th>
+                  <th>Medida de Mitigação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Sazonalidade e escassez de hortifrutigranjeiros no 1º trimestre (período chuvoso do Ceará — fev/mar)</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag tr">Alta</span></td>
+                  <td><span class="tag tr">Alto</span></td>
+                  <td>Cardápio alternativo com itens não perecíveis; cláusula de substituição de itens com prazo de 24h; estoque regulador de 15 dias nas unidades centralizadas</td>
+                </tr>
+                <tr>
+                  <td>Atraso de 18 dias na entrega de grãos (padrão jan/2024)</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag ta">Média</span></td>
+                  <td><span class="tag tr">Alto</span></td>
+                  <td>Emissão de ordens de compra com 30 dias de antecedência no início do ano letivo; multa diária de 0,5% por atraso na entrega</td>
+                </tr>
+                <tr>
+                  <td>Dependência de fornecedor único para proteínas (recorrente em 2023)</td>
+                  <td>Análise histórica IA</td>
+                  <td><span class="tag ta">Média</span></td>
+                  <td><span class="tag tr">Alto</span></td>
+                  <td>SRP com no mínimo 3 fornecedores por item proteico; cadastro reserva obrigatório de 2 substitutos</td>
+                </tr>
+                <tr>
+                  <td>Variação cambial impactando trigo, derivados e café</td>
+                  <td>Mercado</td>
+                  <td><span class="tag ta">Média</span></td>
+                  <td><span class="tag ta">Médio</span></td>
+                  <td>Cláusula de reequilíbrio econômico-financeiro (Art. 124, I, "d" da Lei 14.133/2021) atrelada ao IPCA para reajuste semestral</td>
+                </tr>
+                <tr>
+                  <td>Insuficiência de fornecedores AF habilitados para cumprir 30% do PNAE</td>
+                  <td>Histórico</td>
+                  <td><span class="tag tg">Baixa</span></td>
+                  <td><span class="tag ta">Médio</span></td>
+                  <td>Parceria prévia com EMATERCE e Cáritas CE; divulgação da Chamada Pública em associações rurais dos 12 regionais de Fortaleza</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout" style="margin-top:12px;">
+            <strong>Contratações correlatas:</strong> Contrato de logística e distribuição às 518 UEs (Pregão nº 014/2025-SMS — vigente até dez/2026); contrato de dedetização e controle de pragas das cozinhas escolares (Pregão nº 019/2025-SME); fornecimento de gás de cozinha (ARP nº 008/2025-SME).
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 7 -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">7</div>
+          <div>
+            <div class="section-title">Impactos Ambientais, Resultados Pretendidos e Posicionamento Conclusivo</div>
+            <div class="section-ref">Art. 18, §1º, VIII, IX, XII e XIII</div>
+          </div>
+        </div>
+        <div class="section-content">
+          <div class="sub">
+            <div class="sub-title">Impactos Ambientais e Medidas Mitigadoras</div>
+            <p>A presente contratação prevê: (i) preferência por embalagens recicláveis e a granel para redução de resíduos; (ii) prioridade para fornecedores com raio máximo de 100 km de Fortaleza, reduzindo emissões de transporte; (iii) programa de compostagem dos resíduos orgânicos das cozinhas escolares em parceria com a SEUMA; (iv) vedação ao uso de isopor para embalagem de alimentos perecíveis a partir de julho/2026.</p>
+          </div>
+          <div class="sub">
+            <div class="sub-title">Resultados Pretendidos e Indicadores</div>
+            <p>(I) Atendimento de 100% dos 233.847 alunos matriculados nos 200 dias letivos de 2026; (II) Índice de satisfação dos estudantes ≥ 85% (pesquisa semestral DIAE); (III) Cumprimento do mínimo de 30% de aquisição da AF; (IV) Redução do índice de desperdício para ≤ 10% (meta: 11% de redução ante 2024); (V) Zero interrupções por falta de gênero alimentício.</p>
+          </div>
+          <div class="callout" style="background:#ecfdf5; border-left-color:#059669; color:#065f46;">
+            <strong>✓ CONCLUSÃO: CONTRATAÇÃO VIÁVEL, NECESSÁRIA E RECOMENDADA</strong><br><br>
+            Com base na análise histórica de três exercícios (2022–2024), no levantamento de mercado realizado em maio/2026, na disponibilidade orçamentária confirmada (LOA 2026) e na conformidade com as normas do PNAE e da Lei 14.133/2021, este ETP conclui pela <strong>plena viabilidade técnica, nutricional, jurídica e econômica</strong> da contratação.<br><br>
+            Modalidade recomendada: <strong>Pregão Eletrônico (SRP)</strong> + <strong>Chamada Pública (Agricultura Familiar)</strong>, pelo valor estimado global de <strong>R$ 34.812.400,00</strong>, nos termos do Art. 18, §1º, XIII da Lei 14.133/2021.
+          </div>
+        </div>
+      </div>
+
+      <!-- Signatures -->
+      <div class="sig-block">
+        <div class="sig">
+          <hr />
+          <div class="sig-name">Dra. Fernanda Castelo Branco Lima</div>
+          <div class="sig-role">Diretora de Alimentação Escolar — DIAE/SME</div>
+          <div class="sig-role">CRN 3 nº 8.842 · Elaboradora do ETP</div>
+        </div>
+        <div class="sig">
+          <hr />
+          <div class="sig-name">Eng. Carlos Alberto Pinheiro Mota</div>
+          <div class="sig-role">Assessor Jurídico de Licitações</div>
+          <div class="sig-role">OAB/CE nº 28.340 · Revisor Técnico</div>
+        </div>
+        <div class="sig">
+          <hr />
+          <div class="sig-name">Prof. Evandro Leitão</div>
+          <div class="sig-role">Secretário Municipal de Educação</div>
+          <div class="sig-role">Autoridade Demandante</div>
+        </div>
+        <div class="sig">
+          <hr />
+          <div class="sig-name">José Sarto Nogueira Moreira</div>
+          <div class="sig-role">Prefeito de Fortaleza</div>
+          <div class="sig-role">Ordenador de Despesas</div>
+        </div>
+      </div>
+
+    </div><!-- /etp-body -->
+
+    <div class="etp-footer">
+      <span>Prefeitura de Fortaleza · SME · Processo SEI 2025.SME.004.12891 · ETP nº 001/2026-DIAE</span>
+      <span>Gerado por <strong>Intelicite IA</strong> · Lei 14.133/2021 + Lei 11.947/2009 · PNAE 2026</span>
+    </div>
+
+  </div><!-- /etp-document -->
+</div><!-- /page -->
+</body>
+</html>
