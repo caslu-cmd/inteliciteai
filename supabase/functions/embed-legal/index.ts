@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       await rest(`legal_knowledge_chunks?knowledge_id=eq.${item.id}`, { method: "DELETE" });
       const chunks = chunkText(item.content);
       for (let i = 0; i < chunks.length; i++) {
-        const emb = await embedOne(chunks[i], OPENAI_KEY);
+        const emb = await embedOne(chunks[i], API_KEY);
         await rest(`legal_knowledge_chunks`, {
           method: "POST",
           headers: { Prefer: "return=minimal" },
