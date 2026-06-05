@@ -242,16 +242,61 @@
     }
 
     @media print {
-      body { background: white; }
+      @page {
+        size: A4 portrait;
+        margin: 3cm 2cm 2cm 3cm; /* ABNT: topo 3cm, direita 2cm, base 2cm, esquerda 3cm */
+      }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { background: white; font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.5; }
       .print-bar, .overlay { display: none !important; }
       .page { margin: 0; padding: 0; max-width: 100%; }
-      .etp-document { border: none; border-radius: 0; }
-      .etp-cover, .section-number, th, .forecast-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .forecast-panel { border-radius: 0; border: 1px solid #6ee7b7; margin-bottom: 16px; page-break-inside: avoid; }
-      .report-chip { border: 1px solid #86efac !important; color: #15803d !important; }
-      .report-chip::after { content: " ↗"; font-size: 9px; }
-      a.btn-forecast-pdf { display: inline-flex !important; }
+      .etp-document { border: none !important; border-radius: 0; box-shadow: none !important; }
+
+      /* Capa */
+      .etp-cover { padding: 24pt 0 20pt; border-radius: 0; }
+      .etp-cover h1 { font-size: 16pt; line-height: 1.5; }
+      .cover-sub { font-size: 11pt; }
+      .cover-meta { gap: 8pt; }
+      .meta-item span { font-size: 10pt; }
+
+      /* Corpo */
+      .etp-body { padding: 0; }
+      .section { margin-bottom: 24pt; page-break-inside: avoid; }
+      .section-header { padding-bottom: 6pt; margin-bottom: 10pt; }
+      .section-title { font-size: 12pt; font-weight: bold; text-transform: uppercase; letter-spacing: .5pt; }
+      .section-ref { font-size: 9pt; }
+      .section-content { font-size: 12pt; line-height: 1.5; text-align: justify; }
+      .section-content p { margin-bottom: 0; text-indent: 1.25cm; }
+      .sub-title { font-size: 12pt; font-weight: bold; margin-bottom: 4pt; }
+
+      /* Tabelas */
+      table { font-size: 10pt; line-height: 1.5; width: 100%; }
+      th { font-size: 10pt; padding: 5pt 6pt; }
+      td { font-size: 10pt; padding: 4pt 6pt; }
+
+      /* Painel IA */
+      .forecast-panel { border-radius: 0; border: 1pt solid #6ee7b7; margin-bottom: 16pt; page-break-inside: avoid; }
+      .forecast-header h2 { font-size: 11pt; }
+      .forecast-header p { font-size: 9pt; }
+      .fc ul li, .fc-title { font-size: 9pt; }
+      .forecast-value { font-size: 16pt; }
+      .report-chip { border: 1pt solid #86efac !important; color: #15803d !important; font-size: 9pt; }
+      .report-chip::after { content: " ↗"; font-size: 8pt; }
+      a.btn-forecast-pdf { display: inline-flex !important; font-size: 9pt !important; }
       .btn-pdf-export { display: none !important; }
+
+      /* Assinaturas */
+      .sig-block { margin-top: 32pt; page-break-inside: avoid; }
+      .sig-name { font-size: 11pt; }
+      .sig-role { font-size: 9pt; }
+
+      /* Rodapé */
+      .etp-footer { font-size: 8pt; padding: 8pt 0 0; }
+
+      /* Conformidade */
+      .ci { font-size: 9pt; padding: 4pt 8pt; }
+      .callout { font-size: 10pt; padding: 8pt 12pt; }
+      .ia-badge { font-size: 9pt; }
     }
   </style>
 </head>

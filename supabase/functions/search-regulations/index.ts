@@ -1,90 +1,63 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const corsHeaders = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const EMBED_MODEL = "openai/text-embedding-3-small";
-
-async function embed(input: string): Promise<number[]> {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+async function embedQuery(text: string, apiKey: string): Promise<number[]> {
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model: EMBED_MODEL, input, dimensions: 1536 }),
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "text-embedding-3-small", input: text, dimensions: 1536 }),
   });
-  if (!res.ok) throw new Error(`Embedding failed: ${res.status}`);
-  const json = await res.json();
-  return json.data[0].embedding as number[];
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.data[0].embedding;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: cors });
+
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (authErr || !user) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: cors });
+
+  const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_KEY) return new Response(JSON.stringify({ chunks: [], context: "" }), { headers: cors });
+
+  let body: { query: string; municipalityId: string; matchCount?: number };
+  try { body = await req.json(); } catch {
+    return new Response(JSON.stringify({ error: "JSON inválido" }), { status: 400, headers: cors });
+  }
+
+  const { query, municipalityId, matchCount = 5 } = body;
+  if (!query?.trim() || !municipalityId) {
+    return new Response(JSON.stringify({ chunks: [], context: "" }), { headers: cors });
+  }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const queryEmbedding = await embedQuery(query, OPENAI_KEY);
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
-      global: { headers: { Authorization: authHeader } },
+    const { data: chunks, error: rpcErr } = await supabase.rpc("match_regulation_chunks", {
+      query_embedding:   queryEmbedding,
+      p_municipality_id: municipalityId,
+      match_count:       matchCount,
+      min_similarity:    0.20,
     });
 
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (rpcErr) throw new Error(rpcErr.message);
 
-    const { query, match_count = 5, municipality_id } = await req.json();
-    if (!query || typeof query !== "string") {
-      return new Response(JSON.stringify({ error: "query required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const context = chunks && chunks.length > 0
+      ? `REGULAMENTOS DO ÓRGÃO APLICÁVEIS:\n${chunks.map((c: any, i: number) => `[${i + 1}] ${c.content}`).join("\n\n")}`
+      : "";
 
-    let filterMunicipality = municipality_id ?? null;
-    if (!filterMunicipality) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("municipality_id")
-        .eq("id", user.id)
-        .maybeSingle();
-      filterMunicipality = profile?.municipality_id ?? null;
-    }
-
-    const embedding = await embed(query);
-
-    const { data, error } = await supabase.rpc("match_regulations", {
-      query_embedding: embedding,
-      match_count,
-      filter_municipality: filterMunicipality,
-    });
-
-    if (error) throw error;
-
-    return new Response(JSON.stringify({ results: data ?? [] }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    console.error("search-regulations error:", e);
-    return new Response(JSON.stringify({ error: String(e?.message ?? e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ chunks: chunks ?? [], context }), { headers: cors });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: cors });
   }
 });

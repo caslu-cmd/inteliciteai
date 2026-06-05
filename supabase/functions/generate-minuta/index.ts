@@ -20,7 +20,12 @@ Estrutura obrigatória:
 7. Local e data: [____________________]
 8. Assinatura: [____________________]
 
-Use linguagem jurídica formal. Cite artigos específicos. Deixe colchetes [  ] onde dados devem ser preenchidos.`;
+Use linguagem jurídica formal. Cite artigos específicos. Deixe colchetes [  ] onde dados devem ser preenchidos.
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Ao final do documento inclua:
+> 📌 **Fundamentos:** [Artigos aplicáveis] — Lei 14.133/2021 | [Acórdão TCU pertinente, se houver]
+Cite apenas dispositivos reais e verificáveis.`;
 
 const SYSTEM_ESCLARECIMENTO = `Você é um advogado especializado em licitações públicas com domínio da Lei 14.133/2021.
 Redija um PEDIDO DE ESCLARECIMENTO formal ao edital.
@@ -35,7 +40,12 @@ Estrutura obrigatória:
 7. Local e data: [____________________]
 8. Assinatura: [____________________]
 
-Use linguagem clara e respeitosa. Deixe colchetes [  ] onde dados devem ser preenchidos.`;
+Use linguagem clara e respeitosa. Deixe colchetes [  ] onde dados devem ser preenchidos.
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Ao final inclua:
+> 📌 **Fundamentos:** Art. 164, §1º — Lei 14.133/2021 | [outros artigos aplicáveis]
+Cite apenas dispositivos reais.`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -88,8 +98,8 @@ Gere o documento completo, pronto para uso.`;
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2000,
+        model: "claude-opus-4-8",
+        max_tokens: 3000,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
       }),

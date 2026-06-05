@@ -34,7 +34,12 @@ INSTRUÇÕES:
 - Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
 - Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
 - Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
-- O documento deve ter nível profissional para apresentação a autoridades e controle externo`;
+- O documento deve ter nível profissional para apresentação a autoridades e controle externo
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Ao final de cada seção numerada, inclua um bloco no formato:
+> 📌 **Fundamentos:** [Artigo específico] — Lei 14.133/2021 | [IN/Portaria/Decreto aplicável] | [Acórdão TCU XXXX/XXXX-Plenário, se pertinente]
+Cite apenas dispositivos reais. Nunca invente artigos, acórdãos ou normas.`;
 
 const SYSTEM_TR = `Você é um especialista sênior em contratações públicas com domínio da Lei 14.133/2021.
 Redija um TERMO DE REFERÊNCIA (TR) completo, técnico, formal e juridicamente fundamentado conforme Art. 6º, XXIII e Art. 40 da Lei 14.133/2021.
@@ -62,7 +67,12 @@ INSTRUÇÕES:
 - Expanda as informações fornecidas com fundamentos técnicos e jurídicos adequados
 - Onde dados específicos não foram informados, use [A PREENCHER PELO ÓRGÃO]
 - Formate em markdown com títulos numerados, subtítulos e listas bem estruturadas
-- O documento deve ter nível profissional para apresentação a autoridades e controle externo`;
+- O documento deve ter nível profissional para apresentação a autoridades e controle externo
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Ao final de cada seção numerada, inclua um bloco no formato:
+> 📌 **Fundamentos:** [Artigo específico] — Lei 14.133/2021 | [IN/Portaria/Decreto aplicável] | [Acórdão TCU XXXX/XXXX-Plenário, se pertinente]
+Cite apenas dispositivos reais. Nunca invente artigos, acórdãos ou normas.`;
 
 const SYSTEM_COTACAO = `Você é um especialista em pesquisa de preços para contratações públicas brasileiras.
 Com base nos itens fornecidos, analise e sugira:
@@ -129,7 +139,12 @@ INSTRUÇÕES:
 - A tabela de itens deve ser formatada como tabela markdown com alinhamento correto
 - Onde dados não foram informados, use [A PREENCHER PELO ÓRGÃO]
 - Formate em markdown com títulos numerados bem estruturados
-- O documento deve ter nível profissional para uso oficial`;
+- O documento deve ter nível profissional para uso oficial
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Ao final de cada seção numerada, inclua um bloco no formato:
+> 📌 **Fundamentos:** [Artigo específico] — Lei 14.133/2021 | [IN/Portaria/Decreto aplicável] | [Acórdão TCU XXXX/XXXX-Plenário, se pertinente]
+Cite apenas dispositivos reais. Nunca invente artigos, acórdãos ou normas.`;
 
 function buildDFDPrompt(f: any): string {
   const v = (x: any, label: string) => x ? `${label}: ${x}` : `${label}: [não informado]`;
@@ -485,7 +500,7 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
     : "";
 
   const claudeBody: any = {
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-8",
     max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: contextPrefix + userPrompt }],

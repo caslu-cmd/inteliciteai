@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
           "anthropic-beta": "pdfs-2024-09-25",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
+          model: "claude-opus-4-8",
           max_tokens: 2500,
           system: SYSTEM,
           messages: [{ role: "user", content: userContent }],

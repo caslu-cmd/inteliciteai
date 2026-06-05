@@ -462,10 +462,14 @@ export default function DFDGeneratorPage() {
     setAiContent("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const { getFullContext } = await import("@/lib/orgaoUtils");
+      const municipalityContext = await getFullContext(
+        `documento de formalização da demanda ${form.objeto || form.secretaria || ""}`
+      ).catch(() => "");
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        body: JSON.stringify({ tipo: "dfd", formData: { ...form, itens: items }, stream: true }),
+        body: JSON.stringify({ tipo: "dfd", formData: { ...form, itens: items, municipalityContext }, stream: true }),
       });
       if (!res.ok) throw new Error("Falha");
       const reader = res.body?.getReader();
@@ -516,12 +520,18 @@ export default function DFDGeneratorPage() {
           }))
         );
       }
+      if (saved) {
+        const { dispatchWebhook } = await import("@/lib/webhookUtils");
+        const { indexDocumentMemory } = await import("@/lib/orgaoUtils");
+        dispatchWebhook("document.created", { documentId: saved.id, tipo: "dfd", orgao: form.secretaria });
+        indexDocumentMemory(saved.id, "dfd", aiContent);
+      }
       toast.success("DFD salvo com sucesso!");
     } catch (err: any) { toast.error(`Erro ao salvar: ${err?.message ?? "tente novamente."}`); }
     finally { setSaving(false); }
   };
 
-  const handleExport = (format: "pdf" | "docx" = "pdf") => {
+  const handleExport = async (format: "pdf" | "docx" = "pdf") => {
     if (!aiContent) return;
     const opts = {
       documentTitle: `DFD — ${form.objeto?.slice(0, 60) || form.secretaria || "Documento de Formalização da Demanda"}`,
@@ -529,7 +539,7 @@ export default function DFDGeneratorPage() {
       legalBasis: "Lei nº 14.133/2021 · Art. 12",
       sections: [{ title: "", isMarkdown: true, content: aiContent }],
     };
-    if (format === "docx") exportAsDocx(opts); else exportAsPdf(opts);
+    if (format === "docx") await exportAsDocx(opts); else exportAsPdf(opts);
   };
 
   const handleCopy = () => {

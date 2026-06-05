@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CreditCard, Check, Loader2, Tag, AlertTriangle } from "lucide-react";
+import { CreditCard, Check, Loader2, Tag, AlertTriangle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { sendEmail } from "@/lib/emailUtils";
 
 export default function BillingPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -16,6 +22,8 @@ export default function BillingPage() {
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState<any>(null);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -165,6 +173,34 @@ export default function BillingPage() {
     setChangingPlan(null);
   };
 
+  const handleCancelSubscription = async () => {
+    setCancelling(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setCancelling(false); return; }
+    const { error } = await supabase.from("subscriptions").update({
+      status: "cancelled" as any,
+      cancelled_at: new Date().toISOString(),
+    }).eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
+    } else {
+      const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).single();
+      setSubscription(subData);
+      const { data: profile } = await supabase.from("profiles").select("email").eq("id", user.id).single();
+      if (profile?.email) {
+        sendEmail(profile.email, "subscription_cancelled", {
+          accessUntil: subData?.trial_ends_at
+            ? new Date(subData.trial_ends_at).toLocaleDateString("pt-BR")
+            : "fim do período pago",
+          billingUrl: `${window.location.origin}/dashboard/billing`,
+        });
+      }
+      toast({ title: "Assinatura cancelada", description: "Seu acesso permanece até o fim do período pago." });
+    }
+    setCancelling(false);
+    setShowCancelDialog(false);
+  };
+
   const urlParams = new URLSearchParams(window.location.search);
   const isAccessExpired = urlParams.get("expired") === "1";
   const isBlocked =
@@ -299,6 +335,53 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      {/* Cancel subscription */}
+      {subscription?.status === "active" && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-destructive">Cancelar assinatura</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Você poderá usar a plataforma até o fim do período pago. Não há reembolso.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="border-destructive/40 text-destructive hover:bg-destructive/10 gap-2"
+              onClick={() => setShowCancelDialog(true)}>
+              <XCircle className="h-4 w-4" /> Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Cancelar assinatura
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm">
+              <p>Tem certeza que deseja cancelar sua assinatura?</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>Seu acesso continuará até o fim do período já pago</li>
+                <li><strong className="text-foreground">Não haverá reembolso</strong> proporcional do valor pago</li>
+                <li>Após o vencimento, sua conta será rebaixada para o plano gratuito</li>
+                <li>Todos os seus documentos serão mantidos</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter assinatura</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleCancelSubscription}
+              disabled={cancelling}>
+              {cancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar cancelamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Payment history */}
       <h2 className="text-lg font-bold mb-4">Histórico de Pagamentos</h2>

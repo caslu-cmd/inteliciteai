@@ -1,157 +1,161 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const CLICKSIGN_API = Deno.env.get("CLICKSIGN_API_URL") || "https://app.clicksign.com/api/v1";
+const CLICKSIGN_BASE = Deno.env.get("CLICKSIGN_BASE_URL") ?? "https://sandbox.clicksign.com/api/v1";
+const CLICKSIGN_TOKEN = Deno.env.get("CLICKSIGN_ACCESS_TOKEN") ?? "";
 
-Deno.serve(async (req: Request) => {
+async function clicksignRequest(path: string, method = "GET", body?: unknown) {
+  const url = `${CLICKSIGN_BASE}${path}?access_token=${CLICKSIGN_TOKEN}`;
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.errors?.join(", ") ?? `ClickSign ${res.status}`);
+  return data;
+}
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
+  if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: cors });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (claimsError || !claimsData?.claims) {
-    return new Response(JSON.stringify({ error: "Token inválido" }), {
-      status: 401, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-  const userId = claimsData.claims.sub as string;
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: cors });
 
-  const apiToken = Deno.env.get("CLICKSIGN_API_TOKEN");
-  if (!apiToken) {
-    return new Response(JSON.stringify({ error: "Clicksign não configurado. Adicione CLICKSIGN_API_TOKEN nos secrets." }), {
-      status: 503, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-
-  let body: any;
+  let body: Record<string, unknown>;
   try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ error: "JSON inválido" }), {
-      status: 400, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: cors });
   }
 
-  const { action, documentId, signerName, signerEmail, contentBase64, filename } = body;
+  const { action } = body;
 
   try {
-    if (action === "send") {
-      if (!signerName || !signerEmail || !contentBase64) {
-        return new Response(JSON.stringify({ error: "signerName, signerEmail e contentBase64 são obrigatórios" }), {
-          status: 400, headers: { ...cors, "Content-Type": "application/json" },
-        });
-      }
+    // ── Criar documento no ClickSign ─────────────────────────────
+    if (action === "create_document") {
+      const { documentId, pdfBase64, fileName, signerName, signerEmail, signerCpf } = body as {
+        documentId: string; pdfBase64: string; fileName: string;
+        signerName: string; signerEmail: string; signerCpf?: string;
+      };
 
-      // 1. Upload document
-      const docRes = await fetch(`${CLICKSIGN_API}/documents?access_token=${apiToken}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          document: {
-            path: `/${filename || "documento.pdf"}`,
-            content_base64: `data:application/pdf;base64,${contentBase64}`,
-            auto_close: true,
-          },
-        }),
+      // 1. Criar documento
+      const docRes = await clicksignRequest("/documents", "POST", {
+        document: {
+          path: `/${fileName}.pdf`,
+          content_base64: `data:application/pdf;base64,${pdfBase64}`,
+          deadline_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          auto_close: true,
+          locale: "pt-BR",
+          sequence_enabled: false,
+        },
       });
-      if (!docRes.ok) throw new Error(`Clicksign upload ${docRes.status}: ${await docRes.text()}`);
-      const docData = await docRes.json();
-      const clicksignKey = docData.document?.key;
+      const clicksignKey = docRes.document.key;
 
-      // 2. Create signer
-      const signerRes = await fetch(`${CLICKSIGN_API}/signers?access_token=${apiToken}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          signer: { email: signerEmail, name: signerName, auths: ["email"], delivery: "email" },
-        }),
+      // 2. Adicionar signatário
+      const signerRes = await clicksignRequest("/signers", "POST", {
+        signer: {
+          email: signerEmail,
+          phone_number: "",
+          auths: ["email"],
+          name: signerName,
+          documentation: signerCpf ?? "",
+          birthday: "",
+          has_documentation: !!signerCpf,
+        },
       });
-      if (!signerRes.ok) throw new Error(`Clicksign signer ${signerRes.status}: ${await signerRes.text()}`);
-      const signerData = await signerRes.json();
-      const signerKey = signerData.signer?.key;
+      const signerKey = signerRes.signer.key;
 
-      // 3. Add signer to document
-      await fetch(`${CLICKSIGN_API}/lists?access_token=${apiToken}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          list: { document_key: clicksignKey, signer_key: signerKey, sign_as: "sign" },
-        }),
+      // 3. Vincular signatário ao documento
+      await clicksignRequest("/lists", "POST", {
+        list: {
+          document_key: clicksignKey,
+          signer_key: signerKey,
+          sign_as: "sign",
+          message: "Por favor, assine o documento gerado pelo InteliCite AI.",
+        },
       });
 
-      // 4. Persist record
-      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data: sig, error: sigErr } = await admin.from("document_signatures").insert({
-        document_id: documentId ?? null,
-        user_id: userId,
+      // 4. Notificar signatário
+      await clicksignRequest("/notifications", "POST", {
+        message: {
+          document_key: clicksignKey,
+          signer_key: signerKey,
+          message: "Você recebeu um documento para assinatura via InteliCite AI.",
+        },
+      });
+
+      // 5. Salvar no banco
+      await supabase.from("document_signatures").insert({
+        document_id: documentId,
+        user_id: user.id,
         clicksign_key: clicksignKey,
         status: "sent",
         signer_name: signerName,
         signer_email: signerEmail,
-      }).select().single();
-      if (sigErr) console.error("[clicksign] persist error", sigErr);
-
-      return new Response(JSON.stringify({ ok: true, clicksign_key: clicksignKey, signature: sig }), {
-        headers: { ...cors, "Content-Type": "application/json" },
+        signer_cpf: signerCpf ?? null,
       });
+
+      // 6. Disparar webhook documento.sent
+      await supabase.functions.invoke("dispatch-webhook", {
+        body: {
+          userId: user.id,
+          event: "document.signed_request",
+          payload: { documentId, signerEmail, signerName, clicksignKey },
+        },
+      });
+
+      return new Response(JSON.stringify({ ok: true, clicksignKey }), { headers: cors });
     }
 
-    if (action === "status") {
-      const { clicksignKey } = body;
-      if (!clicksignKey) {
-        return new Response(JSON.stringify({ error: "clicksignKey obrigatório" }), {
-          status: 400, headers: { ...cors, "Content-Type": "application/json" },
+    // ── Consultar status ─────────────────────────────────────────
+    if (action === "get_status") {
+      const { signatureId } = body as { signatureId: string };
+      const { data: sig } = await supabase
+        .from("document_signatures")
+        .select("*")
+        .eq("id", signatureId)
+        .single();
+
+      if (!sig) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: cors });
+
+      const csDoc = await clicksignRequest(`/documents/${sig.clicksign_key}`);
+      const status = csDoc.document.status === "closed" ? "signed" : sig.status;
+
+      if (status === "signed" && sig.status !== "signed") {
+        await supabase.from("document_signatures").update({ status: "signed", signed_at: new Date().toISOString() }).eq("id", signatureId);
+        await supabase.functions.invoke("dispatch-webhook", {
+          body: { userId: user.id, event: "document.signed", payload: { documentId: sig.document_id } },
         });
       }
-      const res = await fetch(`${CLICKSIGN_API}/documents/${clicksignKey}?access_token=${apiToken}`, {
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) throw new Error(`Clicksign status ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+
+      return new Response(JSON.stringify({ status, document: csDoc.document }), { headers: cors });
     }
 
+    // ── Cancelar ─────────────────────────────────────────────────
     if (action === "cancel") {
-      const { clicksignKey } = body;
-      if (!clicksignKey) {
-        return new Response(JSON.stringify({ error: "clicksignKey obrigatório" }), {
-          status: 400, headers: { ...cors, "Content-Type": "application/json" },
-        });
-      }
-      await fetch(`${CLICKSIGN_API}/documents/${clicksignKey}/cancel?access_token=${apiToken}`, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await admin.from("document_signatures").update({ status: "cancelled" }).eq("clicksign_key", clicksignKey);
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      const { signatureId } = body as { signatureId: string };
+      const { data: sig } = await supabase.from("document_signatures").select("clicksign_key").eq("id", signatureId).single();
+      if (sig?.clicksign_key) await clicksignRequest(`/documents/${sig.clicksign_key}/cancel`, "PATCH");
+      await supabase.from("document_signatures").update({ status: "cancelled" }).eq("id", signatureId);
+      return new Response(JSON.stringify({ ok: true }), { headers: cors });
     }
 
-    return new Response(JSON.stringify({ error: "action inválida (send|status|cancel)" }), {
-      status: 400, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: cors });
+
   } catch (err) {
-    console.error("[clicksign]", err);
-    return new Response(JSON.stringify({ error: "Falha Clicksign", detail: String(err) }), {
-      status: 502, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    const msg = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: msg }), { status: 500, headers: cors });
   }
 });

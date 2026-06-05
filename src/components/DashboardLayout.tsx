@@ -3,13 +3,14 @@ import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
-  Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus,
+  Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus, Unlock,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIsAdmin } from "@/lib/adminAuth";
+import { useMunicipality } from "@/contexts/MunicipalityContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion, AnimatePresence } from "framer-motion";
 import CommandPalette from "@/components/CommandPalette";
@@ -52,6 +53,7 @@ const NAV = [
     label: "Conta",
     items: [
       { title: "Relatórios",      icon: BarChart3,  path: "/dashboard/reports" },
+      { title: "Módulos",          icon: Unlock,     path: "/dashboard/modulos" },
       { title: "Billing",         icon: CreditCard, path: "/dashboard/billing" },
       { title: "Configurações",   icon: Settings,   path: "/dashboard/settings" },
     ],
@@ -80,6 +82,7 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { orgao } = useMunicipality(); // órgão público do usuário (white label)
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -165,7 +168,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         style={{ borderColor: "hsl(var(--sidebar-border))" }}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
-          <img src={logoWhite} alt="Intelicite" className="h-full w-full object-contain" />
+          {orgao?.logo_url
+            ? <img src={orgao.logo_url} alt={orgao.name} className="h-full w-full object-contain" />
+            : <img src={logoWhite} alt="Intelicite" className="h-full w-full object-contain" />
+          }
         </div>
         <AnimatePresence>
           {!collapsed && (
@@ -176,13 +182,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               transition={{ duration: 0.2 }}
               className="overflow-hidden whitespace-nowrap"
             >
-              <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                Intelicite
-              </span>
-              <span className="ml-1 text-[10px] font-semibold px-1 py-0.5 rounded"
-                style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
-                AI
-              </span>
+              {orgao ? (
+                <div>
+                  <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
+                    {orgao.name}
+                  </span>
+                  <p className="text-[9px] text-muted-foreground leading-none mt-0.5">
+                    {orgao.state} · InteliCite AI
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
+                    Intelicite
+                  </span>
+                  <span className="ml-1 text-[10px] font-semibold px-1 py-0.5 rounded"
+                    style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
+                    AI
+                  </span>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

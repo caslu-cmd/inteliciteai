@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MunicipalityProvider } from "@/contexts/MunicipalityContext";
+import { ModuleGuard } from "@/components/ModuleGuard";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -19,6 +21,7 @@ import ValidatorPage from "./pages/ValidatorPage";
 import QuotationPage from "./pages/QuotationPage";
 import AdminPage from "./pages/AdminPage";
 import BillingPage from "./pages/BillingPage";
+import ModulesPage from "./pages/ModulesPage";
 import PlanActivatedPage from "./pages/PlanActivatedPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -62,6 +65,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <MunicipalityProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -78,35 +82,47 @@ const App = () => (
 
           {/* Protected — Gestor */}
           <Route path="/dashboard" element={<DashboardRoute><DashboardHome /></DashboardRoute>} />
-          <Route path="/dashboard/chat" element={<DashboardRoute><ChatPage /></DashboardRoute>} />
+          {/* Módulo Consulta */}
+          <Route path="/dashboard/chat" element={<DashboardRoute><ModuleGuard module="consulta"><ChatPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/notebook" element={<DashboardRoute><ModuleGuard module="consulta"><NotebookPage /></ModuleGuard></DashboardRoute>} />
+
+          {/* Módulo Análise */}
+          <Route path="/dashboard/dfd" element={<DashboardRoute><ModuleGuard module="analise"><DFDGeneratorPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/etp" element={<DashboardRoute><ModuleGuard module="analise"><ETPGeneratorPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/tr" element={<DashboardRoute><ModuleGuard module="analise"><TRGeneratorPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/quotation" element={<DashboardRoute><ModuleGuard module="analise"><QuotationPage /></ModuleGuard></DashboardRoute>} />
+
+          {/* Módulo Conformidade */}
+          <Route path="/dashboard/checklist" element={<DashboardRoute><ModuleGuard module="conformidade"><ChecklistPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/diagnostic" element={<DashboardRoute><ModuleGuard module="conformidade"><DiagnosticPage /></ModuleGuard></DashboardRoute>} />
+          <Route path="/dashboard/validator" element={<DashboardRoute><ModuleGuard module="conformidade"><ValidatorPage /></ModuleGuard></DashboardRoute>} />
+
+          {/* Livre — sem módulo */}
           <Route path="/dashboard/documents" element={<DashboardRoute><DocumentsPage /></DashboardRoute>} />
-          <Route path="/dashboard/dfd" element={<DashboardRoute><DFDGeneratorPage /></DashboardRoute>} />
-          <Route path="/dashboard/etp" element={<DashboardRoute><ETPGeneratorPage /></DashboardRoute>} />
-          <Route path="/dashboard/tr" element={<DashboardRoute><TRGeneratorPage /></DashboardRoute>} />
-          <Route path="/dashboard/checklist" element={<DashboardRoute><ChecklistPage /></DashboardRoute>} />
-          <Route path="/dashboard/diagnostic" element={<DashboardRoute><DiagnosticPage /></DashboardRoute>} />
-          <Route path="/dashboard/validator" element={<DashboardRoute><ValidatorPage /></DashboardRoute>} />
-          <Route path="/dashboard/quotation" element={<DashboardRoute><QuotationPage /></DashboardRoute>} />
           <Route path="/dashboard/reports" element={<DashboardRoute><ReportsPage /></DashboardRoute>} />
-          <Route path="/dashboard/notebook" element={<DashboardRoute><NotebookPage /></DashboardRoute>} />
           <Route path="/dashboard/billing" element={<DashboardRoute><BillingPage /></DashboardRoute>} />
+          <Route path="/dashboard/modulos" element={<DashboardRoute><ModulesPage /></DashboardRoute>} />
           <Route path="/dashboard/plano-ativado" element={<DashboardRoute><PlanActivatedPage /></DashboardRoute>} />
           <Route path="/dashboard/settings" element={<DashboardRoute><SettingsPage /></DashboardRoute>} />
           <Route path="/dashboard/publicar-projeto" element={<DashboardRoute><PublishProjectPage /></DashboardRoute>} />
           <Route path="/dashboard/meus-projetos" element={<DashboardRoute><MyProjectsPage /></DashboardRoute>} />
 
           {/* Protected — Licitante */}
-          <Route path="/licitante"               element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
-          <Route path="/licitante/radar"         element={<ProtectedRoute><RadarPage /></ProtectedRoute>} />
-          <Route path="/licitante/analises"      element={<ProtectedRoute><AnalisesPage /></ProtectedRoute>} />
-          <Route path="/licitante/scanner"       element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
-          <Route path="/licitante/habilitacao"   element={<ProtectedRoute><HabilitacaoPage /></ProtectedRoute>} />
-          <Route path="/licitante/documentos"    element={<ProtectedRoute><DocumentosLicitantePage /></ProtectedRoute>} />
-          <Route path="/licitante/minutas"       element={<ProtectedRoute><MinutasPage /></ProtectedRoute>} />
-          <Route path="/licitante/assistente"    element={<ProtectedRoute><AssistenteLicitantePage /></ProtectedRoute>} />
-          <Route path="/licitante/relatorios"    element={<ProtectedRoute><RelatoriosLicitantePage /></ProtectedRoute>} />
-          <Route path="/licitante/precificacao"  element={<ProtectedRoute><PrecificacaoPage /></ProtectedRoute>} />
-          <Route path="/licitante/contratos"     element={<ProtectedRoute><ContratosPage /></ProtectedRoute>} />
+          <Route path="/licitante" element={<ProtectedRoute><LicitantePage /></ProtectedRoute>} />
+          {/* Análise */}
+          <Route path="/licitante/radar"        element={<ProtectedRoute><ModuleGuard module="analise"><RadarPage /></ModuleGuard></ProtectedRoute>} />
+          <Route path="/licitante/analises"     element={<ProtectedRoute><ModuleGuard module="analise"><AnalisesPage /></ModuleGuard></ProtectedRoute>} />
+          <Route path="/licitante/scanner"      element={<ProtectedRoute><ModuleGuard module="analise"><ScannerPage /></ModuleGuard></ProtectedRoute>} />
+          <Route path="/licitante/precificacao" element={<ProtectedRoute><ModuleGuard module="analise"><PrecificacaoPage /></ModuleGuard></ProtectedRoute>} />
+          {/* Consulta */}
+          <Route path="/licitante/minutas"      element={<ProtectedRoute><ModuleGuard module="consulta"><MinutasPage /></ModuleGuard></ProtectedRoute>} />
+          <Route path="/licitante/assistente"   element={<ProtectedRoute><ModuleGuard module="consulta"><AssistenteLicitantePage /></ModuleGuard></ProtectedRoute>} />
+          {/* Conformidade */}
+          <Route path="/licitante/habilitacao"  element={<ProtectedRoute><ModuleGuard module="conformidade"><HabilitacaoPage /></ModuleGuard></ProtectedRoute>} />
+          {/* Livre */}
+          <Route path="/licitante/documentos"   element={<ProtectedRoute><DocumentosLicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/relatorios"   element={<ProtectedRoute><RelatoriosLicitantePage /></ProtectedRoute>} />
+          <Route path="/licitante/contratos"    element={<ProtectedRoute><ContratosPage /></ProtectedRoute>} />
 
           {/* Protected — Consultor */}
           <Route path="/consultor" element={<ProtectedRoute><ConsultorPage /></ProtectedRoute>} />
@@ -117,6 +133,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </MunicipalityProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -1,110 +1,85 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function hmacSha256Hex(secret: string, message: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+function hmacSignature(secret: string, body: string): Promise<string> {
+  const encoder = new TextEncoder();
+  return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+    .then(key => crypto.subtle.sign("HMAC", key, encoder.encode(body)))
+    .then(sig => Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join(""));
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-
-  const userClient = createClient(
+  const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (claimsError || !claimsData?.claims) {
-    return new Response(JSON.stringify({ error: "Token inválido" }), {
-      status: 401, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-  const userId = claimsData.claims.sub as string;
-
-  let body: any;
+  let body: { userId: string; event: string; payload: Record<string, unknown> };
   try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ error: "JSON inválido" }), {
-      status: 400, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: cors });
   }
 
-  const { event, payload, webhookConfigId } = body;
-  if (!event || !payload) {
-    return new Response(JSON.stringify({ error: "event e payload são obrigatórios" }), {
-      status: 400, headers: { ...cors, "Content-Type": "application/json" },
-    });
+  const { userId, event, payload } = body;
+
+  // Buscar webhooks ativos do usuário para este evento
+  const { data: configs } = await supabase
+    .from("webhook_configs")
+    .select("id, url, secret")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .contains("events", [event]);
+
+  if (!configs || configs.length === 0) {
+    return new Response(JSON.stringify({ dispatched: 0 }), { headers: cors });
   }
 
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-  // Find matching configs (specific id or all user configs containing this event)
-  const q = admin.from("webhook_configs").select("*").eq("user_id", userId).eq("active", true);
-  const { data: configs, error: cfgErr } = webhookConfigId ? await q.eq("id", webhookConfigId) : await q;
-  if (cfgErr) {
-    return new Response(JSON.stringify({ error: "Falha ao buscar webhooks", detail: cfgErr.message }), {
-      status: 500, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-
-  const targets = (configs || []).filter(c => !Array.isArray(c.events) || c.events.length === 0 || c.events.includes(event));
-  const results: any[] = [];
-
-  for (const cfg of targets) {
-    const bodyStr = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
-    const signature = cfg.secret ? await hmacSha256Hex(cfg.secret, bodyStr) : null;
-
-    let status = 0;
-    let respText = "";
-    let errMsg: string | null = null;
-    try {
-      const res = await fetch(cfg.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Webhook-Event": event,
-          ...(signature ? { "X-Webhook-Signature": `sha256=${signature}` } : {}),
-        },
-        body: bodyStr,
+  const dispatched = await Promise.all(
+    configs.map(async (cfg: { id: string; url: string; secret: string | null }) => {
+      const webhookBody = JSON.stringify({
+        event,
+        timestamp: new Date().toISOString(),
+        data: payload,
       });
-      status = res.status;
-      respText = (await res.text()).slice(0, 2000);
-    } catch (e) {
-      errMsg = String(e);
-    }
 
-    await admin.from("webhook_logs").insert({
-      webhook_config_id: cfg.id,
-      event,
-      payload,
-      response_status: status,
-      error: errMsg || (status >= 400 ? respText : null),
-    });
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": "InteliCite-Webhook/1.0",
+        "X-InteliCite-Event": event,
+      };
 
-    results.push({ webhook_id: cfg.id, url: cfg.url, status, error: errMsg });
-  }
+      if (cfg.secret) {
+        headers["X-InteliCite-Signature"] = `sha256=${await hmacSignature(cfg.secret, webhookBody)}`;
+      }
 
-  return new Response(JSON.stringify({ ok: true, dispatched: results.length, results }), {
-    headers: { ...cors, "Content-Type": "application/json" },
-  });
+      let responseStatus: number | null = null;
+      let error: string | null = null;
+
+      try {
+        const res = await fetch(cfg.url, { method: "POST", headers, body: webhookBody, signal: AbortSignal.timeout(10000) });
+        responseStatus = res.status;
+      } catch (err) {
+        error = err instanceof Error ? err.message : "Fetch failed";
+      }
+
+      // Registrar log
+      await supabase.from("webhook_logs").insert({
+        webhook_config_id: cfg.id,
+        event,
+        payload,
+        response_status: responseStatus,
+        error,
+      });
+
+      return { url: cfg.url, status: responseStatus, error };
+    })
+  );
+
+  return new Response(JSON.stringify({ dispatched: dispatched.length, results: dispatched }), { headers: cors });
 });

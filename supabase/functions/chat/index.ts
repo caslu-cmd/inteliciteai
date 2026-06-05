@@ -1,5 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+const RETRY_DELAYS = [1000, 2000, 4000];
+const RETRYABLE = new Set([429, 500, 502, 503, 504, 529]);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,91 +11,135 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+const SYSTEM = `Você é um consultor jurídico sênior especializado em licitações e contratos públicos brasileiros, com profundo domínio da Lei nº 14.133/2021 (Nova Lei de Licitações e Contratos), suas regulamentações, doutrina e jurisprudência administrativa.
+
+Capacidades:
+- Responder dúvidas jurídicas sobre licitações, contratos, modalidades e fases do processo
+- Analisar situações concretas à luz da Lei 14.133/2021 e normas correlatas
+- Orientar sobre elaboração de ETP, TR, DFD, editais e contratos
+- Identificar riscos jurídicos e irregularidades em editais e contratos
+- Citar acórdãos do TCU, decisões do STJ e AGU quando pertinentes
+- Esclarecer sobre modalidades (Pregão, Concorrência, Dispensa, Inexigibilidade etc.)
+
+REGRAS DE CITAÇÃO (OBRIGATÓRIO):
+Toda resposta que envolva fundamento legal DEVE incluir ao final um bloco:
+
+---
+📌 **Fontes e Fundamentos:**
+• [Artigo X, §Y, inciso Z] — Lei 14.133/2021
+• [IN SEGES/ME nº XX/XXXX] (se aplicável)
+• [Acórdão TCU XXXX/XXXX-Plenário] (se pertinente)
+• [Súmula TCU nº XX] (se aplicável)
+---
+
+IMPORTANTE:
+- Cite apenas dispositivos reais e verificáveis
+- Nunca invente artigos, acórdãos ou datas de normas
+- Se não souber uma referência exata, indique "verificar na fonte oficial"
+- Use markdown para formatação clara
+- Responda em português brasileiro formal`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(
+      JSON.stringify({ error: "Autenticação necessária." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
-  try {
-    // Authenticate user
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Autenticação necessária." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (authErr || !user) {
+    return new Response(
+      JSON.stringify({ error: "Token inválido ou expirado." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+  }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: "Serviço de IA não configurado." }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let body: { messages: { role: string; content: string }[] };
+  try { body = await req.json(); } catch {
+    return new Response(JSON.stringify({ error: "JSON inválido" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { messages } = body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return new Response(JSON.stringify({ error: "messages é obrigatório" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Tenta com retry para SSE streaming
+  let lastErr = "";
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+
+    let res: Response;
+    try {
+      res = await fetch(ANTHROPIC_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-opus-4-8",
+          max_tokens: 4096,
+          system: SYSTEM,
+          stream: true,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+    } catch (err) {
+      lastErr = String(err);
+      continue;
+    }
+
+    if (RETRYABLE.has(res.status)) {
+      lastErr = `Claude ${res.status}`;
+      continue;
+    }
+
+    if (res.status === 429) {
       return new Response(
-        JSON.stringify({ error: "Token inválido ou expirado." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um assistente jurídico especializado em licitações públicas e na Lei nº 14.133/2021 (Lei de Licitações e Contratos Administrativos do Brasil). 
-Responda sempre em português do Brasil, de forma clara, objetiva e fundamentada nos artigos da lei. 
-Quando relevante, cite os artigos específicos da Lei 14.133/2021.
-Ajude com: elaboração de ETP, Termos de Referência, análise de editais, diagnósticos de modalidade, checklists de conformidade e dúvidas gerais sobre licitações.`,
-          },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos de IA esgotados. Entre em contato com o suporte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+    if (!res.ok) {
+      const t = await res.text();
       return new Response(
         JSON.stringify({ error: "Erro no serviço de IA. Tente novamente." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    return new Response(res.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
-  } catch (e) {
-    console.error("chat error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   }
+
+  return new Response(
+    JSON.stringify({ error: lastErr || "Erro desconhecido após tentativas" }),
+    { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 });

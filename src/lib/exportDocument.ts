@@ -1,3 +1,10 @@
+import {
+  Document, Packer, Paragraph, TextRun, HeadingLevel,
+  AlignmentType, BorderStyle, Table, TableRow, TableCell,
+  WidthType, ShadingType, Header, Footer, PageNumber,
+  NumberFormat, convertInchesToTwip,
+} from "docx";
+
 interface ExportSection {
   title: string;
   content: string;
@@ -9,11 +16,248 @@ interface ExportOptions {
   orgao?: string;
   legalBasis?: string;
   sections: ExportSection[];
-  format: "pdf" | "docx";
 }
 
-// ── Markdown → HTML (handles Claude's ETP/TR output) ──────────
-function inlineMarkdown(text: string): string {
+// ── Remove citation blocks before export (kept only during streaming preview) ─
+function stripCitationBlocks(md: string): string {
+  return md
+    .split("\n")
+    .filter(line => !line.trimStart().startsWith("> 📌"))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// ── Markdown parser → docx Paragraphs ────────────────────────────────────────
+
+function stripInlineMarkdown(text: string): string {
+  return text
+    .replace(/\*\*\*(.+?)\*\*\*/g, "$1")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1");
+}
+
+function parseInline(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    if (m[2]) runs.push(new TextRun({ text: m[2], bold: true, italics: true }));
+    else if (m[3]) runs.push(new TextRun({ text: m[3], bold: true }));
+    else if (m[4]) runs.push(new TextRun({ text: m[4], italics: true }));
+    else if (m[5]) runs.push(new TextRun({ text: m[5], font: "Courier New", size: 18 }));
+    else if (m[6]) runs.push(new TextRun({ text: m[6] }));
+  }
+  return runs.length ? runs : [new TextRun({ text })];
+}
+
+function markdownToParagraphs(md: string): Paragraph[] {
+  const lines = md.split("\n");
+  const paragraphs: Paragraph[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trimEnd();
+
+    // Headings
+    const h4 = line.match(/^#{4} (.+)/);
+    const h3 = line.match(/^#{3} (.+)/);
+    const h2 = line.match(/^#{2} (.+)/);
+    const h1 = line.match(/^# (.+)/);
+
+    if (h1) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: stripInlineMarkdown(h1[1]), bold: true })] }));
+    } else if (h2) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: stripInlineMarkdown(h2[1]), bold: true })] }));
+    } else if (h3) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text: stripInlineMarkdown(h3[1]) })] }));
+    } else if (h4) {
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: stripInlineMarkdown(h4[1]) })] }));
+    }
+    // Horizontal rule
+    else if (/^---+$|^\*\*\*+$/.test(line)) {
+      paragraphs.push(new Paragraph({
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "C9A84C" } },
+        children: [],
+      }));
+    }
+    // Bullet list
+    else if (/^(\s*)[-*+] (.+)/.test(line)) {
+      const m = line.match(/^(\s*)[-*+] (.+)/)!;
+      const level = Math.floor(m[1].length / 2);
+      paragraphs.push(new Paragraph({
+        bullet: { level },
+        children: parseInline(m[2]),
+      }));
+    }
+    // Numbered list
+    else if (/^(\s*)\d+\. (.+)/.test(line)) {
+      const m = line.match(/^(\s*)\d+\. (.+)/)!;
+      paragraphs.push(new Paragraph({
+        numbering: { reference: "intelicite-numbering", level: 0 },
+        children: parseInline(m[2]),
+      }));
+    }
+    // Empty line
+    else if (line.trim() === "") {
+      paragraphs.push(new Paragraph({ children: [] }));
+    }
+    // Normal paragraph
+    else {
+      paragraphs.push(new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        children: parseInline(line),
+        spacing: { after: 120 },
+      }));
+    }
+
+    i++;
+  }
+
+  return paragraphs;
+}
+
+// ── Build DOCX document ───────────────────────────────────────────────────────
+
+function buildSectionTitle(title: string): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({ text: title.toUpperCase(), bold: true, color: "7A5C00", size: 20 })],
+    border: { left: { style: BorderStyle.THICK, size: 16, color: "C9A84C" } },
+    indent: { left: convertInchesToTwip(0.1) },
+    spacing: { before: 280, after: 120 },
+  });
+}
+
+function buildHeaderTable(title: string, orgao?: string, legalBasis?: string): Table {
+  const cells = [
+    new TableCell({
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: title.toUpperCase(), bold: true, size: 28, color: "1A1A1A" })],
+          spacing: { after: 80 },
+        }),
+        ...(orgao ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orgao, size: 20, color: "555555" })], spacing: { after: 60 } })] : []),
+        ...(legalBasis ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: legalBasis, size: 18, color: "7A5C00", bold: true })] })] : []),
+      ],
+      shading: { type: ShadingType.SOLID, color: "FDF8EE" },
+      borders: {
+        bottom: { style: BorderStyle.THICK, size: 16, color: "C9A84C" },
+        top: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+      },
+    }),
+  ];
+
+  return new Table({
+    rows: [new TableRow({ children: cells })],
+    width: { size: 100, type: WidthType.PERCENTAGE },
+  });
+}
+
+async function buildDocx(options: ExportOptions): Promise<Blob> {
+  const bodyChildren: (Paragraph | Table)[] = [
+    buildHeaderTable(options.documentTitle, options.orgao, options.legalBasis),
+    new Paragraph({ children: [] }),
+  ];
+
+  for (const section of options.sections) {
+    if (!section.content.trim()) continue;
+
+    if (section.title) {
+      bodyChildren.push(buildSectionTitle(section.title));
+    }
+
+    const cleanContent = stripCitationBlocks(section.content);
+    const useMarkdown = section.isMarkdown !== false && /[#*`]/.test(cleanContent);
+    const sectionParagraphs = useMarkdown
+      ? markdownToParagraphs(cleanContent)
+      : cleanContent.split("\n").map(line =>
+          new Paragraph({ alignment: AlignmentType.JUSTIFIED, children: [new TextRun({ text: line })], spacing: { after: 100 } })
+        );
+
+    bodyChildren.push(...sectionParagraphs);
+  }
+
+  const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  bodyChildren.push(
+    new Paragraph({ children: [] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `Documento gerado por InteliCite AI — ${today}`, size: 16, color: "888888", italics: true })],
+      border: { top: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD" } },
+      spacing: { before: 400 },
+    }),
+  );
+
+  const doc = new Document({
+    numbering: {
+      config: [{
+        reference: "intelicite-numbering",
+        levels: [{ level: 0, format: NumberFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 720, hanging: 360 } } } }],
+      }],
+    },
+    styles: {
+      default: {
+        document: { run: { font: "Times New Roman", size: 24 } },
+      },
+      paragraphStyles: [
+        { id: "Heading1", name: "Heading 1", run: { bold: true, size: 28, color: "1A1A1A" }, paragraph: { spacing: { before: 320, after: 160 } } },
+        { id: "Heading2", name: "Heading 2", run: { bold: true, size: 24, color: "333333" }, paragraph: { spacing: { before: 240, after: 120 } } },
+        { id: "Heading3", name: "Heading 3", run: { bold: true, size: 22, color: "555555" }, paragraph: { spacing: { before: 200, after: 80 } } },
+        { id: "Heading4", name: "Heading 4", run: { bold: true, italics: true, size: 22, color: "666666" }, paragraph: { spacing: { before: 160, after: 60 } } },
+      ],
+    },
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: convertInchesToTwip(1), bottom: convertInchesToTwip(1), left: convertInchesToTwip(1.25), right: convertInchesToTwip(1) },
+        },
+      },
+      headers: {
+        default: new Header({
+          children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({ text: options.documentTitle, size: 16, color: "888888" })],
+            border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD" } },
+          })],
+        }),
+      },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: "Página ", size: 16, color: "888888" }),
+              new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "888888" }),
+              new TextRun({ text: " de ", size: 16, color: "888888" }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: "888888" }),
+            ],
+          })],
+        }),
+      },
+      children: bodyChildren,
+    }],
+  });
+
+  return Packer.toBlob(doc);
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export async function exportAsDocx(options: ExportOptions): Promise<void> {
+  const blob = await buildDocx(options);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${options.documentTitle.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_")}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── HTML/PDF export (unchanged) ───────────────────────────────────────────────
+
+function inlineMarkdownToHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
@@ -26,52 +270,35 @@ function markdownToHtml(md: string): string {
   const lines = md.split("\n");
   const out: string[] = [];
   let listType = "";
-
-  const closeList = () => {
-    if (listType) { out.push(`</${listType}>`); listType = ""; }
-  };
+  const closeList = () => { if (listType) { out.push(`</${listType}>`); listType = ""; } };
 
   for (const raw of lines) {
     const line = raw.trimEnd();
-
-    if (/^#{1} (.+)/.test(line)) { closeList(); out.push(`<h1>${inlineMarkdown(line.replace(/^# /, ""))}</h1>`); continue; }
-    if (/^#{2} (.+)/.test(line)) { closeList(); out.push(`<h2>${inlineMarkdown(line.replace(/^## /, ""))}</h2>`); continue; }
-    if (/^#{3} (.+)/.test(line)) { closeList(); out.push(`<h3>${inlineMarkdown(line.replace(/^### /, ""))}</h3>`); continue; }
-    if (/^#{4} (.+)/.test(line)) { closeList(); out.push(`<h4>${inlineMarkdown(line.replace(/^#### /, ""))}</h4>`); continue; }
-
-    if (/^---+$/.test(line) || /^\*\*\*+$/.test(line)) { closeList(); out.push("<hr>"); continue; }
-
-    const bulletMatch = line.match(/^(\s*)[-*+] (.+)/);
-    if (bulletMatch) {
-      if (listType !== "ul") { closeList(); out.push("<ul>"); listType = "ul"; }
-      out.push(`<li>${inlineMarkdown(bulletMatch[2])}</li>`);
-      continue;
-    }
-
-    const numMatch = line.match(/^(\s*)\d+\. (.+)/);
-    if (numMatch) {
-      if (listType !== "ol") { closeList(); out.push("<ol>"); listType = "ol"; }
-      out.push(`<li>${inlineMarkdown(numMatch[2])}</li>`);
-      continue;
-    }
-
+    if (/^# (.+)/.test(line))   { closeList(); out.push(`<h1>${inlineMarkdownToHtml(line.replace(/^# /, ""))}</h1>`); continue; }
+    if (/^## (.+)/.test(line))  { closeList(); out.push(`<h2>${inlineMarkdownToHtml(line.replace(/^## /, ""))}</h2>`); continue; }
+    if (/^### (.+)/.test(line)) { closeList(); out.push(`<h3>${inlineMarkdownToHtml(line.replace(/^### /, ""))}</h3>`); continue; }
+    if (/^#### (.+)/.test(line)){ closeList(); out.push(`<h4>${inlineMarkdownToHtml(line.replace(/^#### /, ""))}</h4>`); continue; }
+    if (/^---+$|^\*\*\*+$/.test(line)) { closeList(); out.push("<hr>"); continue; }
+    const bullet = line.match(/^(\s*)[-*+] (.+)/);
+    if (bullet) { if (listType !== "ul") { closeList(); out.push("<ul>"); listType = "ul"; } out.push(`<li>${inlineMarkdownToHtml(bullet[2])}</li>`); continue; }
+    const num = line.match(/^(\s*)\d+\. (.+)/);
+    if (num) { if (listType !== "ol") { closeList(); out.push("<ol>"); listType = "ol"; } out.push(`<li>${inlineMarkdownToHtml(num[2])}</li>`); continue; }
     if (line.trim() === "") { closeList(); out.push(""); continue; }
-
     closeList();
-    out.push(`<p>${inlineMarkdown(line)}</p>`);
+    out.push(`<p>${inlineMarkdownToHtml(line)}</p>`);
   }
-
   closeList();
   return out.join("\n");
 }
 
 function buildHtml(options: ExportOptions): string {
   const sectionsHtml = options.sections
-    .filter((s) => s.content.trim())
-    .map((s) => {
-      const body = s.isMarkdown !== false && /[#*`]/.test(s.content)
-        ? markdownToHtml(s.content)
-        : `<p style="white-space:pre-wrap;">${s.content.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>`;
+    .filter(s => s.content.trim())
+    .map(s => {
+      const cleanContent = stripCitationBlocks(s.content);
+      const body = s.isMarkdown !== false && /[#*`]/.test(cleanContent)
+        ? markdownToHtml(cleanContent)
+        : `<p style="white-space:pre-wrap;">${cleanContent.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>`;
       return `<section>${s.title ? `<div class="sec-title">${s.title}</div>` : ""}${body}</section>`;
     })
     .join("\n");
@@ -118,26 +345,12 @@ function buildHtml(options: ExportOptions): string {
 </body></html>`;
 }
 
-export function exportAsPdf(options: Omit<ExportOptions, "format">) {
-  const html = buildHtml({ ...options, format: "pdf" });
+export function exportAsPdf(options: ExportOptions) {
+  const html = buildHtml(options);
   const win = window.open("", "_blank");
   if (!win) { alert("Permita pop-ups para exportar o PDF."); return; }
   win.document.write(html);
   win.document.close();
-}
-
-export function exportAsDocx(options: Omit<ExportOptions, "format">) {
-  const html = buildHtml({ ...options, format: "docx" });
-  const blob = new Blob(
-    [`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset="utf-8"><title>${options.documentTitle}</title></head><body>${html}</body></html>`],
-    { type: "application/msword" }
-  );
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${options.documentTitle.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_")}.doc`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function exportChecklist(
@@ -146,12 +359,12 @@ export function exportChecklist(
   checked: Set<string>
 ) {
   const tipoLabel = tipo === "bens" ? "Aquisição de Bens" : tipo === "servicos" ? "Prestação de Serviços" : "Obras e Engenharia";
-  const categories = [...new Set(items.map((i) => i.category))];
-  const sections = categories.map((cat) => ({
+  const categories = [...new Set(items.map(i => i.category))];
+  const sections = categories.map(cat => ({
     title: cat,
     isMarkdown: false,
     content: items
-      .filter((i) => i.category === cat)
+      .filter(i => i.category === cat)
       .map((item, idx) => `${checked.has(item.id ?? String(idx)) ? "✅" : "⬜"} ${item.text}${item.required ? " (Obrigatório)" : ""}`)
       .join("\n"),
   }));
@@ -162,16 +375,16 @@ export function exportValidatorReport(
   findings: { severity: string; title: string; description: string; article: string }[]
 ) {
   const grouped = {
-    alta: findings.filter((f) => f.severity === "alta"),
-    media: findings.filter((f) => f.severity === "media"),
-    baixa: findings.filter((f) => f.severity === "baixa"),
+    alta: findings.filter(f => f.severity === "alta"),
+    media: findings.filter(f => f.severity === "media"),
+    baixa: findings.filter(f => f.severity === "baixa"),
   };
   exportAsPdf({
     documentTitle: "Relatório de Validação de Edital",
     legalBasis: "Lei 14.133/2021",
     sections: [
       { title: "Resumo", isMarkdown: false, content: `Total de achados: ${findings.length}\nRisco Alto: ${grouped.alta.length}\nRisco Médio: ${grouped.media.length}\nRisco Baixo: ${grouped.baixa.length}` },
-      ...findings.map((f) => ({ title: `[${f.severity.toUpperCase()}] ${f.title}`, isMarkdown: false, content: `${f.description}\nFundamento: ${f.article}` })),
+      ...findings.map(f => ({ title: `[${f.severity.toUpperCase()}] ${f.title}`, isMarkdown: false, content: `${f.description}\nFundamento: ${f.article}` })),
     ],
   });
 }
@@ -187,7 +400,7 @@ export function exportQuotation(
   exportAsPdf({
     documentTitle: "Proposta Comercial",
     sections: [
-      { title: "Itens da Proposta", isMarkdown: false, content: items.filter((i) => i.descricao).map((i) => `${i.descricao} — Qtd: ${i.quantidade} × ${fmt(i.valorUnitario)} = ${fmt(i.quantidade * i.valorUnitario)}`).join("\n") },
+      { title: "Itens da Proposta", isMarkdown: false, content: items.filter(i => i.descricao).map(i => `${i.descricao} — Qtd: ${i.quantidade} × ${fmt(i.valorUnitario)} = ${fmt(i.quantidade * i.valorUnitario)}`).join("\n") },
       { title: "Resumo Financeiro", isMarkdown: false, content: `Subtotal: ${fmt(subtotal)}\nMargem (${margem}%): ${fmt(subtotal * (parseFloat(margem) / 100))}\nImpostos (${impostos}%): ${fmt((subtotal + subtotal * (parseFloat(margem) / 100)) * (parseFloat(impostos) / 100))}\n\nTOTAL: ${fmt(total)}` },
     ],
   });
@@ -201,8 +414,8 @@ export function exportDiagnostic(result: {
     legalBasis: "Lei 14.133/2021",
     sections: [
       { title: "Modalidade Recomendada", isMarkdown: false, content: `${result.modalidade}\n${result.fundamento}\n\n${result.descricao}` },
-      { title: "Alertas", isMarkdown: false, content: result.alertas.map((a) => `⚠ ${a}`).join("\n") },
-      { title: "Recomendações", isMarkdown: false, content: result.recomendacoes.map((r) => `✓ ${r}`).join("\n") },
+      { title: "Alertas", isMarkdown: false, content: result.alertas.map(a => `⚠ ${a}`).join("\n") },
+      { title: "Recomendações", isMarkdown: false, content: result.recomendacoes.map(r => `✓ ${r}`).join("\n") },
     ],
   });
 }

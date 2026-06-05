@@ -992,6 +992,10 @@ export default function ETPGeneratorPage() {
     setAiContent("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const { getFullContext } = await import("@/lib/orgaoUtils");
+      const municipalityContext = await getFullContext(
+        `estudo técnico preliminar ${form.descricaoItens || form.descricaoNecessidade || form.orgao || ""}`
+      ).catch(() => "");
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document`, {
         method: "POST",
         headers: {
@@ -999,7 +1003,7 @@ export default function ETPGeneratorPage() {
           Authorization: `Bearer ${session?.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ tipo: "etp", formData: form, stream: true }),
+        body: JSON.stringify({ tipo: "etp", formData: { ...form, municipalityContext }, stream: true }),
       });
       if (!res.ok) throw new Error("Falha");
       const reader = res.body?.getReader();
@@ -1063,12 +1067,18 @@ export default function ETPGeneratorPage() {
           }))
         );
       }
+      if (saved) {
+        const { dispatchWebhook } = await import("@/lib/webhookUtils");
+        const { indexDocumentMemory } = await import("@/lib/orgaoUtils");
+        dispatchWebhook("document.created", { documentId: saved.id, tipo: "etp", orgao: form.orgao });
+        indexDocumentMemory(saved.id, "etp", aiContent);
+      }
       toast.success("ETP salvo com sucesso!");
     } catch { toast.error("Erro ao salvar. Tente novamente."); }
     finally { setSaving(false); }
   };
 
-  const handleExport = (format: "pdf" | "docx" = "pdf") => {
+  const handleExport = async (format: "pdf" | "docx" = "pdf") => {
     if (!aiContent) return;
     const opts = {
       documentTitle: `ETP — ${form.descricaoItens?.slice(0, 60) || form.orgao || "Estudo Técnico Preliminar"}`,
@@ -1076,7 +1086,7 @@ export default function ETPGeneratorPage() {
       legalBasis: "Lei nº 14.133/2021 · Art. 18, §1º",
       sections: [{ title: "", isMarkdown: true, content: aiContent }],
     };
-    if (format === "docx") exportAsDocx(opts);
+    if (format === "docx") await exportAsDocx(opts);
     else exportAsPdf(opts);
   };
 

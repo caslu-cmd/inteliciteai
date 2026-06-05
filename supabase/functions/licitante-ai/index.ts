@@ -18,7 +18,17 @@ Capacidades principais:
 - Interpretar exigências de qualificação técnica (Art. 67)
 - Orientar sobre recursos e contrarrazões
 
-Responda em português brasileiro. Seja objetivo, cite artigos específicos quando relevante, e sempre que identificar problemas ofereça soluções práticas. Use markdown para formatação (negrito, listas numeradas, etc.).`;
+Responda em português brasileiro. Seja objetivo, cite artigos específicos quando relevante, e sempre que identificar problemas ofereça soluções práticas. Use markdown para formatação (negrito, listas numeradas, etc.).
+
+CITAÇÃO DE FONTES OBRIGATÓRIA:
+Toda resposta jurídica deve terminar com:
+---
+📌 **Fontes:**
+• [Artigo específico] — Lei 14.133/2021
+• [Acórdão TCU XXXX/XXXX-Plenário] (se pertinente)
+• [IN/Decreto aplicável] (se houver)
+---
+Nunca invente referências. Se não tiver certeza de uma referência, indique "verificar na fonte oficial".`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -59,8 +69,8 @@ Deno.serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1500,
+        model: "claude-opus-4-8",
+        max_tokens: 2000,
         system: SYSTEM,
         messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
       }),

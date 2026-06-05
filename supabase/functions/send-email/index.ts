@@ -101,6 +101,75 @@ const EMAIL_TEMPLATES: Record<string, (data: any) => { subject: string; html: st
     `,
   }),
 
+  module_unlocked: (d) => ({
+    subject: `${d.module || "Módulo"} desbloqueado — Intelicite AI`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0b1120;color:#fff;border-radius:16px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#1a2744,#0b1120);padding:40px 32px;text-align:center">
+          <div style="font-size:48px;margin-bottom:8px">🔓</div>
+          <h1 style="color:#f59e0b;font-size:22px;margin:0">${d.module || "Módulo"} desbloqueado!</h1>
+        </div>
+        <div style="padding:32px">
+          <p style="color:rgba(255,255,255,0.7);line-height:1.6;margin:0 0 16px">
+            Você acabou de desbloquear o <strong style="color:#f59e0b">${d.module || "módulo"}</strong>.
+            O acesso está ativo imediatamente.
+          </p>
+          <p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 20px">
+            💳 Próxima cobrança: <strong style="color:#fff">${d.nextBilling || "mês seguinte"}</strong>
+          </p>
+          <a href="${d.dashboardUrl || "https://intelicite.ai/dashboard"}" style="display:inline-block;background:#f59e0b;color:#0b1120;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+            Acessar agora →
+          </a>
+          <p style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:24px">
+            Você pode cancelar a qualquer momento em Configurações → Módulos. Sem reembolso proporcional.
+          </p>
+        </div>
+      </div>`,
+  }),
+
+  module_cancelled: (d) => ({
+    subject: `${d.module || "Módulo"} cancelado — Intelicite AI`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0b1120;color:#fff;border-radius:16px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#1a2744,#0b1120);padding:40px 32px;text-align:center">
+          <h1 style="color:#f59e0b;font-size:22px;margin:0">Módulo cancelado</h1>
+        </div>
+        <div style="padding:32px">
+          <p style="color:rgba(255,255,255,0.7);line-height:1.6;margin:0 0 16px">
+            O <strong style="color:#fff">${d.module || "módulo"}</strong> foi cancelado.
+            Seu acesso permanece ativo até o fim do período pago.
+          </p>
+          <p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 20px">
+            📅 Acesso até: <strong style="color:#fff">${d.accessUntil || "fim do período"}</strong>
+          </p>
+          <a href="${d.modulesUrl || "https://intelicite.ai/dashboard/modulos"}" style="display:inline-block;background:rgba(255,255,255,0.1);color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+            Ver módulos →
+          </a>
+        </div>
+      </div>`,
+  }),
+
+  subscription_cancelled: (d) => ({
+    subject: "Assinatura cancelada — Intelicite AI",
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0b1120;color:#fff;border-radius:16px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#1a2744,#0b1120);padding:40px 32px;text-align:center">
+          <h1 style="color:#f59e0b;font-size:22px;margin:0">Assinatura cancelada</h1>
+        </div>
+        <div style="padding:32px">
+          <p style="color:rgba(255,255,255,0.7);line-height:1.6;margin:0 0 16px">
+            Sua assinatura foi cancelada. Você continua com acesso até o fim do período pago — sem reembolso proporcional.
+          </p>
+          <p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 20px">
+            📅 Acesso até: <strong style="color:#fff">${d.accessUntil || "fim do período"}</strong>
+          </p>
+          <a href="${d.billingUrl || "https://intelicite.ai/dashboard/billing"}" style="display:inline-block;background:rgba(255,255,255,0.1);color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+            Reativar assinatura →
+          </a>
+        </div>
+      </div>`,
+  }),
+
   custom: (d) => ({
     subject: d.subject || "Mensagem da Intelicite AI",
     html: d.html || `<p>${d.text || ""}</p>`,

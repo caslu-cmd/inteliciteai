@@ -134,7 +134,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleExport = (doc: Doc, format: "pdf" | "docx" = "pdf") => {
+  const handleExport = async (doc: Doc, format: "pdf" | "docx" = "pdf") => {
     const opts = {
       documentTitle: doc.titulo,
       orgao: doc.orgao,
@@ -144,7 +144,7 @@ export default function DocumentsPage() {
         { title: "", isMarkdown: true, content: doc.conteudo },
       ],
     };
-    if (format === "docx") exportAsDocx(opts);
+    if (format === "docx") await exportAsDocx(opts);
     else exportAsPdf(opts);
   };
 
@@ -391,7 +391,7 @@ export default function DocumentsPage() {
               <div className="flex justify-end gap-2 shrink-0 flex-wrap">
                 <Button variant="outline" onClick={() => setViewDoc(null)}>Fechar</Button>
                 <Button variant="outline" onClick={() => handleExport(viewDoc, "docx")} className="gap-2">
-                  <Download className="h-4 w-4" /> Word (.doc)
+                  <Download className="h-4 w-4" /> Word (.docx)
                 </Button>
                 <Button onClick={() => handleExport(viewDoc, "pdf")} className="gap-2">
                   <Download className="h-4 w-4" /> Exportar PDF

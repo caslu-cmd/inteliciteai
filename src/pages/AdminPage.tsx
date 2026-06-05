@@ -4,7 +4,7 @@ import {
   Users, Shield, BarChart3, Tag, MapPin, Activity,
   CreditCard, AlertTriangle, Settings, DollarSign,
   UserCheck, UserX, Clock, CheckCircle2, XCircle, Gift,
-  TrendingUp, ArrowUpRight, Briefcase, Scale,
+  TrendingUp, ArrowUpRight, Briefcase, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,17 +20,19 @@ import AdminSalesTab from "@/components/admin/AdminSalesTab";
 import AdminGeoTab from "@/components/admin/AdminGeoTab";
 import AdminGatewayTab from "@/components/admin/AdminGatewayTab";
 import AdminMarketplaceTab from "@/components/admin/AdminMarketplaceTab";
+import AdminOrgaosTab from "@/components/admin/AdminOrgaosTab";
 import AdminBaseJuridicaTab from "@/components/admin/AdminBaseJuridicaTab";
 
 const tabs = [
   { id: "overview",       label: "Visão Geral",  icon: BarChart3 },
+  { id: "orgaos",         label: "Órgãos",       icon: Building2 },
+  { id: "base-juridica",  label: "Base Jurídica", icon: Scale },
   { id: "users",          label: "Usuários",     icon: Users },
   { id: "verifications",  label: "Consultores",  icon: Shield },
   { id: "marketplace",    label: "Marketplace",  icon: Briefcase },
   { id: "sales",          label: "Vendas",       icon: CreditCard },
   { id: "gateway",        label: "Gateway",      icon: Settings },
   { id: "coupons",        label: "Cupons",       icon: Tag },
-  { id: "base_juridica",  label: "Base Jurídica",icon: Scale },
   { id: "geo",            label: "Localização",  icon: MapPin },
   { id: "logs",           label: "Logs",         icon: Activity },
 ];
@@ -362,13 +364,14 @@ export default function AdminPage() {
         </motion.div>
       )}
 
+      {activeTab === "orgaos"         && <AdminOrgaosTab />}
+      {activeTab === "base-juridica"  && <AdminBaseJuridicaTab />}
       {activeTab === "users"          && <AdminUsersTab />}
       {activeTab === "verifications"  && <AdminVerificationsTab />}
       {activeTab === "marketplace"    && <AdminMarketplaceTab />}
       {activeTab === "sales"   && <AdminSalesTab />}
       {activeTab === "gateway" && <AdminGatewayTab />}
       {activeTab === "coupons" && <AdminCouponsTab />}
-      {activeTab === "base_juridica" && <AdminBaseJuridicaTab />}
       {activeTab === "geo"     && <AdminGeoTab />}
       {activeTab === "logs"    && <AdminLogsTab />}
     </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Search, Ban, CheckCircle2, UserPlus, Loader2,
-  Clock, Gift, XCircle, RefreshCw,
+  Clock, Gift, XCircle, RefreshCw, Building2, Sparkles, BookOpen, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { sendEmail } from "@/lib/emailUtils";
 
 interface UserRow {
   id: string;
@@ -27,7 +28,16 @@ interface UserRow {
   sub_plan: string;
   sub_status: string;
   trial_ends_at: string | null;
+  municipality_id: string | null;
+  municipality_name?: string;
+  modules?: string[];
 }
+
+interface Orgao { id: string; name: string; }
+
+const MODULE_ICONS: Record<string, React.ElementType> = {
+  analise: Sparkles, consulta: BookOpen, conformidade: ShieldCheck,
+};
 
 const ACCOUNT_STATUS: Record<string, { label: string; cls: string }> = {
   pending:  { label: "Pendente",  cls: "bg-amber-400/10 text-amber-400 border border-amber-400/20" },
@@ -59,21 +69,36 @@ const FILTER_TABS = [
 
 export default function AdminUsersTab() {
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [orgaos, setOrgaos] = useState<Orgao[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [orgaoDialogUser, setOrgaoDialogUser] = useState<UserRow | null>(null);
+  const [selectedOrgao, setSelectedOrgao] = useState("");
   const [newUser, setNewUser] = useState({ email: "", password: "", full_name: "", organization: "", plan: "gratuito" });
   const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data: profiles } = await supabase.from("profiles").select("*");
-    const { data: subs } = await supabase.from("subscriptions").select("*");
+    const [{ data: profiles }, { data: subs }, { data: muns }, { data: modSubs }] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("subscriptions").select("*"),
+      supabase.from("municipalities").select("id, name"),
+      supabase.from("module_subscriptions").select("user_id, module, active, next_billing_at"),
+    ]);
 
+    const munMap: Record<string, string> = {};
+    for (const m of muns || []) munMap[m.id] = m.name;
+    setOrgaos((muns || []).map((m: any) => ({ id: m.id, name: m.name })));
+
+    const now = new Date();
     const merged: UserRow[] = (profiles || []).map((p: any) => {
       const sub = (subs || []).find((s: any) => s.user_id === p.id);
+      const userMods = (modSubs || [])
+        .filter((m: any) => m.user_id === p.id && m.active && (!m.next_billing_at || new Date(m.next_billing_at) > now))
+        .map((m: any) => m.module);
       return {
         id: p.id,
         full_name: p.full_name || p.email,
@@ -84,6 +109,9 @@ export default function AdminUsersTab() {
         sub_plan: sub?.plan || "gratuito",
         sub_status: sub?.status || "trial",
         trial_ends_at: sub?.trial_ends_at || null,
+        municipality_id: p.municipality_id || null,
+        municipality_name: p.municipality_id ? munMap[p.municipality_id] : undefined,
+        modules: userMods,
       };
     });
     setUsers(merged);
@@ -94,11 +122,28 @@ export default function AdminUsersTab() {
 
   const setAccountStatus = async (userId: string, status: string) => {
     await supabase.from("profiles").update({ account_status: status }).eq("id", userId);
-    // If granting free, also set subscription to active
     if (status === "free") {
       await supabase.from("subscriptions").update({ status: "active", price_cents: 0 }).eq("user_id", userId);
     }
+    // Enviar e-mail de boas-vindas ao aprovar
+    if (status === "approved" || status === "free") {
+      const user = users.find(u => u.id === userId);
+      if (user?.email) {
+        sendEmail(user.email, "welcome", {
+          name: user.full_name,
+          loginUrl: `${window.location.origin}/login`,
+        });
+      }
+    }
     toast({ title: status === "approved" ? "✓ Usuário aprovado" : status === "free" ? "✓ Acesso free concedido" : status === "rejected" ? "✗ Usuário rejeitado" : "Atualizado" });
+    fetchUsers();
+  };
+
+  const handleAssignOrgao = async () => {
+    if (!orgaoDialogUser) return;
+    await supabase.from("profiles").update({ municipality_id: selectedOrgao || null }).eq("id", orgaoDialogUser.id);
+    toast({ title: selectedOrgao ? "Órgão vinculado!" : "Órgão desvinculado" });
+    setOrgaoDialogUser(null);
     fetchUsers();
   };
 
@@ -202,8 +247,8 @@ export default function AdminUsersTab() {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="grid grid-cols-12 gap-2 border-b border-border px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
           <div className="col-span-3">Usuário</div>
-          <div className="col-span-2">Organização</div>
-          <div className="col-span-1">Perfil</div>
+          <div className="col-span-2">Órgão</div>
+          <div className="col-span-1">Módulos</div>
           <div className="col-span-2">Conta</div>
           <div className="col-span-2">Plano</div>
           <div className="col-span-2 text-right">Ações</div>
@@ -230,14 +275,26 @@ export default function AdminUsersTab() {
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
 
-                <div className="col-span-2 text-sm text-muted-foreground truncate">
-                  {user.organization || "—"}
+                <div className="col-span-2">
+                  <button className="flex items-center gap-1 text-left group"
+                    onClick={() => { setOrgaoDialogUser(user); setSelectedOrgao(user.municipality_id || ""); }}
+                    title="Vincular a órgão">
+                    {user.municipality_name
+                      ? <span className="text-xs font-medium truncate max-w-[120px]">{user.municipality_name}</span>
+                      : <span className="text-xs text-muted-foreground group-hover:text-foreground">— vincular</span>
+                    }
+                    <Building2 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />
+                  </button>
                 </div>
 
-                <div className="col-span-1">
-                  <span className="text-xs text-muted-foreground">
-                    {ROLE_LABELS[user.platform_role] || user.platform_role}
-                  </span>
+                <div className="col-span-1 flex gap-0.5">
+                  {(user.modules || []).map(m => {
+                    const Icon = MODULE_ICONS[m];
+                    return Icon ? <Icon key={m} className="h-3.5 w-3.5 text-accent" title={m} /> : null;
+                  })}
+                  {(!user.modules || user.modules.length === 0) && (
+                    <span className="text-[10px] text-muted-foreground">—</span>
+                  )}
                 </div>
 
                 <div className="col-span-2">
@@ -319,6 +376,38 @@ export default function AdminUsersTab() {
           })
         )}
       </div>
+      {/* Dialog vincular órgão */}
+      <Dialog open={!!orgaoDialogUser} onOpenChange={open => { if (!open) setOrgaoDialogUser(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-accent" />
+              Vincular a Órgão
+            </DialogTitle>
+          </DialogHeader>
+          {orgaoDialogUser && (
+            <div className="space-y-3 pt-1">
+              <p className="text-sm text-muted-foreground">
+                Usuário: <span className="font-medium text-foreground">{orgaoDialogUser.full_name}</span>
+              </p>
+              <div className="space-y-1">
+                <Label className="text-xs">Órgão público</Label>
+                <Select value={selectedOrgao} onValueChange={setSelectedOrgao}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um órgão..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum (desvincular)</SelectItem>
+                    {orgaos.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" size="sm" onClick={() => setOrgaoDialogUser(null)}>Cancelar</Button>
+                <Button size="sm" onClick={handleAssignOrgao}>Salvar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

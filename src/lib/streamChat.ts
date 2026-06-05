@@ -25,13 +25,30 @@ export async function streamChat({
     return;
   }
 
+  // Buscar contexto de regulamentos e base jurídica para a última mensagem
+  const lastUserMsg = messages.filter(m => m.role === "user").at(-1)?.content ?? "";
+  let enrichedMessages = messages;
+  if (lastUserMsg.trim()) {
+    try {
+      const { getFullContext } = await import("@/lib/orgaoUtils");
+      const context = await getFullContext(lastUserMsg);
+      if (context) {
+        enrichedMessages = messages.map((m, i) =>
+          i === messages.length - 1 && m.role === "user"
+            ? { ...m, content: `${context}\n\n---\n\nPergunta: ${m.content}` }
+            : m
+        );
+      }
+    } catch { /* best-effort */ }
+  }
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ messages, usuario_id: usuarioId || "" }),
+    body: JSON.stringify({ messages: enrichedMessages, usuario_id: usuarioId || "" }),
   });
 
   if (!resp.ok) {
