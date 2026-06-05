@@ -3,7 +3,7 @@ import {
   MessageSquare, FileText, FolderOpen, Search, Scale, CheckSquare,
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
-  Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus, Unlock,
+  Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus, Unlock, Radar,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -15,47 +15,83 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { motion, AnimatePresence } from "framer-motion";
 import CommandPalette from "@/components/CommandPalette";
 
-// ── Nav structure ─────────────────────────────────────────────
-const NAV = [
+// ── Nav por role ───────────────────────────────────────────────
+const NAV_GESTOR = [
   {
     items: [
-      { title: "Dashboard",       icon: LayoutDashboard, path: "/dashboard" },
-      { title: "Assistente IA",   icon: MessageSquare,   path: "/dashboard/chat" },
-      { title: "Notebook IA",     icon: BookMarked,      path: "/dashboard/notebook", badge: "Novo" },
-      { title: "Documentos",      icon: FolderOpen,      path: "/dashboard/documents" },
+      { title: "Dashboard",        icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Assistente IA",    icon: MessageSquare,   path: "/dashboard/chat" },
+      { title: "Notebook IA",      icon: BookMarked,      path: "/dashboard/notebook", badge: "Novo" },
+      { title: "Documentos",       icon: FolderOpen,      path: "/dashboard/documents" },
     ],
   },
   {
     label: "Geradores",
     items: [
-      { title: "Gerador de DFD",  icon: FileText,  path: "/dashboard/dfd", badge: "Novo" },
-      { title: "Gerador de ETP",  icon: FileText,  path: "/dashboard/etp" },
-      { title: "Gerador de TR",   icon: FileText,  path: "/dashboard/tr" },
-      { title: "Checklist",       icon: CheckSquare, path: "/dashboard/checklist" },
+      { title: "Gerador de DFD",   icon: FileText,    path: "/dashboard/dfd", badge: "Novo" },
+      { title: "Gerador de ETP",   icon: FileText,    path: "/dashboard/etp" },
+      { title: "Gerador de TR",    icon: FileText,    path: "/dashboard/tr" },
+      { title: "Checklist",        icon: CheckSquare, path: "/dashboard/checklist" },
     ],
   },
   {
     label: "Ferramentas",
     items: [
-      { title: "Diagnóstico",     icon: Scale,      path: "/dashboard/diagnostic" },
-      { title: "Validador",       icon: Search,     path: "/dashboard/validator" },
-      { title: "Cotação",         icon: Calculator, path: "/dashboard/quotation" },
+      { title: "Diagnóstico",      icon: Scale,       path: "/dashboard/diagnostic" },
+      { title: "Validador",        icon: Search,      path: "/dashboard/validator" },
+      { title: "Cotação",          icon: Calculator,  path: "/dashboard/quotation" },
     ],
   },
   {
     label: "Marketplace",
     items: [
-      { title: "Publicar Projeto", icon: Plus,      path: "/dashboard/publicar-projeto", badge: "Novo" },
-      { title: "Meus Projetos",    icon: Briefcase, path: "/dashboard/meus-projetos" },
+      { title: "Publicar Projeto", icon: Plus,        path: "/dashboard/publicar-projeto", badge: "Novo" },
+      { title: "Meus Projetos",    icon: Briefcase,   path: "/dashboard/meus-projetos" },
     ],
   },
   {
     label: "Conta",
     items: [
-      { title: "Relatórios",      icon: BarChart3,  path: "/dashboard/reports" },
-      { title: "Módulos",          icon: Unlock,     path: "/dashboard/modulos" },
-      { title: "Billing",         icon: CreditCard, path: "/dashboard/billing" },
-      { title: "Configurações",   icon: Settings,   path: "/dashboard/settings" },
+      { title: "Relatórios",       icon: BarChart3,   path: "/dashboard/reports" },
+      { title: "Módulos",          icon: Unlock,      path: "/dashboard/modulos" },
+      { title: "Billing",          icon: CreditCard,  path: "/dashboard/billing" },
+      { title: "Configurações",    icon: Settings,    path: "/dashboard/settings" },
+    ],
+  },
+];
+
+const NAV_LICITANTE = [
+  {
+    items: [
+      { title: "Início",           icon: LayoutDashboard, path: "/licitante" },
+      { title: "Radar de Editais", icon: Radar,           path: "/licitante/radar" },
+      { title: "Análises",         icon: Search,          path: "/licitante/analises" },
+      { title: "Scanner",          icon: Zap,             path: "/licitante/scanner" },
+    ],
+  },
+  {
+    label: "Jurídico",
+    items: [
+      { title: "Minutas",          icon: FileText,    path: "/licitante/minutas" },
+      { title: "Assistente IA",    icon: MessageSquare, path: "/licitante/assistente" },
+      { title: "Habilitação",      icon: CheckSquare, path: "/licitante/habilitacao" },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { title: "Documentos",       icon: FolderOpen,  path: "/licitante/documentos" },
+      { title: "Precificação",     icon: Calculator,  path: "/licitante/precificacao" },
+      { title: "Contratos",        icon: Layers,      path: "/licitante/contratos" },
+      { title: "Relatórios",       icon: BarChart3,   path: "/licitante/relatorios" },
+    ],
+  },
+  {
+    label: "Conta",
+    items: [
+      { title: "Módulos",          icon: Unlock,      path: "/dashboard/modulos" },
+      { title: "Billing",          icon: CreditCard,  path: "/dashboard/billing" },
+      { title: "Configurações",    icon: Settings,    path: "/dashboard/settings" },
     ],
   },
 ];
@@ -82,7 +118,7 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { orgao } = useMunicipality(); // órgão público do usuário (white label)
+  const { orgao } = useMunicipality();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -93,6 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [previewRole, setPreviewRole] = useState<"gestor" | "licitante">("gestor");
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -140,6 +177,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!subscription || subscription.status !== "trial" || !subscription.trial_ends_at) return null;
     return Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / 86400000));
   };
+
+  const role = profile?.platform_role || "gestor";
+  const isSuperAdmin = role === "super_admin";
+
+  // Licitante não deve ficar no /dashboard — redireciona
+  useEffect(() => {
+    if (role === "licitante" && location.pathname.startsWith("/dashboard") && !location.pathname.startsWith("/dashboard/modulos") && !location.pathname.startsWith("/dashboard/billing") && !location.pathname.startsWith("/dashboard/settings")) {
+      navigate("/licitante", { replace: true });
+    }
+  }, [role, location.pathname, navigate]);
+
+  // NAV ativa: super_admin usa o previewRole, outros usam o próprio role
+  const activeNav = isSuperAdmin
+    ? (previewRole === "licitante" ? NAV_LICITANTE : NAV_GESTOR)
+    : (role === "licitante" ? NAV_LICITANTE : NAV_GESTOR);
 
   const trialDays = getTrialDays();
   const planLabel =
@@ -207,9 +259,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </AnimatePresence>
       </div>
 
+      {/* Preview mode selector — super admin only */}
+      {isSuperAdmin && !collapsed && (
+        <div className="px-3 py-2 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+          <p className="text-[9px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: "hsl(var(--sidebar-foreground) / 0.35)" }}>
+            Visualizar como
+          </p>
+          <div className="flex gap-1">
+            {(["gestor", "licitante"] as const).map(r => (
+              <button key={r} onClick={() => setPreviewRole(r)}
+                className="flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors"
+                style={{
+                  background: previewRole === r ? "hsl(var(--sidebar-primary) / 0.2)" : "transparent",
+                  color: previewRole === r ? "hsl(var(--sidebar-primary))" : "hsl(var(--sidebar-foreground) / 0.5)",
+                  border: `1px solid ${previewRole === r ? "hsl(var(--sidebar-primary) / 0.4)" : "transparent"}`,
+                }}>
+                {r === "gestor" ? "🏛️ Órgão" : "📋 Licitante"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2 scrollbar-thin">
-        {NAV.map((group, gi) => (
+        {activeNav.map((group, gi) => (
           <div key={gi} className={gi > 0 ? "pt-3" : ""}>
             {/* Section label */}
             {group.label && !collapsed && (
@@ -292,8 +366,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ))}
       </nav>
 
-      {/* Platform switcher — admin only */}
-      {isAdmin && (
+      {/* Platform switcher — super admin only */}
+      {isSuperAdmin && (
         <div className="shrink-0 border-t px-2 pt-3 pb-1" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest"
@@ -304,10 +378,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {collapsed && <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
           {[
             { label: "Agente Público", path: "/dashboard", emoji: "🏛️" },
-            { label: "Licitante",  path: "/licitante",  emoji: "📋" },
-            { label: "Consultor",  path: "/consultor",  emoji: "🎓" },
-          ].map(({ label, path, emoji }) => {
+            { label: "Licitante",      path: "/licitante", emoji: "📋" },
+            { label: "Consultor",      path: "/consultor", emoji: "🎓", disabled: true },
+          ].map(({ label, path, emoji, disabled }) => {
             const active = location.pathname === path || location.pathname.startsWith(path + "/");
+            if (disabled) return (
+              <div key={path} title={collapsed ? label : undefined}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium opacity-35 cursor-not-allowed select-none"
+                style={{ color: "hsl(var(--sidebar-foreground))" }}>
+                <span className="text-sm shrink-0">{emoji}</span>
+                {!collapsed && <span className="truncate">{label} <span className="text-[9px]">(em breve)</span></span>}
+              </div>
+            );
             return (
               <Link key={path} to={path} title={collapsed ? label : undefined}
                 className={cn(
