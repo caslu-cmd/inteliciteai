@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Scale, Plus, Trash2, Zap, CheckCircle2, XCircle, Loader2, BookOpen } from "lucide-react";
+import { Scale, Plus, Trash2, Zap, CheckCircle2, XCircle, Loader2, BookOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,14 +59,21 @@ export default function AdminBaseJuridicaTab() {
       .select("id, title, source_type, reference, year, active")
       .order("created_at", { ascending: true });
 
-    const { data: chunks } = await supabase
-      .from("legal_knowledge_chunks")
-      .select("knowledge_id");
-
+    const ids = (knowledge || []).map((k: any) => k.id);
     const counts = new Map<string, number>();
-    (chunks || []).forEach((c: any) => {
-      counts.set(c.knowledge_id, (counts.get(c.knowledge_id) || 0) + 1);
-    });
+
+    if (ids.length > 0) {
+      // Fetch counts per knowledge_id in parallel via head requests (exact count)
+      const results = await Promise.all(
+        ids.map((id) =>
+          supabase
+            .from("legal_knowledge_chunks")
+            .select("id", { count: "exact", head: true })
+            .eq("knowledge_id", id),
+        ),
+      );
+      ids.forEach((id, i) => counts.set(id, results[i].count || 0));
+    }
 
     setItems(
       (knowledge || []).map((k: any) => ({
@@ -87,11 +94,11 @@ export default function AdminBaseJuridicaTab() {
       });
       if (error) throw error;
       toast({ title: "✓ Item indexado" });
-      fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao indexar", description: err.message, variant: "destructive" });
     } finally {
       setIndexingId(null);
+      await fetchData(); // always reload to reflect any partial progress
     }
   };
 
@@ -103,11 +110,11 @@ export default function AdminBaseJuridicaTab() {
       });
       if (error) throw error;
       toast({ title: "✓ Base jurídica indexada" });
-      fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao indexar", description: err.message, variant: "destructive" });
     } finally {
       setIndexingAll(false);
+      await fetchData();
     }
   };
 
@@ -158,6 +165,14 @@ export default function AdminBaseJuridicaTab() {
           <span className="text-xs text-muted-foreground">({items.length} itens)</span>
         </div>
         <div className="flex gap-2">
+          <Button
+            size="sm" variant="ghost"
+            onClick={fetchData}
+            disabled={loading}
+            title="Atualizar"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          </Button>
           <Button
             size="sm" variant="outline"
             onClick={() => setShowForm((v) => !v)}
