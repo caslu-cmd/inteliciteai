@@ -32,7 +32,7 @@ interface Attachment {
   file_name: string;
   file_path: string;
   file_size: number;
-  ano_referencia: number | null;
+  ano_referencia?: number | null;
   tipo: string;
   created_at: string;
 }
@@ -93,7 +93,7 @@ export default function DocumentsPage() {
       .from("document_attachments")
       .select("*")
       .in("document_id", docIds)
-      .order("ano_referencia", { ascending: true });
+      .order("created_at", { ascending: true });
     if (!data) return;
     const map: Record<string, Attachment[]> = {};
     for (const att of data as Attachment[]) {
