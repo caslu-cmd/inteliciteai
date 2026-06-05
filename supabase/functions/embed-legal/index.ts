@@ -49,11 +49,13 @@ function chunkText(text: string, size = 800, overlap = 120) {
     }
     const content = text.slice(start, end).trim();
     if (content.length > 30) chunks.push(content);
-    start = end - overlap;
-    if (start >= end) start = end;
+    if (end >= text.length) break;
+    const next = end - overlap;
+    start = next > start ? next : end;
   }
   return chunks;
 }
+
 
 async function embedOne(text: string, apiKey: string): Promise<number[]> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
