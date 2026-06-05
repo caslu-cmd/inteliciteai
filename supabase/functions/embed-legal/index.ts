@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
   if (authErr || !user) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: cors });
 
   const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
-  const { data: profileRow } = await supabase.from("profiles").select("platform_role").eq("id", user.id).maybeSingle();
+  const { data: profileRow } = await supabase.from("profiles").select("platform_role, email").eq("id", user.id).maybeSingle();
   const isAdmin = !!roleRow || ["admin", "super_admin"].includes(profileRow?.platform_role ?? "");
-  if (!isAdmin) return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
+  if (!isAdmin) return new Response(JSON.stringify({ error: "Apenas admins", debug: { userId: user.id, email: profileRow?.email, platform_role: profileRow?.platform_role, role: roleRow?.role } }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_KEY) return new Response(JSON.stringify({ error: "OPENAI_API_KEY não configurada" }), { status: 503, headers: cors });
