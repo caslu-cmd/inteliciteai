@@ -56,15 +56,16 @@ function chunkText(text: string, size = 800, overlap = 120) {
 }
 
 async function embedOne(text: string, apiKey: string): Promise<number[]> {
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "text-embedding-3-small", input: text, dimensions: 1536 }),
+    body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text, dimensions: 1536 }),
   });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Embed ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.data[0].embedding;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
