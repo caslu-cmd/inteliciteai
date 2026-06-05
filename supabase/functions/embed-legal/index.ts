@@ -44,8 +44,10 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
   if (authErr || !user) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: cors });
 
-  const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-  if (!roleRow) return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
+  const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
+  const { data: profileRow } = await supabase.from("profiles").select("platform_role").eq("id", user.id).maybeSingle();
+  const isAdmin = !!roleRow || ["admin", "super_admin"].includes(profileRow?.platform_role ?? "");
+  if (!isAdmin) return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_KEY) return new Response(JSON.stringify({ error: "OPENAI_API_KEY não configurada" }), { status: 503, headers: cors });
@@ -65,11 +67,12 @@ Deno.serve(async (req) => {
     if (!items?.length) return new Response(JSON.stringify({ indexed: 0 }), { headers: cors });
 
     let totalChunks = 0;
+    const BATCH = 10;
     for (const item of items) {
       await supabase.from("legal_knowledge_chunks").delete().eq("knowledge_id", item.id);
       const chunks = chunkText(item.content);
-      for (let i = 0; i < chunks.length; i += 50) {
-        const batch = chunks.slice(i, i + 50);
+      for (let i = 0; i < chunks.length; i += BATCH) {
+        const batch = chunks.slice(i, i + BATCH);
         const embeddings = await embedBatch(batch, OPENAI_KEY);
         await supabase.from("legal_knowledge_chunks").insert(
           batch.map((c, j) => ({ knowledge_id: item.id, chunk_index: i + j, content: c, embedding: JSON.stringify(embeddings[j]) }))
@@ -77,6 +80,7 @@ Deno.serve(async (req) => {
       }
       totalChunks += chunks.length;
     }
+
     return new Response(JSON.stringify({ indexed: items.length, chunks: totalChunks }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: cors });
