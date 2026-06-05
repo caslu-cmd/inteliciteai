@@ -77,15 +77,11 @@ Deno.serve(async (req) => {
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace("Bearer ", "");
 
-    console.log("step:getUser");
     const user = await getUser(token);
     if (!user) return json({ error: "Token inválido" }, 401);
-    console.log("step:user", user.id);
 
     const roles = await rest(`user_roles?user_id=eq.${user.id}&select=role`);
-    console.log("step:roles", JSON.stringify(roles));
     const profile = await rest(`profiles?id=eq.${user.id}&select=platform_role,email`);
-    console.log("step:profile", JSON.stringify(profile));
 
     const roleList: string[] = (roles ?? []).map((r: any) => r.role);
     const platformRole: string = profile?.[0]?.platform_role ?? "";
@@ -104,7 +100,6 @@ Deno.serve(async (req) => {
     const API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!API_KEY) return json({ error: "LOVABLE_API_KEY não configurada" }, 503);
 
-
     let body: { knowledgeId?: string; indexAll?: boolean };
     try { body = await req.json(); } catch { return json({ error: "JSON inválido" }, 400); }
 
@@ -116,36 +111,29 @@ Deno.serve(async (req) => {
 
     const items: { id: string; content: string }[] =
       await rest(`legal_knowledge?${filter}&select=id,content`);
-    console.log("step:items", items?.length);
 
     if (!items?.length) return json({ indexed: 0 });
 
     let totalChunks = 0;
     for (const item of items) {
-      console.log("step:item", item.id, item.content.length);
       await rest(`legal_knowledge_chunks?knowledge_id=eq.${item.id}`, { method: "DELETE" });
-      console.log("step:deleted");
       const chunks = chunkText(item.content);
-      console.log("step:chunks", chunks.length);
       for (let i = 0; i < chunks.length; i++) {
-        console.log("step:embed", i);
         const emb = await embedOne(chunks[i], API_KEY);
-        console.log("step:embedded", i, emb.length);
-        const row = {
-          knowledge_id: item.id,
-          chunk_index: i,
-          content: chunks[i],
-          embedding: JSON.stringify(emb),
-        };
         await rest(`legal_knowledge_chunks`, {
           method: "POST",
           headers: { Prefer: "return=minimal" },
-          body: JSON.stringify([row]),
+          body: JSON.stringify([{
+            knowledge_id: item.id,
+            chunk_index: i,
+            content: chunks[i],
+            embedding: JSON.stringify(emb),
+          }]),
         });
-        console.log("step:inserted", i);
       }
       totalChunks += chunks.length;
     }
+
 
 
 
