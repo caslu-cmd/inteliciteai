@@ -403,6 +403,66 @@ export type Database = {
         }
         Relationships: []
       }
+      module_config: {
+        Row: {
+          active: boolean
+          description: string
+          display_name: string
+          features: string[]
+          module: string
+          price_cents: number
+        }
+        Insert: {
+          active?: boolean
+          description: string
+          display_name: string
+          features?: string[]
+          module: string
+          price_cents?: number
+        }
+        Update: {
+          active?: boolean
+          description?: string
+          display_name?: string
+          features?: string[]
+          module?: string
+          price_cents?: number
+        }
+        Relationships: []
+      }
+      module_subscriptions: {
+        Row: {
+          active: boolean
+          cancelled_at: string | null
+          id: string
+          module: string
+          next_billing_at: string | null
+          price_cents: number
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          cancelled_at?: string | null
+          id?: string
+          module: string
+          next_billing_at?: string | null
+          price_cents?: number
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          cancelled_at?: string | null
+          id?: string
+          module?: string
+          next_billing_at?: string | null
+          price_cents?: number
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       municipalities: {
         Row: {
           active: boolean
