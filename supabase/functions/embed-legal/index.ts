@@ -75,11 +75,16 @@ Deno.serve(async (req) => {
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace("Bearer ", "");
 
+    console.log("step:getUser");
     const user = await getUser(token);
     if (!user) return json({ error: "Token inválido" }, 401);
+    console.log("step:user", user.id);
 
     const roles = await rest(`user_roles?user_id=eq.${user.id}&select=role`);
+    console.log("step:roles", JSON.stringify(roles));
     const profile = await rest(`profiles?id=eq.${user.id}&select=platform_role,email`);
+    console.log("step:profile", JSON.stringify(profile));
+
     const roleList: string[] = (roles ?? []).map((r: any) => r.role);
     const platformRole: string = profile?.[0]?.platform_role ?? "";
     const isAdmin =
