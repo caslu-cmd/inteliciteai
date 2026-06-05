@@ -403,6 +403,95 @@ export type Database = {
         }
         Relationships: []
       }
+      municipalities: {
+        Row: {
+          active: boolean
+          cnpj: string | null
+          created_at: string
+          custom_domain: string | null
+          favicon_url: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string
+          secondary_color: string
+          slug: string
+          state: string
+        }
+        Insert: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string
+          secondary_color?: string
+          slug: string
+          state: string
+        }
+        Update: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string
+          secondary_color?: string
+          slug?: string
+          state?: string
+        }
+        Relationships: []
+      }
+      municipality_regulations: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          id: string
+          municipality_id: string
+          numero: string | null
+          tipo: string
+          title: string
+          year: number | null
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          municipality_id: string
+          numero?: string | null
+          tipo?: string
+          title: string
+          year?: number | null
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          municipality_id?: string
+          numero?: string | null
+          tipo?: string
+          title?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "municipality_regulations_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notebook_sources: {
         Row: {
           active: boolean
@@ -568,6 +657,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          municipality_id: string | null
           organization: string | null
           phone: string | null
           platform_role: string
@@ -583,6 +673,7 @@ export type Database = {
           email?: string
           full_name?: string
           id: string
+          municipality_id?: string | null
           organization?: string | null
           phone?: string | null
           platform_role?: string
@@ -598,13 +689,22 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          municipality_id?: string | null
           organization?: string | null
           phone?: string | null
           platform_role?: string
           state?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_applications: {
         Row: {
