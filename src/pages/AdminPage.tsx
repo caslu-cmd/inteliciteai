@@ -4,7 +4,7 @@ import {
   Users, Shield, BarChart3, Tag, MapPin, Activity,
   CreditCard, AlertTriangle, Settings, DollarSign,
   UserCheck, UserX, Clock, CheckCircle2, XCircle, Gift,
-  TrendingUp, ArrowUpRight, Briefcase, Building2,
+  TrendingUp, ArrowUpRight, Briefcase, Building2, Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
