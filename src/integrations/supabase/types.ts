@@ -185,6 +185,56 @@ export type Database = {
         }
         Relationships: []
       }
+      document_signatures: {
+        Row: {
+          clicksign_key: string | null
+          created_at: string
+          document_id: string | null
+          id: string
+          signed_at: string | null
+          signer_cpf: string | null
+          signer_email: string | null
+          signer_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          clicksign_key?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          signed_at?: string | null
+          signer_cpf?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          clicksign_key?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          signed_at?: string | null
+          signer_cpf?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           conteudo: string
@@ -707,6 +757,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      webhook_configs: {
+        Row: {
+          active: boolean
+          created_at: string
+          events: string[]
+          id: string
+          name: string
+          secret: string | null
+          url: string
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          events?: string[]
+          id?: string
+          name: string
+          secret?: string | null
+          url: string
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          events?: string[]
+          id?: string
+          name?: string
+          secret?: string | null
+          url?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          payload: Json | null
+          response_status: number | null
+          webhook_config_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          payload?: Json | null
+          response_status?: number | null
+          webhook_config_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          payload?: Json | null
+          response_status?: number | null
+          webhook_config_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_config_id_fkey"
+            columns: ["webhook_config_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
