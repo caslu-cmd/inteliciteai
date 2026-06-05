@@ -224,6 +224,42 @@ export type Database = {
         }
         Relationships: []
       }
+      document_memory_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string | null
+          embedding: string | null
+          id: string
+          metadata: Json
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          source_type?: string
+          user_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_signatures: {
         Row: {
           clicksign_key: string | null
@@ -891,6 +927,39 @@ export type Database = {
           },
         ]
       }
+      regulation_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json
+          municipality_id: string
+          regulation_id: string
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          municipality_id: string
+          regulation_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          municipality_id?: string
+          regulation_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           coupon_id: string | null
@@ -1066,6 +1135,35 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_document_memory: {
+        Args: {
+          filter_user?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          document_id: string
+          id: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_regulations: {
+        Args: {
+          filter_municipality?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          metadata: Json
+          municipality_id: string
+          regulation_id: string
+          similarity: number
+        }[]
       }
     }
     Enums: {
