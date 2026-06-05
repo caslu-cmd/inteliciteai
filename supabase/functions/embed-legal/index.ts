@@ -45,8 +45,8 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
   if (authErr || !user) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: cors });
 
-  const { data: profile } = await supabase.from("profiles").select("platform_role").eq("id", user.id).single();
-  if (profile?.platform_role !== "admin") return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
+  const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+  if (!roleRow) return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_KEY) return new Response(JSON.stringify({ error: "OPENAI_API_KEY não configurada" }), { status: 503, headers: cors });
