@@ -54,26 +54,26 @@ export default function AdminBaseJuridicaTab() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data: knowledge } = await supabase
+    const { data: knowledge, error: kErr } = await supabase
       .from("legal_knowledge")
       .select("id, title, source_type, reference, year, active")
       .order("created_at", { ascending: true });
 
-    const ids = (knowledge || []).map((k: any) => k.id);
-    const counts = new Map<string, number>();
+    if (kErr) console.error("[BaseJuridica] erro carregando knowledge:", kErr);
 
-    if (ids.length > 0) {
-      // Fetch counts per knowledge_id in parallel via head requests (exact count)
-      const results = await Promise.all(
-        ids.map((id) =>
-          supabase
-            .from("legal_knowledge_chunks")
-            .select("id", { count: "exact", head: true })
-            .eq("knowledge_id", id),
-        ),
-      );
-      ids.forEach((id, i) => counts.set(id, results[i].count || 0));
-    }
+    const { data: chunks, error: cErr } = await supabase
+      .from("legal_knowledge_chunks")
+      .select("knowledge_id")
+      .limit(10000);
+
+    if (cErr) console.error("[BaseJuridica] erro carregando chunks:", cErr);
+
+    console.log("[BaseJuridica] knowledge:", knowledge?.length, "chunks:", chunks?.length);
+
+    const counts = new Map<string, number>();
+    (chunks || []).forEach((c: any) => {
+      counts.set(c.knowledge_id, (counts.get(c.knowledge_id) || 0) + 1);
+    });
 
     setItems(
       (knowledge || []).map((k: any) => ({
