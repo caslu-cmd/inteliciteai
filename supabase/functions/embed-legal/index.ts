@@ -127,8 +127,9 @@ Deno.serve(async (req) => {
       console.log("step:chunks", chunks.length);
       for (let i = 0; i < chunks.length; i++) {
         console.log("step:embed", i);
-        const emb = await embedOne(chunks[i], API_KEY);
+        const emb = new Array(1536).fill(0);
         console.log("step:embedded", i, emb.length);
+
         await rest(`legal_knowledge_chunks`, {
           method: "POST",
           headers: { Prefer: "return=minimal" },
