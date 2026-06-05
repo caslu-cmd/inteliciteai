@@ -114,15 +114,21 @@ Deno.serve(async (req) => {
 
     const items: { id: string; content: string }[] =
       await rest(`legal_knowledge?${filter}&select=id,content`);
+    console.log("step:items", items?.length);
 
     if (!items?.length) return json({ indexed: 0 });
 
     let totalChunks = 0;
     for (const item of items) {
+      console.log("step:item", item.id, item.content.length);
       await rest(`legal_knowledge_chunks?knowledge_id=eq.${item.id}`, { method: "DELETE" });
+      console.log("step:deleted");
       const chunks = chunkText(item.content);
+      console.log("step:chunks", chunks.length);
       for (let i = 0; i < chunks.length; i++) {
+        console.log("step:embed", i);
         const emb = await embedOne(chunks[i], API_KEY);
+        console.log("step:embedded", i, emb.length);
         await rest(`legal_knowledge_chunks`, {
           method: "POST",
           headers: { Prefer: "return=minimal" },
@@ -133,9 +139,11 @@ Deno.serve(async (req) => {
             embedding: JSON.stringify(emb),
           }]),
         });
+        console.log("step:inserted", i);
       }
       totalChunks += chunks.length;
     }
+
 
     return json({ indexed: items.length, chunks: totalChunks });
   } catch (err) {
