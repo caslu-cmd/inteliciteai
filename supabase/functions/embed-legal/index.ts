@@ -44,10 +44,12 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
   if (authErr || !user) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: cors });
 
-  const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
+  const { data: roles, error: rolesErr } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
   const { data: profileRow } = await supabase.from("profiles").select("platform_role, email").eq("id", user.id).maybeSingle();
-  const isAdmin = !!roleRow || ["admin", "super_admin"].includes(profileRow?.platform_role ?? "");
-  if (!isAdmin) return new Response(JSON.stringify({ error: "Apenas admins", debug: { userId: user.id, email: profileRow?.email, platform_role: profileRow?.platform_role, role: roleRow?.role } }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+  const roleList = (roles ?? []).map((r: any) => r.role);
+  const isAdmin = roleList.includes("admin") || roleList.includes("super_admin") || ["admin", "super_admin"].includes(profileRow?.platform_role ?? "");
+  if (!isAdmin) return new Response(JSON.stringify({ error: "Apenas admins", debug: { userId: user.id, email: profileRow?.email, platform_role: profileRow?.platform_role, roles: roleList, rolesErr: rolesErr?.message } }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+
 
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
