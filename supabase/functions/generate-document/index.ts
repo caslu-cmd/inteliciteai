@@ -480,11 +480,15 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
     });
   }
 
+  const contextPrefix = formData.municipalityContext
+    ? `CONTEXTO ESPECÍFICO DO ÓRGÃO (regulamentos locais e base jurídica relevante):\n${formData.municipalityContext}\n\nUse este contexto para personalizar o documento, seguindo os regulamentos do órgão quando aplicável e citando as fontes fornecidas.\n\n---\n\n`
+    : "";
+
   const claudeBody: any = {
     model: "claude-sonnet-4-6",
     max_tokens: maxTokens,
     system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+    messages: [{ role: "user", content: contextPrefix + userPrompt }],
   };
 
   if (stream && (tipo === "etp" || tipo === "tr" || tipo === "dfd")) {
