@@ -4,7 +4,7 @@ import {
   Users, Shield, BarChart3, Tag, MapPin, Activity,
   CreditCard, AlertTriangle, Settings, DollarSign,
   UserCheck, UserX, Clock, CheckCircle2, XCircle, Gift,
-  TrendingUp, ArrowUpRight, Briefcase,
+  TrendingUp, ArrowUpRight, Briefcase, Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import AdminSalesTab from "@/components/admin/AdminSalesTab";
 import AdminGeoTab from "@/components/admin/AdminGeoTab";
 import AdminGatewayTab from "@/components/admin/AdminGatewayTab";
 import AdminMarketplaceTab from "@/components/admin/AdminMarketplaceTab";
+import AdminBaseJuridicaTab from "@/components/admin/AdminBaseJuridicaTab";
 
 const tabs = [
   { id: "overview",       label: "Visão Geral",  icon: BarChart3 },
@@ -29,6 +30,7 @@ const tabs = [
   { id: "sales",          label: "Vendas",       icon: CreditCard },
   { id: "gateway",        label: "Gateway",      icon: Settings },
   { id: "coupons",        label: "Cupons",       icon: Tag },
+  { id: "base_juridica",  label: "Base Jurídica",icon: Scale },
   { id: "geo",            label: "Localização",  icon: MapPin },
   { id: "logs",           label: "Logs",         icon: Activity },
 ];
@@ -366,6 +368,7 @@ export default function AdminPage() {
       {activeTab === "sales"   && <AdminSalesTab />}
       {activeTab === "gateway" && <AdminGatewayTab />}
       {activeTab === "coupons" && <AdminCouponsTab />}
+      {activeTab === "base_juridica" && <AdminBaseJuridicaTab />}
       {activeTab === "geo"     && <AdminGeoTab />}
       {activeTab === "logs"    && <AdminLogsTab />}
     </div>
