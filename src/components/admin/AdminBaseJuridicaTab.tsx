@@ -295,15 +295,21 @@ export default function AdminBaseJuridicaTab() {
                 </div>
                 <div className="sm:col-span-3 flex sm:justify-end gap-1">
                   <Button
-                    variant="ghost" size="sm"
+                    variant={indexed ? "secondary" : "default"}
+                    size="sm"
                     onClick={() => indexOne(item.id)}
                     disabled={indexingId === item.id || indexingAll}
                     className="h-7 text-xs"
+                    title={indexed ? "Reindexar item" : "Indexar item"}
                   >
-                    {indexingId === item.id
-                      ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      : <Zap className="h-3 w-3 mr-1" />}
-                    Indexar
+                    {indexingId === item.id ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : indexed ? (
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Zap className="h-3 w-3 mr-1" />
+                    )}
+                    {indexed ? "Indexado" : "Indexar"}
                   </Button>
                   <Button
                     variant="ghost" size="icon"
