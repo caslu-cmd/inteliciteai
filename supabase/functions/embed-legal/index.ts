@@ -94,8 +94,9 @@ Deno.serve(async (req) => {
       }, 403);
     }
 
-    const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_KEY) return json({ error: "OPENAI_API_KEY não configurada" }, 503);
+    const API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!API_KEY) return json({ error: "LOVABLE_API_KEY não configurada" }, 503);
+
 
     let body: { knowledgeId?: string; indexAll?: boolean };
     try { body = await req.json(); } catch { return json({ error: "JSON inválido" }, 400); }
