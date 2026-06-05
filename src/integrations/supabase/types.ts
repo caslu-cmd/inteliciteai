@@ -379,6 +379,74 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_knowledge: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          id: string
+          reference: string | null
+          source_type: string
+          title: string
+          year: number | null
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          reference?: string | null
+          source_type: string
+          title: string
+          year?: number | null
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          reference?: string | null
+          source_type?: string
+          title?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      legal_knowledge_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          knowledge_id: string
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          knowledge_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          knowledge_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_knowledge_chunks_knowledge_id_fkey"
+            columns: ["knowledge_id"]
+            isOneToOne: false
+            referencedRelation: "legal_knowledge"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_projects: {
         Row: {
           budget_max: number
@@ -1147,6 +1215,19 @@ export type Database = {
           document_id: string
           id: string
           metadata: Json
+          similarity: number
+        }[]
+      }
+      match_legal_knowledge: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          knowledge_id: string
           similarity: number
         }[]
       }
