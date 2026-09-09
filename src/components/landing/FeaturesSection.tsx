@@ -22,7 +22,7 @@ const fadeUp = {
 const features: { icon: LucideIcon; title: string; description: string; glow: "cyan" | "purple" }[] = [
   {
     icon: MessageSquare,
-    title: "Assistente Jurídico IA",
+    title: "Intelicite",
     description:
       "Chat inteligente especializado na Lei 14.133/2021. Faça perguntas, anexe PDFs e receba respostas estruturadas.",
     glow: "cyan",

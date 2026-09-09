@@ -99,7 +99,7 @@ const NAV_LICITANTE = [
 // ── Page titles ───────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/dashboard/chat": "Assistente Jurídico",
+  "/dashboard/chat": "Intelicite",
   "/dashboard/notebook": "Notebook IA",
   "/dashboard/documents": "Meus Documentos",
   "/dashboard/dfd": "Gerador de DFD",

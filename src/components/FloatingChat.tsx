@@ -110,7 +110,7 @@ const FloatingChat = forwardRef<FloatingChatRef>((_props, ref) => {
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-accent" />
-                <span className="font-semibold text-sm">Assistente Jurídico</span>
+                <span className="font-semibold text-sm">Intelicite</span>
               </div>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
                 <X className="h-4 w-4" />

@@ -334,7 +334,7 @@ export default function ChatPage() {
           {activeConv.messages.length === 0 && !isTyping && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Bot className="h-12 w-12 text-accent/30 mb-4" />
-              <h3 className="text-lg font-semibold">Assistente Jurídico IA</h3>
+              <h3 className="text-lg font-semibold">Intelicite</h3>
               <p className="mt-2 text-sm text-muted-foreground max-w-sm">
                 Faça perguntas sobre a Lei 14.133/2021, solicite análises ou peça ajuda para elaborar documentos.
               </p>
