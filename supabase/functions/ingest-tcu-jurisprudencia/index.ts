@@ -84,10 +84,23 @@ Deno.serve(async (req) => {
   const quantidade = Math.min(body.quantidade ?? 100, 200);
 
   try {
-    // 1) Busca lote de acórdãos no TCU
-    const res = await fetch(`${TCU_API}?inicio=${inicio}&quantidade=${quantidade}`, {
-      headers: { Accept: "application/json" },
-    });
+    // 1) Busca lote de acórdãos no TCU (com timeout — o endpoint pode ser lento/instável)
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    let res: Response;
+    try {
+      res = await fetch(`${TCU_API}?inicio=${inicio}&quantidade=${quantidade}`, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (compatible; IntelisiteBot/1.0)",
+        },
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: "Falha ao conectar no TCU (timeout ou conexão recusada). O endpoint de dados abertos pode estar instável ou bloqueando o acesso.", detail: String(e) }), { status: 504, headers: cors });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       return new Response(JSON.stringify({ error: `TCU ${res.status}`, detail: (await res.text()).slice(0, 300) }), { status: 502, headers: cors });
     }
