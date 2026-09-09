@@ -247,7 +247,8 @@ export default function AdminBaseJuridicaTab() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        💡 Para ativar busca web de jurisprudência em tempo real, adicione o secret <code className="bg-secondary px-1 rounded">BRAVE_SEARCH_API_KEY</code> no Supabase.
+        💡 A busca de jurisprudência do TCU/AGU em tempo real usa a busca web nativa do Claude
+        (mesma <code className="bg-secondary px-1 rounded">ANTHROPIC_API_KEY</code> do chat) — sem provedor externo.
       </p>
     </div>
   );

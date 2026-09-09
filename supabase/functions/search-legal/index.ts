@@ -19,16 +19,55 @@ async function embedQuery(text: string, apiKey: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-async function webSearch(query: string, apiKey: string): Promise<string> {
-  const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&freshness=py`, {
-    headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": apiKey },
-  });
-  if (!res.ok) return "";
-  const data = await res.json();
-  return (data.web?.results || [])
-    .slice(0, 5)
-    .map((r: any) => `• ${r.title}: ${r.description} (${r.url})`)
-    .join("\n");
+// Busca jurisprudência atual do TCU/AGU usando a busca web NATIVA do Claude
+// (server-side tool web_search), restrita aos domínios oficiais. Usa a mesma
+// ANTHROPIC_API_KEY que o chat já usa — sem provedor externo de busca.
+async function webSearchJurisprudencia(query: string, anthropicKey: string): Promise<string> {
+  const tools = [{
+    type: "web_search_20260209",
+    name: "web_search",
+    max_uses: 3,
+    allowed_domains: ["portal.tcu.gov.br", "pesquisa.apps.tcu.gov.br", "www.gov.br", "gov.br"],
+  }];
+
+  const prompt =
+    `Busque jurisprudência recente e relevante do TCU (acórdãos, súmulas) e da AGU sobre: "${query}", ` +
+    `no contexto da Lei nº 14.133/2021 (licitações e contratos públicos). ` +
+    `Liste de forma objetiva os achados, cada um com: número do acórdão/súmula, ano, a tese/entendimento e a URL da fonte oficial. ` +
+    `Cite apenas o que encontrar nas fontes; não invente. Se não houver nada relevante, responda apenas: SEM RESULTADOS.`;
+
+  // deno-lint-ignore no-explicit-any
+  let convo: any[] = [{ role: "user", content: prompt }];
+
+  // web_search pode gerar pause_turn (execução server-side); continuamos até 3x.
+  for (let i = 0; i < 3; i++) {
+    const res = await fetch(ANTHROPIC_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({ model: "claude-opus-4-8", max_tokens: 1500, tools, messages: convo }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+
+    const text = (data.content || [])
+      .filter((b: { type: string }) => b.type === "text")
+      // deno-lint-ignore no-explicit-any
+      .map((b: any) => b.text)
+      .join("\n")
+      .trim();
+
+    if (data.stop_reason === "pause_turn") {
+      convo = [...convo, { role: "assistant", content: data.content }];
+      continue;
+    }
+
+    return text && !/^SEM RESULTADOS/i.test(text) ? text : "";
+  }
+  return "";
 }
 
 Deno.serve(async (req) => {
@@ -50,12 +89,12 @@ Deno.serve(async (req) => {
   if (!query?.trim()) return new Response(JSON.stringify({ context: "", chunks: [] }), { headers: cors });
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
-  const BRAVE_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
+  const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
   let legalContext = "";
   let webContext = "";
 
-  // Busca vetorial na base local
+  // Busca vetorial na base local (Lei 14.133 + acórdãos/súmulas cadastrados)
   if (OPENAI_KEY) {
     try {
       const queryEmbedding = await embedQuery(query, OPENAI_KEY);
@@ -65,17 +104,16 @@ Deno.serve(async (req) => {
         min_similarity:  0.22,
       });
       if (chunks?.length > 0) {
-        legalContext = `BASE JURÍDICA INTELICITE:\n${chunks.map((c: any, i: number) => `[${i + 1}] ${c.content}`).join("\n\n")}`;
+        legalContext = `BASE JURÍDICA INTELICITE:\n${chunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n")}`;
       }
     } catch { /* continua sem contexto local */ }
   }
 
-  // Web search para jurisprudência atual (se habilitado e com chave)
-  if (includeWebSearch && BRAVE_KEY) {
+  // Jurisprudência atual do TCU/AGU via busca web nativa do Claude (se habilitado)
+  if (includeWebSearch && ANTHROPIC_KEY) {
     try {
-      const jurQuery = `site:portal.tcu.gov.br OR site:agu.gov.br "${query}" licitação Lei 14133`;
-      const results = await webSearch(jurQuery, BRAVE_KEY);
-      if (results) webContext = `JURISPRUDÊNCIA WEB:\n${results}`;
+      const results = await webSearchJurisprudencia(query, ANTHROPIC_KEY);
+      if (results) webContext = `JURISPRUDÊNCIA ATUAL (TCU/AGU, busca web):\n${results}`;
     } catch { /* continua sem web search */ }
   }
 
