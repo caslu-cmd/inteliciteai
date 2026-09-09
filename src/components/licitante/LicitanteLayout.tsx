@@ -18,7 +18,7 @@ const NAV_MAIN = [
   { to: "/licitante/habilitacao", icon: Building2,       label: "Habilitação"   },
   { to: "/licitante/documentos",  icon: FolderCheck,     label: "Documentos"    },
   { to: "/licitante/minutas",   icon: FileText,          label: "Minutas"       },
-  { to: "/licitante/assistente", icon: MessageSquareText, label: "Assistente IA" },
+  { to: "/licitante/assistente", icon: MessageSquareText, label: "Intelicite" },
   { to: "/licitante/relatorios", icon: BarChart3,        label: "Relatórios"    },
 ];
 
