@@ -46,6 +46,7 @@ export default function AdminBaseJuridicaTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [indexing, setIndexing] = useState<string | "all" | null>(null);
+  const [ingestingTCU, setIngestingTCU] = useState(false);
   const [form, setForm] = useState({ title: "", source_type: "lei", reference: "", year: new Date().getFullYear(), content: "" });
   const { toast } = useToast();
 
@@ -125,6 +126,25 @@ export default function AdminBaseJuridicaTab() {
     load();
   };
 
+  const handleIngestTCU = async () => {
+    setIngestingTCU(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("ingest-tcu-jurisprudencia", {
+      body: { quantidade: 100 },
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    setIngestingTCU(false);
+    if (error || data?.error) {
+      toast({ title: "Erro ao atualizar do TCU", description: data?.error || error?.message || "Falha na importação.", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Jurisprudência do TCU atualizada",
+      description: `${data.inseridos ?? 0} novo(s) acórdão(s) importado(s). (${data.foraDoTema ?? 0} fora do tema, ${data.pulados ?? 0} já existentes/ignorados de ${data.recebidos ?? 0} recebidos.)`,
+    });
+    load();
+  };
+
   const sourceLabel = (type: string) => SOURCE_TYPES.find(s => s.value === type)?.label || type;
   const notIndexed = items.filter(i => !i._indexed).length;
 
@@ -138,6 +158,10 @@ export default function AdminBaseJuridicaTab() {
           <p className="text-sm text-muted-foreground">Lei 14.133/2021, acórdãos TCU, orientações AGU e doutrina</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleIngestTCU} disabled={ingestingTCU}>
+            {ingestingTCU ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Scale className="h-3.5 w-3.5" />}
+            Atualizar TCU
+          </Button>
           {notIndexed > 0 && (
             <Button variant="outline" size="sm" className="gap-2" onClick={handleIndexAll} disabled={indexing === "all"}>
               {indexing === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
