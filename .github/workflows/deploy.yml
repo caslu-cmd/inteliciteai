@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Publica o Intelicite no GitHub Pages a cada push na branch de deploy.
+on:
+  push:
+    branches:
+      - claude/intelicite-memory-l82p41
+      - main
+  workflow_dispatch:
+
+# Permissões necessárias para o GitHub Pages via Actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Garante um deploy por vez, sem cancelar um que já esteja rodando.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        # DEPLOY_BASE precisa bater com o nome do repositório para o Pages
+        # servir os assets no caminho certo (https://<user>.github.io/inteliciteai/).
+        env:
+          DEPLOY_BASE: /inteliciteai/
+        run: npm run build
+
+      - name: SPA fallback (404 -> index)
+        # Faz o roteamento client-side funcionar ao dar refresh em rotas internas.
+        run: cp dist/index.html dist/404.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
