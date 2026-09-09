@@ -19,7 +19,24 @@ async function embedQuery(text: string, apiKey: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-// Busca jurisprudência atual do TCU/AGU usando a busca web NATIVA do Claude
+// Busca jurisprudência via Brave Search (provedor principal, tem plano grátis),
+// restrita aos portais oficiais do TCU/AGU e a resultados do último ano.
+async function webSearchBrave(query: string, braveKey: string): Promise<string> {
+  const jurQuery = `site:portal.tcu.gov.br OR site:agu.gov.br "${query}" licitação Lei 14133`;
+  const res = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(jurQuery)}&count=5&freshness=py`,
+    { headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": braveKey } },
+  );
+  if (!res.ok) return "";
+  const data = await res.json();
+  // deno-lint-ignore no-explicit-any
+  return (data.web?.results || [])
+    .slice(0, 5)
+    .map((r: any) => `• ${r.title}: ${r.description} (${r.url})`)
+    .join("\n");
+}
+
+// Reserva: busca jurisprudência do TCU/AGU usando a busca web NATIVA do Claude
 // (server-side tool web_search), restrita aos domínios oficiais. Usa a mesma
 // ANTHROPIC_API_KEY que o chat já usa — sem provedor externo de busca.
 async function webSearchJurisprudencia(query: string, anthropicKey: string): Promise<string> {
@@ -90,6 +107,7 @@ Deno.serve(async (req) => {
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
   const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  const BRAVE_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
 
   let legalContext = "";
   let webContext = "";
@@ -109,10 +127,13 @@ Deno.serve(async (req) => {
     } catch { /* continua sem contexto local */ }
   }
 
-  // Jurisprudência atual do TCU/AGU via busca web nativa do Claude (se habilitado)
-  if (includeWebSearch && ANTHROPIC_KEY) {
+  // Jurisprudência atual do TCU/AGU (se habilitado): Brave como principal
+  // (tem plano grátis); busca nativa do Claude como reserva automática.
+  if (includeWebSearch) {
     try {
-      const results = await webSearchJurisprudencia(query, ANTHROPIC_KEY);
+      let results = "";
+      if (BRAVE_KEY) results = await webSearchBrave(query, BRAVE_KEY);
+      if (!results && ANTHROPIC_KEY) results = await webSearchJurisprudencia(query, ANTHROPIC_KEY);
       if (results) webContext = `JURISPRUDÊNCIA ATUAL (TCU/AGU, busca web):\n${results}`;
     } catch { /* continua sem web search */ }
   }
