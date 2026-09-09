@@ -2,6 +2,21 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// Extrai o texto de um evento SSE. A edge function `chat` repassa o stream
+// da API da Anthropic (eventos content_block_delta -> delta.text). Mantemos
+// também o formato OpenAI (choices[].delta.content) por compatibilidade.
+function extractDelta(parsed: unknown): string | undefined {
+  const p = parsed as {
+    type?: string;
+    delta?: { type?: string; text?: string };
+    choices?: { delta?: { content?: string } }[];
+  };
+  if (p?.type === "content_block_delta" && p.delta?.type === "text_delta") {
+    return p.delta.text;
+  }
+  return p?.choices?.[0]?.delta?.content;
+}
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export async function streamChat({
@@ -95,7 +110,7 @@ export async function streamChat({
 
       try {
         const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        const content = extractDelta(parsed);
         if (content) onDelta(content);
       } catch {
         textBuffer = line + "\n" + textBuffer;
@@ -115,7 +130,7 @@ export async function streamChat({
       if (jsonStr === "[DONE]") continue;
       try {
         const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        const content = extractDelta(parsed);
         if (content) onDelta(content);
       } catch {}
     }
