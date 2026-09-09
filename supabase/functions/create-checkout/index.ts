@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     }
 
     // Build the public URL for callbacks
-    const appUrl = app_url || req.headers.get("origin") || "https://inteliciteai.lovable.app";
+    const appUrl = app_url || req.headers.get("origin") || "https://intelicite.com.br";
     const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
 
     // Create Mercado Pago preference
