@@ -4,7 +4,7 @@
 
 set -e
 
-PROJECT_ID="vderxlqqxmvnrdxwyogy"
+PROJECT_ID="smdafvlyknpswhtandgh"
 
 echo "🚀 Intelicite AI — Deploy Script"
 echo "================================="
