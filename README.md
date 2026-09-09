@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
+# Intelicite
 
-## Project info
+Plataforma de IA para licitações públicas, com conformidade à **Lei nº 14.133/2021**.
+Gera ETPs, Termos de Referência e DFDs, valida editais, consulta a legislação e
+jurisprudência (TCU/AGU) e mantém memória por órgão.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Tecnologias
 
-## How can I edit this code?
+- **Vite + React + TypeScript**
+- **Tailwind CSS + shadcn-ui**
+- **Supabase** (Postgres, Auth, Edge Functions, pgvector para RAG)
+- **Cloudflare** (hospedagem via Workers + Static Assets)
 
-There are several ways of editing your application.
+## Desenvolvimento local
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Pré-requisito: Node.js 20+.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. Instalar dependências
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 2. Rodar em modo desenvolvimento (http://localhost:8080)
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Scripts úteis:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run build      # build de produção (gera ./dist)
+npm run preview    # servir o build localmente
+npm run lint       # ESLint
+npm test           # testes (vitest)
+```
 
-**Use GitHub Codespaces**
+## Variáveis de ambiente
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+O front usa as variáveis `VITE_SUPABASE_*` (arquivo `.env`) para conectar ao
+projeto Supabase. Os segredos das Edge Functions (OpenAI, Anthropic, Resend,
+Brave, etc.) ficam configurados no painel do Supabase, não no repositório.
 
-## What technologies are used for this project?
+## Deploy
 
-This project is built with:
+O deploy é feito pelo **Cloudflare** (Workers + Static Assets), configurado em
+`wrangler.jsonc`:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Build command:** `npm run build`
+- **Deploy command:** `npx wrangler deploy`
+- **Output:** `dist`
 
-## How can I deploy this project?
+Cada push na branch de produção dispara um novo deploy.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Estrutura
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `src/` — aplicação React (páginas, componentes, hooks, libs)
+- `supabase/functions/` — Edge Functions (chat, RAG, e-mail, integrações)
+- `supabase/migrations/` — schema e políticas (RLS), incluindo a base jurídica
+  e as funções de busca semântica (pgvector)
