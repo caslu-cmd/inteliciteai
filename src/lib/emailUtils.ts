@@ -19,3 +19,17 @@ export async function sendEmail(
     body: { to, template, data },
   }).catch(() => {/* best-effort */});
 }
+
+/**
+ * Dispara o e-mail de redefinição de senha via Resend (edge function
+ * send-reset-password). Sempre resolve sem erro — a função nunca revela se o
+ * e-mail existe, para evitar enumeração de contas.
+ */
+export async function sendPasswordReset(email: string) {
+  await supabase.functions.invoke("send-reset-password", {
+    body: {
+      email,
+      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}redefinir-senha`,
+    },
+  }).catch(() => {/* best-effort — não expõe estado ao usuário */});
+}

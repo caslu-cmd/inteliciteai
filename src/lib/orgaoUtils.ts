@@ -57,7 +57,10 @@ export async function getLegalContext(query: string, includeWebSearch = false): 
 export async function getFullContext(query: string): Promise<string> {
   const [regulationCtx, legalCtx, memoryCtx] = await Promise.all([
     getRegulationContext(query).catch(() => ""),
-    getLegalContext(query).catch(() => ""),
+    // includeWebSearch=true: ativa a busca de jurisprudência do TCU/AGU em tempo
+    // real (a edge function só executa se o BRAVE_SEARCH_API_KEY estiver
+    // configurado no Supabase; sem a chave, é no-op sem custo/latência).
+    getLegalContext(query, true).catch(() => ""),
     getOrganMemoryContext(query).catch(() => ""),
   ]);
   return [regulationCtx, legalCtx, memoryCtx].filter(Boolean).join("\n\n---\n\n");
