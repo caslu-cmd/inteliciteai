@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
   // Verificar se é admin
   const { data: profile } = await supabase.from("profiles").select("platform_role").eq("id", user.id).single();
-  if (profile?.platform_role !== "admin") return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
+  if (!["admin", "super_admin"].includes(profile?.platform_role ?? "")) return new Response(JSON.stringify({ error: "Apenas admins" }), { status: 403, headers: cors });
 
   const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_KEY) return new Response(JSON.stringify({ error: "OPENAI_API_KEY não configurada" }), { status: 503, headers: cors });
