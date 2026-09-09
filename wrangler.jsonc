@@ -1,0 +1,11 @@
+{
+  // Configuração para publicar o Intelicite no Cloudflare (Workers + Static Assets).
+  // O build (npm run build) gera a pasta ./dist, que é servida como site estático.
+  "name": "inteliciteai",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Serve index.html para as rotas internas (roteamento SPA do React Router).
+    "not_found_handling": "single-page-application"
+  }
+}
