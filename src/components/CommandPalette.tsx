@@ -20,7 +20,7 @@ interface CommandItem {
 
 const COMMANDS: CommandItem[] = [
   // Gestor
-  { id: "chat", label: "Assistente Jurídico IA", description: "Chat sobre Lei 14.133/2021", icon: MessageSquare, path: "/dashboard/chat", group: "Agente Público" },
+  { id: "chat", label: "Intelicite", description: "Chat sobre Lei 14.133/2021", icon: MessageSquare, path: "/dashboard/chat", group: "Agente Público" },
   { id: "etp", label: "Gerador de ETP", description: "Estudo Técnico Preliminar", icon: FileText, path: "/dashboard/etp", group: "Agente Público", keywords: "estudo tecnico preliminar" },
   { id: "tr", label: "Gerador de TR", description: "Termo de Referência", icon: FileText, path: "/dashboard/tr", group: "Agente Público", keywords: "termo referencia" },
   { id: "checklist", label: "Checklist", description: "Conformidade do processo licitatório", icon: CheckSquare, path: "/dashboard/checklist", group: "Agente Público" },

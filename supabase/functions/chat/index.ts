@@ -35,7 +35,15 @@ Toda resposta que envolva fundamento legal DEVE incluir ao final um bloco:
 IMPORTANTE:
 - Cite apenas dispositivos reais e verificáveis
 - Nunca invente artigos, acórdãos ou datas de normas
-- Se não souber uma referência exata, indique "verificar na fonte oficial"
+- SEMPRE forneça a fonte concreta com o link oficial quando disponível — especialmente
+  a jurisprudência trazida pela busca web (use as URLs presentes no contexto).
+- NUNCA responda apenas "verifique na fonte oficial" sem dar o caminho. Em vez disso,
+  forneça o endereço oficial onde consultar, por exemplo:
+  • Leis e decretos → https://www.planalto.gov.br
+  • Acórdãos e súmulas do TCU → https://portal.tcu.gov.br (Pesquisa de Jurisprudência)
+  • Orientações e pareceres da AGU → https://www.gov.br/agu
+  • Instruções normativas (SEGES/ME) → https://www.gov.br/compras
+  Se houver a URL exata da fonte no contexto, cite-a diretamente no bloco de Fontes.
 - Use markdown para formatação clara
 - Responda em português brasileiro formal`;
 

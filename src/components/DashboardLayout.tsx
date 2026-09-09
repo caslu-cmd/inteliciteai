@@ -20,7 +20,7 @@ const NAV_GESTOR = [
   {
     items: [
       { title: "Dashboard",        icon: LayoutDashboard, path: "/dashboard" },
-      { title: "Assistente IA",    icon: MessageSquare,   path: "/dashboard/chat" },
+      { title: "Intelicite",    icon: MessageSquare,   path: "/dashboard/chat" },
       { title: "Notebook IA",      icon: BookMarked,      path: "/dashboard/notebook", badge: "Novo" },
       { title: "Documentos",       icon: FolderOpen,      path: "/dashboard/documents" },
     ],
@@ -73,7 +73,7 @@ const NAV_LICITANTE = [
     label: "Jurídico",
     items: [
       { title: "Minutas",          icon: FileText,    path: "/licitante/minutas" },
-      { title: "Assistente IA",    icon: MessageSquare, path: "/licitante/assistente" },
+      { title: "Intelicite",    icon: MessageSquare, path: "/licitante/assistente" },
       { title: "Habilitação",      icon: CheckSquare, path: "/licitante/habilitacao" },
     ],
   },
@@ -99,7 +99,7 @@ const NAV_LICITANTE = [
 // ── Page titles ───────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/dashboard/chat": "Assistente Jurídico",
+  "/dashboard/chat": "Intelicite",
   "/dashboard/notebook": "Notebook IA",
   "/dashboard/documents": "Meus Documentos",
   "/dashboard/dfd": "Gerador de DFD",

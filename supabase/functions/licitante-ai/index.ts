@@ -28,7 +28,10 @@ Toda resposta jurídica deve terminar com:
 • [Acórdão TCU XXXX/XXXX-Plenário] (se pertinente)
 • [IN/Decreto aplicável] (se houver)
 ---
-Nunca invente referências. Se não tiver certeza de uma referência, indique "verificar na fonte oficial".`;
+Nunca invente referências. SEMPRE forneça a fonte concreta com o link oficial quando disponível
+(use as URLs presentes no contexto). NUNCA responda apenas "verifique na fonte oficial" sem dar o
+caminho — forneça o endereço oficial: leis em https://www.planalto.gov.br, acórdãos do TCU em
+https://portal.tcu.gov.br, orientações da AGU em https://www.gov.br/agu.`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });

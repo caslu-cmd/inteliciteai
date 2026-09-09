@@ -91,7 +91,7 @@ export default function AssistentePage() {
           </div>
           <div>
             <h1 className="font-display font-semibold text-base text-foreground flex items-center gap-1.5">
-              Assistente IA <Sparkles className="w-4 h-4 text-primary" />
+              Intelicite <Sparkles className="w-4 h-4 text-primary" />
             </h1>
             <p className="text-xs text-muted-foreground">Especialista em licitações · Lei 14.133/2021 · Intelicite IA</p>
           </div>

@@ -31,7 +31,7 @@ const plans = [
     description: "Teste todas as funcionalidades por 7 dias",
     features: [
       "Acesso completo por 7 dias",
-      "Assistente Jurídico IA",
+      "Intelicite",
       "Gerador de ETP e TR",
       "Validador de Editais",
       "Diagnóstico de Licitação",
@@ -44,7 +44,7 @@ const plans = [
     period: "/mês",
     description: "Acesso completo e ilimitado a todos os recursos",
     features: [
-      "Assistente Jurídico IA ilimitado",
+      "Intelicite ilimitado",
       "Gerador de ETP e TR",
       "Validador de Editais",
       "Diagnóstico de Licitação",
