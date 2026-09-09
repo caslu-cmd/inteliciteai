@@ -31,6 +31,19 @@ export async function getRegulationContext(query: string): Promise<string> {
   return res?.data?.context ?? "";
 }
 
+export async function getOrganMemoryContext(query: string): Promise<string> {
+  const municipalityId = await getMunicipalityId();
+  if (!municipalityId) return "";
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await supabase.functions.invoke("search-organ-memory", {
+    body: { query, municipalityId, matchCount: 4 },
+    headers: { Authorization: `Bearer ${session?.access_token}` },
+  }).catch(() => ({ data: null }));
+
+  return res?.data?.context ?? "";
+}
+
 export async function getLegalContext(query: string, includeWebSearch = false): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   const res = await supabase.functions.invoke("search-legal", {
@@ -42,9 +55,10 @@ export async function getLegalContext(query: string, includeWebSearch = false): 
 }
 
 export async function getFullContext(query: string): Promise<string> {
-  const [regulationCtx, legalCtx] = await Promise.all([
+  const [regulationCtx, legalCtx, memoryCtx] = await Promise.all([
     getRegulationContext(query).catch(() => ""),
     getLegalContext(query).catch(() => ""),
+    getOrganMemoryContext(query).catch(() => ""),
   ]);
-  return [regulationCtx, legalCtx].filter(Boolean).join("\n\n---\n\n");
+  return [regulationCtx, legalCtx, memoryCtx].filter(Boolean).join("\n\n---\n\n");
 }
