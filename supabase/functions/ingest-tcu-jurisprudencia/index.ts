@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("platform_role").eq("id", user.id).single();
-        if (profile?.platform_role === "admin") autorizado = true;
+        if (["admin", "super_admin"].includes(profile?.platform_role ?? "")) autorizado = true;
       }
     }
   }
