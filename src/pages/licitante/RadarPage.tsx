@@ -4,10 +4,13 @@ import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
 import { OpportunityCard } from "@/components/licitante/OpportunityCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   Search, SlidersHorizontal, MapPin, Building, Tag, X,
   Radar as RadarIcon, Loader2, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight,
+  Target, Sparkles,
 } from "lucide-react";
 
 // PNCP modalidade IDs
@@ -54,9 +57,60 @@ export default function RadarPage() {
   const [selectedModalidade, setSelectedModalidade] = useState<string>("");
   const [pagina, setPagina] = useState(1);
 
+  // Match IA
+  const { toast } = useToast();
+  const [perfil, setPerfil] = useState("");
+  const [showPerfil, setShowPerfil] = useState(false);
+  const [savingPerfil, setSavingPerfil] = useState(false);
+  const [matching, setMatching] = useState(false);
+  const [matchMap, setMatchMap] = useState<Record<string, { match: number; motivo: string }>>({});
+
+  // Carrega o perfil da empresa do usuário
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("empresa_perfil").eq("id", user.id).single();
+      if (data?.empresa_perfil) setPerfil(data.empresa_perfil);
+    })();
+  }, []);
+
+  const savePerfil = async () => {
+    setSavingPerfil(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) await supabase.from("profiles").update({ empresa_perfil: perfil }).eq("id", user.id);
+    setSavingPerfil(false);
+    toast({ title: "Perfil salvo", description: "Agora clique em \"Match IA\" para pontuar as oportunidades." });
+  };
+
+  const runMatch = async () => {
+    if (!perfil.trim()) {
+      setShowPerfil(true);
+      toast({ title: "Descreva sua empresa primeiro", description: "Preencha o que sua empresa fornece para a IA calcular o match.", variant: "destructive" });
+      return;
+    }
+    if (!data?.opportunities?.length) return;
+    setMatching(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: res, error } = await supabase.functions.invoke("match-oportunidades", {
+      body: { perfil, itens: data.opportunities.map((o) => ({ id: o.id, title: o.title, organ: o.organ })) },
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    setMatching(false);
+    if (error || res?.error || !res?.scores?.length) {
+      toast({ title: "Não foi possível calcular o match", description: res?.error || error?.message || "Tente novamente.", variant: "destructive" });
+      return;
+    }
+    const map: Record<string, { match: number; motivo: string }> = {};
+    for (const s of res.scores) map[String(s.id)] = { match: s.match, motivo: s.motivo };
+    setMatchMap(map);
+    toast({ title: "Match calculado! 🎯", description: "As oportunidades foram ordenadas pela aderência à sua empresa." });
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setMatchMap({}); // resultados novos → limpa o match anterior
     try {
       const params = new URLSearchParams({ pagina: String(pagina) });
       if (selectedUf)         params.set("uf", selectedUf);
@@ -142,8 +196,44 @@ export default function RadarPage() {
             <Button variant="ghost" size="icon" onClick={() => fetchData()} title="Atualizar">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowPerfil(!showPerfil)} title="Perfil da empresa (Match IA)">
+              <Building className="w-4 h-4" /> Perfil
+            </Button>
+            <Button size="sm" className="gap-2" onClick={runMatch} disabled={matching || loading || !data?.opportunities?.length}>
+              {matching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+              Match IA
+            </Button>
           </div>
         </div>
+
+        {/* Perfil da empresa (Match IA) */}
+        {showPerfil && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            className="bg-card rounded-xl border border-border p-5 mb-6 shadow-card">
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-1">
+              <Sparkles className="w-4 h-4 text-primary" /> Perfil da sua empresa
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Descreva o que sua empresa fornece (produtos, serviços, segmentos, palavras-chave). A IA usa isso para
+              pontuar o quanto cada licitação combina com você.
+            </p>
+            <Textarea
+              value={perfil}
+              onChange={(e) => setPerfil(e.target.value)}
+              rows={3}
+              placeholder="Ex.: Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <Button variant="outline" size="sm" onClick={savePerfil} disabled={savingPerfil}>
+                {savingPerfil ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Salvar perfil"}
+              </Button>
+              <Button size="sm" className="gap-2" onClick={runMatch} disabled={matching || !data?.opportunities?.length}>
+                {matching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Target className="w-3.5 h-3.5" />}
+                Calcular match
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Filters */}
         {showFilters && (
@@ -228,8 +318,19 @@ export default function RadarPage() {
                   <p>Nenhuma licitação encontrada com os filtros atuais.</p>
                 </div>
               ) : (
-                data.opportunities.map((opp, i) => (
-                  <OpportunityCard key={opp.id} {...opp} index={i} />
+                (Object.keys(matchMap).length > 0
+                  ? [...data.opportunities].sort(
+                      (a, b) => (matchMap[b.id]?.match ?? -1) - (matchMap[a.id]?.match ?? -1)
+                    )
+                  : data.opportunities
+                ).map((opp, i) => (
+                  <OpportunityCard
+                    key={opp.id}
+                    {...opp}
+                    score={matchMap[opp.id]?.match ?? opp.score}
+                    matchReason={matchMap[opp.id]?.motivo}
+                    index={i}
+                  />
                 ))
               )}
             </div>

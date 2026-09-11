@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { RiskBadge } from "./RiskBadge";
 import { VictoryScore } from "./VictoryScore";
-import { Clock, Building, MapPin, ExternalLink } from "lucide-react";
+import { Clock, Building, MapPin, ExternalLink, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -17,12 +17,13 @@ interface OpportunityCardProps {
   modalidade?: string;
   link?: string;
   orgaoCnpj?: string;
+  matchReason?: string;
   index?: number;
 }
 
 export function OpportunityCard({
   id, title, organ, location, deadline, score, risk,
-  value, modalidade, link, orgaoCnpj, index = 0,
+  value, modalidade, link, orgaoCnpj, matchReason, index = 0,
 }: OpportunityCardProps) {
   const navigate = useNavigate();
 
@@ -44,7 +45,16 @@ export function OpportunityCard({
         {value && <span className="text-xs font-mono text-muted-foreground">{value}</span>}
       </div>
 
-      <h3 className="font-semibold text-sm text-card-foreground leading-snug mb-3 line-clamp-2 flex-1">{title}</h3>
+      <h3 className="font-semibold text-sm text-card-foreground leading-snug mb-2 line-clamp-2">{title}</h3>
+
+      {matchReason && (
+        <div className="mb-3 flex items-start gap-1.5 rounded-lg bg-primary/5 border border-primary/15 px-2.5 py-1.5">
+          <Target className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+          <span className="text-[11px] leading-snug text-primary/90">
+            <strong>{score}% match</strong> — {matchReason}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-1.5 mb-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
