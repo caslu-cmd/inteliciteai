@@ -47,6 +47,7 @@ export default function AdminBaseJuridicaTab() {
   const [saving, setSaving] = useState(false);
   const [indexing, setIndexing] = useState<string | "all" | null>(null);
   const [buscandoLeis, setBuscandoLeis] = useState(false);
+  const [buscandoLeisMsg, setBuscandoLeisMsg] = useState("");
   const [form, setForm] = useState({ title: "", source_type: "lei", reference: "", year: new Date().getFullYear(), content: "" });
   const { toast } = useToast();
 
@@ -123,23 +124,32 @@ export default function AdminBaseJuridicaTab() {
   const handleBuscarLeis = async () => {
     setBuscandoLeis(true);
     const { data: { session } } = await supabase.auth.getSession();
+    const authz = { Authorization: `Bearer ${session?.access_token}` };
     try {
-      // Reinicia o ciclo: as leis oficiais serão (re)baixadas do Planalto e
-      // reindexadas automaticamente pela rotina de fundo nos próximos minutos.
-      const res = await supabase.functions.invoke("ingest-legislacao", {
-        body: { reset: true },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw res.error;
+      // Continua de onde parou (modo auto), fatia por fatia, até concluir todas
+      // as leis. Não reinicia a fila — apenas avança e reindexa o que faltar.
+      let done = false;
+      for (let i = 0; i < 40 && !done; i++) {
+        const res = await supabase.functions.invoke("ingest-legislacao", { body: { auto: true }, headers: authz });
+        if (res.error) throw res.error;
+        const d = res.data || {};
+        if (d.busy) { await new Promise((r) => setTimeout(r, 5000)); continue; }
+        if (d.reference) setBuscandoLeisMsg(`${d.reference}: ${d.processadosAte ?? 0}/${d.total ?? "?"}`);
+        if (d.concluidoTudo) done = true;
+        load();
+      }
       toast({
-        title: "Atualização das leis iniciada 📚",
-        description: "As leis oficiais (Planalto) estão sendo baixadas e indexadas automaticamente. Atualize esta tela em alguns minutos para ver o progresso.",
+        title: done ? "Base legal completa! 📚" : "Indexação em andamento",
+        description: done
+          ? "Todas as leis oficiais foram baixadas do Planalto e indexadas."
+          : "Continua rodando em segundo plano — atualize a tela em alguns minutos.",
       });
-      setTimeout(load, 8000);
+      load();
     } catch (err) {
-      toast({ title: "Erro ao iniciar atualização", description: String(err), variant: "destructive" });
+      toast({ title: "Erro ao buscar leis", description: String(err), variant: "destructive" });
     } finally {
       setBuscandoLeis(false);
+      setBuscandoLeisMsg("");
     }
   };
 
@@ -164,7 +174,7 @@ export default function AdminBaseJuridicaTab() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="gap-2" onClick={handleBuscarLeis} disabled={buscandoLeis} title="Baixa e indexa as leis oficiais direto do Planalto">
             {buscandoLeis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            Buscar leis oficiais
+            {buscandoLeis ? (buscandoLeisMsg || "Indexando...") : "Buscar leis oficiais"}
           </Button>
           {notIndexed > 0 && (
             <Button variant="outline" size="sm" className="gap-2" onClick={handleIndexAll} disabled={indexing === "all"}>
