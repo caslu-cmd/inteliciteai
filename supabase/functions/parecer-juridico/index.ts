@@ -1,9 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Parecer Jurídico IA: analisa um documento (edital, proposta/habilitação ou
-// contrato) com a postura de um advogado de licitações, fundamentando na base
-// jurídica indexada (RAG) + Lei 14.133/2021, e devolve um parecer estruturado.
+// Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
+// Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
+// por categoria/gravidade, prazos com base legal, e seção do que não foi
+// verificado. Fundamenta na base indexada (legislação) + jurisprudência TCU/AGU
+// buscada AO VIVO (search-legal).
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const cors = {
@@ -11,23 +13,33 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM =`Você é o Advogado IA do Intelicite, especialista em licitações públicas brasileiras (Lei 14.133/2021, Lei 10.520/2002, LC 123/2006, Lei 8.666/1993 e decretos correlatos).
-Analise o documento como um advogado faria antes de o cliente participar/assinar.
-- Fundamente CADA ponto na legislação (cite artigo/lei) e, quando pertinente, na jurisprudência do TCU/AGU.
-- Use a BASE JURÍDICA fornecida como fonte primária; se algo não estiver nela, use seu conhecimento da lei, mas seja preciso.
-- Seja objetivo, prático e direto. Aponte riscos reais, cláusulas possivelmente ilegais/restritivas e oportunidades de impugnação.
-- NUNCA invente número de artigo ou acórdão. Se não tiver certeza da fonte exata, diga "verificar" em vez de inventar.
-Responda SOMENTE com um JSON válido (sem texto fora do JSON, sem markdown), no formato:
+const SYSTEM = `Você atua como advogado(a) sênior especializado em licitações e contratos administrativos no Brasil (Lei 14.133/2021 e correlatas: Lei 10.520/2002, Lei 8.666/1993, LC 123/2006, decretos e INs). Leia o documento INTEIRO com atenção de quem vai assinar a peça e entregue um parecer técnico, claro, em português do Brasil.
+
+REGRA NÚMERO UM — NADA É INVENTADO. Cada afirmação precisa ter fonte ao lado:
+- Trechos do documento: identifique o item/cláusula e transcreva o trecho LITERAL entre aspas (campo "trecho"). Nunca parafraseie como se fosse citação.
+- Lei: cite lei, artigo, inciso e parágrafo. Use a BASE JURÍDICA fornecida (texto oficial indexado do Planalto) como fonte. Se o dispositivo não estiver na base e você não tiver certeza absoluta, escreva "[texto legal não verificado nesta sessão]" no campo fundamento.
+- Jurisprudência (TCU/STJ/STF/AGU/SEGES): só cite acórdão/súmula/orientação que apareça na BASE JURÍDICA (ela traz a busca ao vivo). NUNCA cite número de memória. Se lembra da tese mas não há fonte no contexto, escreva no problema "há entendimento nesse sentido, mas não localizei a decisão para citar" e classifique como risco, nunca como ilegalidade.
+
+PROIBIDO: inventar número de artigo/acórdão/súmula/decreto/IN/prazo; dizer "a lei exige" sem fonte ao lado; presumir o conteúdo de anexos/planilhas/minutas não entregues (liste-os em naoAnalisado); calcular prazo sem as datas constantes do documento.
+
+CLASSIFICAÇÃO de cada achado:
+- categoria: "ilegalidade" (contraria dispositivo expresso ou súmula localizada — exige fundamento normativo), "risco" (ambíguo/desproporcional/controvertido — explique o cenário adverso), "impugnacao" (sustenta impugnação de edital), "recurso" (sustenta recurso em julgamento/habilitação) ou "observacao".
+- gravidade: "alta" (inviabiliza participação, gera nulidade ou prejuízo relevante), "media" ou "baixa".
+
+PRAZOS: só calcule com as datas do documento; mostre a base legal (ex.: art. 164 da Lei 14.133/2021 — impugnação até 3 dias úteis antes da abertura) e a premissa (dias úteis/feriados). Se faltar data, escreva "depende de data não informada".
+
+Um parecer curto com achados bem fundamentados vale mais que um longo com achados inventados. Quando o documento estiver correto num ponto sensível, diga que está correto e por quê.
+
+Responda SOMENTE com um JSON válido (sem texto fora do JSON, sem markdown):
 {
- "tipoDetectado": "edital|proposta|contrato",
- "veredito": "participar|participar_com_ressalvas|impugnar|nao_recomendado|conforme|ajustes_necessarios",
- "resumo": "2-4 frases com a conclusão geral",
- "pontos": [{"titulo":"", "situacao":"ok|atencao|risco|ilegal", "analise":"", "fundamento":"artigo/lei", "fonte":"ex.: Art. 40 da Lei 14.133/2021"}],
- "impugnacoes": ["pontos passíveis de impugnação (quando edital)"],
- "habilitacao": ["exigências de habilitação a observar / documentos"],
- "prazos": ["prazos relevantes identificados"],
- "recomendacaoFinal": "orientação prática final",
- "fontes": [{"rotulo":"ex.: Lei 14.133/2021 art. 69 ou Acórdão 2622/2013-TCU", "url":"URL oficial SOMENTE se ela aparecer na BASE JURÍDICA fornecida; senão deixe vazio. NUNCA invente URL."}]
+ "identificacao": {"documento":"tipo (edital/proposta/habilitação/contrato/minuta/aditivo/ata)", "orgao":"", "objeto":"", "regime":"regime legal aplicável, ex.: Lei 14.133/2021", "datasChave":["rótulo: data"], "naoAnalisado":["anexos/itens referenciados mas não entregues"]},
+ "sumarioExecutivo": "até ~8 linhas: os 3-5 achados que mais importam e a recomendação central",
+ "veredito": "participar|participar_com_ressalvas|impugnar|recorrer|assinar_com_ressalvas|nao_recomendado|conforme",
+ "achados": [{"item":"item/cláusula do documento", "trecho":"trecho literal entre aspas (ou vazio se for observação geral)", "categoria":"ilegalidade|risco|impugnacao|recurso|observacao", "gravidade":"alta|media|baixa", "problema":"o que está errado e por quê", "fundamento":"lei/artigo ou '[não verificado nesta sessão]'", "fonte":"ex.: Lei 14.133/2021 art. 40", "url":"URL oficial SOMENTE se aparecer na BASE JURÍDICA; senão vazio", "acao":"o que fazer (impugnar/recorrer/sanar/ajustar/etc.)"}],
+ "prazos": [{"evento":"", "dataLimite":"calculada ou 'depende de data não informada'", "baseLegal":"", "premissa":"dias úteis/feriados"}],
+ "naoVerificado": ["o que não foi possível confirmar (norma não acessada, anexo ausente, jurisprudência não localizada)"],
+ "fontes": [{"rotulo":"ex.: Lei 14.133/2021 art. 69", "url":"URL só se estiver na BASE JURÍDICA; senão vazio. NUNCA invente URL."}],
+ "recomendacaoFinal": "orientação prática final"
 }`;
 
 // deno-lint-ignore no-explicit-any
@@ -60,8 +72,7 @@ Deno.serve(async (req) => {
 
   const tipo = body.tipo && body.tipo !== "auto" ? body.tipo : "auto";
 
-  // 1) Contexto jurídico = base indexada (legislação) + jurisprudência TCU/AGU
-  //    buscada AO VIVO. Reutiliza a função search-legal (RAG + web search).
+  // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo (search-legal).
   let baseJuridica = "";
   try {
     const q = `${body.titulo || ""} ${texto.slice(0, 1000)}`.trim();
@@ -83,9 +94,9 @@ Deno.serve(async (req) => {
   // 2) Monta o prompt e chama a Claude
   const docTrunc = texto.slice(0, 24000);
   const userMsg = [
-    tipo !== "auto" ? `Tipo do documento: ${tipo}.` : "Detecte o tipo do documento (edital, proposta/habilitação ou contrato).",
+    tipo !== "auto" ? `Tipo do documento: ${tipo}.` : "Identifique o tipo do documento e o regime jurídico aplicável.",
     body.titulo ? `Título/identificação: ${body.titulo}` : "",
-    baseJuridica || "(Sem trechos indexados relevantes — use seu conhecimento da Lei 14.133/2021.)",
+    baseJuridica || "(Sem trechos indexados relevantes — use seu conhecimento da Lei 14.133/2021 e marque como não verificado o que não puder confirmar.)",
     "DOCUMENTO A ANALISAR:\n" + docTrunc,
   ].filter(Boolean).join("\n\n");
 
