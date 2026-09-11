@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from "recharts";
+import { ChartTooltip, AXIS_TICK, GRID_STROKE, CHART_COLORS } from "@/lib/chartTheme";
 import {
   TrendingUp, Search, Loader2, AlertTriangle, RefreshCw,
   Building2, Users, Wallet, FileText, Trophy, Landmark,
@@ -203,23 +204,32 @@ export default function MercadoPage() {
             {/* Gráfico por UF + categorias */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               <div className="bg-card rounded-xl border border-border p-5 shadow-card">
-                <p className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-4">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-1">
                   <Building2 className="w-4 h-4 text-primary" /> Valor contratado por estado
                 </p>
+                <p className="text-xs text-muted-foreground mb-4">Top 12 estados no período</p>
                 {data.porUF.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-8 text-center">Sem dados no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={data.porUF.map((d) => ({ uf: d.nome, valor: d.valor }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="uf" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis tickFormatter={(v) => fmtCompacto(v).replace("R$ ", "")} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={50} />
-                      <Tooltip formatter={(v: number) => [fmtBRL(v), "Valor"]}
-                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="valor" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                ) : (() => {
+                  const top = [...data.porUF].sort((a, b) => b.valor - a.valor).slice(0, 12);
+                  return (
+                    <ResponsiveContainer width="100%" height={Math.max(200, top.length * 30)}>
+                      <BarChart data={top.map((d) => ({ uf: d.nome, valor: d.valor }))}
+                        layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }} barCategoryGap={6}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+                        <XAxis type="number" tickFormatter={(v) => fmtCompacto(v).replace("R$ ", "")}
+                          tick={AXIS_TICK} tickLine={false} axisLine={false} />
+                        <YAxis type="category" dataKey="uf" tick={{ ...AXIS_TICK, fontWeight: 600 }}
+                          tickLine={false} axisLine={false} width={34} />
+                        <Tooltip cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+                          content={<ChartTooltip format={(v) => fmtBRL(Number(v))} />} />
+                        <Bar dataKey="valor" name="Valor" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                          {top.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </div>
 
               <BarList dados={data.porCategoria} titulo="Por categoria de compra" icon={FileText} />

@@ -118,7 +118,7 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto no-scrollbar">
         {NAV_MAIN.map((item, i) => (
           <NavItem key={item.to} item={item} collapsed={collapsed && !isMobile} exact={i === 0} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
         ))}
