@@ -42,6 +42,7 @@ import PrecificacaoPage from "./pages/licitante/PrecificacaoPage";
 import ContratosPage from "./pages/licitante/ContratosPage";
 import RenovacoesPage from "./pages/licitante/RenovacoesPage";
 import MercadoPage from "./pages/licitante/MercadoPage";
+import ParecerPage from "./pages/licitante/ParecerPage";
 import ConsultorPage from "./pages/ConsultorPage";
 import PublishProjectPage from "./pages/PublishProjectPage";
 import MyProjectsPage from "./pages/MyProjectsPage";
@@ -131,6 +132,7 @@ const App = () => (
           <Route path="/licitante/contratos"    element={<ProtectedRoute><ContratosPage /></ProtectedRoute>} />
           <Route path="/licitante/renovacoes"   element={<ProtectedRoute><ModuleGuard module="analise"><RenovacoesPage /></ModuleGuard></ProtectedRoute>} />
           <Route path="/licitante/mercado"       element={<ProtectedRoute><ModuleGuard module="analise"><MercadoPage /></ModuleGuard></ProtectedRoute>} />
+          <Route path="/licitante/parecer"       element={<ProtectedRoute><ModuleGuard module="analise"><ParecerPage /></ModuleGuard></ProtectedRoute>} />
 
           {/* Protected — Consultor */}
           <Route path="/consultor" element={<ProtectedRoute><ConsultorPage /></ProtectedRoute>} />
