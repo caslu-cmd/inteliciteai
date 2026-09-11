@@ -26,7 +26,8 @@ Responda SOMENTE com um JSON válido (sem texto fora do JSON, sem markdown), no 
  "impugnacoes": ["pontos passíveis de impugnação (quando edital)"],
  "habilitacao": ["exigências de habilitação a observar / documentos"],
  "prazos": ["prazos relevantes identificados"],
- "recomendacaoFinal": "orientação prática final"
+ "recomendacaoFinal": "orientação prática final",
+ "fontes": [{"rotulo":"ex.: Lei 14.133/2021 art. 69 ou Acórdão 2622/2013-TCU", "url":"URL oficial SOMENTE se ela aparecer na BASE JURÍDICA fornecida; senão deixe vazio. NUNCA invente URL."}]
 }`;
 
 // deno-lint-ignore no-explicit-any
