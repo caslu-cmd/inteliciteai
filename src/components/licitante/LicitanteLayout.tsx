@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Radar, FileSearch, ScanLine, Building2,
   FolderCheck, FileText, MessageSquareText, BarChart3,
   ChevronLeft, ChevronRight, DollarSign, FileCheck,
-  LogOut, Scale, Menu, X, ArrowLeft,
+  LogOut, Scale, Menu, X, ArrowLeft, CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,8 +23,9 @@ const NAV_MAIN = [
 ];
 
 const NAV_ESTRATEGIA = [
-  { to: "/licitante/precificacao", icon: DollarSign,  label: "Precificação" },
-  { to: "/licitante/contratos",    icon: FileCheck,   label: "Contratos"    },
+  { to: "/licitante/precificacao", icon: DollarSign,   label: "Precificação" },
+  { to: "/licitante/renovacoes",   icon: CalendarClock, label: "Renovações"  },
+  { to: "/licitante/contratos",    icon: FileCheck,    label: "Contratos"    },
 ];
 
 function NavItem({ item, collapsed, exact, onNavigate }: { item: typeof NAV_MAIN[0]; collapsed: boolean; exact?: boolean; onNavigate?: () => void }) {
