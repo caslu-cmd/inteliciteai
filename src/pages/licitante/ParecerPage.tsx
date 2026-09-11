@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Scale, Gavel, Loader2, AlertTriangle, CheckCircle2, ShieldAlert,
-  XCircle, FileText, Clock, ListChecks, Sparkles, BookOpen, Radio, Info, Building2,
+  XCircle, FileText, Clock, ListChecks, Sparkles, BookOpen, Radio, Info, Building2, MessageSquareText,
 } from "lucide-react";
 
 interface Achado {
@@ -79,6 +80,7 @@ function linkDaFonte(texto?: string, url?: string): string | null {
 }
 
 export default function ParecerPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [texto, setTexto] = useState("");
   const [titulo, setTitulo] = useState("");
@@ -115,12 +117,23 @@ export default function ParecerPage() {
     <LicitanteLayout>
       <div className="p-6 lg:p-8 max-w-[1100px] mx-auto">
         <div className="mb-6">
-          <h1 className="font-display font-bold text-2xl text-foreground flex items-center gap-2">
-            <Scale className="w-6 h-6 text-primary" /> Parecer IA — Advogado
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-primary flex items-center gap-1 mb-0.5">
+                <Sparkles className="w-3 h-3" /> Intelicite
+              </p>
+              <h1 className="font-display font-bold text-2xl text-foreground flex items-center gap-2">
+                <Scale className="w-6 h-6 text-primary" /> Parecer Jurídico
+              </h1>
+            </div>
+            <Button variant="ghost" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => navigate("/licitante/assistente")}>
+              <MessageSquareText className="w-4 h-4" /> <span className="hidden sm:inline">Tirar dúvidas no chat</span>
+            </Button>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Cole um edital, sua proposta/habilitação ou um contrato. A IA analisa como um advogado sênior —
-            nada é afirmado sem fonte, com trecho literal, classificação por gravidade e prazos.
+            É a mesma IA do chat Intelicite, em <strong>modo parecer</strong>: cole um edital, sua proposta/habilitação
+            ou um contrato e ela analisa como um advogado sênior — nada é afirmado sem fonte, com trecho literal,
+            classificação por gravidade e prazos.
           </p>
           <div className="flex flex-wrap items-center gap-2 text-[11px] mt-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">
