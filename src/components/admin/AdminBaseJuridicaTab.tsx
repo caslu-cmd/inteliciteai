@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Scale, Plus, Trash2, Loader2, CheckCircle2, Clock, RefreshCw, X } from "lucide-react";
+import { Scale, Plus, Trash2, Loader2, CheckCircle2, Clock, RefreshCw, X, Landmark, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,7 @@ export default function AdminBaseJuridicaTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [indexing, setIndexing] = useState<string | "all" | null>(null);
+  const [buscandoLeis, setBuscandoLeis] = useState(false);
   const [form, setForm] = useState({ title: "", source_type: "lei", reference: "", year: new Date().getFullYear(), content: "" });
   const { toast } = useToast();
 
@@ -119,6 +120,29 @@ export default function AdminBaseJuridicaTab() {
     } finally { setIndexing(null); }
   };
 
+  const handleBuscarLeis = async () => {
+    setBuscandoLeis(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      // Reinicia o ciclo: as leis oficiais serão (re)baixadas do Planalto e
+      // reindexadas automaticamente pela rotina de fundo nos próximos minutos.
+      const res = await supabase.functions.invoke("ingest-legislacao", {
+        body: { reset: true },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      toast({
+        title: "Atualização das leis iniciada 📚",
+        description: "As leis oficiais (Planalto) estão sendo baixadas e indexadas automaticamente. Atualize esta tela em alguns minutos para ver o progresso.",
+      });
+      setTimeout(load, 8000);
+    } catch (err) {
+      toast({ title: "Erro ao iniciar atualização", description: String(err), variant: "destructive" });
+    } finally {
+      setBuscandoLeis(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     await supabase.from("legal_knowledge").delete().eq("id", id);
     toast({ title: "Item removido" });
@@ -138,6 +162,10 @@ export default function AdminBaseJuridicaTab() {
           <p className="text-sm text-muted-foreground">Lei 14.133/2021, acórdãos TCU, orientações AGU e doutrina</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleBuscarLeis} disabled={buscandoLeis} title="Baixa e indexa as leis oficiais direto do Planalto">
+            {buscandoLeis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Buscar leis oficiais
+          </Button>
           {notIndexed > 0 && (
             <Button variant="outline" size="sm" className="gap-2" onClick={handleIndexAll} disabled={indexing === "all"}>
               {indexing === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -147,6 +175,18 @@ export default function AdminBaseJuridicaTab() {
           <Button size="sm" className="gap-2" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" /> Adicionar
           </Button>
+        </div>
+      </div>
+
+      {/* Ingestão automática da legislação */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
+        <Landmark className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-muted-foreground">
+          <p className="font-semibold text-foreground mb-0.5">Legislação atualizada automaticamente</p>
+          As principais leis de licitações (14.133/2021, 10.520/2002, LC 123/2006, 8.666/1993 e Decreto 10.024/2019)
+          são baixadas do <strong>Planalto</strong> e reindexadas sozinhas, com atualização mensal.
+          Use <strong>“Buscar leis oficiais”</strong> para forçar uma atualização agora. A jurisprudência do TCU/AGU
+          continua sendo consultada em tempo real pela IA.
         </div>
       </div>
 

@@ -17,8 +17,8 @@ function chunkText(text: string, size = 800, overlap = 120) {
     }
     const content = text.slice(start, end).trim();
     if (content.length > 30) chunks.push(content);
-    start = end - overlap;
-    if (start >= end) start = end;
+    if (end >= text.length) break;   // fim do texto — encerra (evita loop infinito)
+    start = Math.max(end - overlap, start + 1);
   }
   return chunks;
 }
