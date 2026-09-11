@@ -11,18 +11,7 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function embedQuery(text: string, apiKey: string): Promise<number[]> {
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "text-embedding-3-small", input: text.slice(0, 6000), dimensions: 1536 }),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-  const data = await res.json();
-  return data.data[0].embedding;
-}
-
-const SYSTEM = `Você é o Advogado IA do Intelicite, especialista em licitações públicas brasileiras (Lei 14.133/2021, Lei 10.520/2002, LC 123/2006, Lei 8.666/1993 e decretos correlatos).
+const SYSTEM =`Você é o Advogado IA do Intelicite, especialista em licitações públicas brasileiras (Lei 14.133/2021, Lei 10.520/2002, LC 123/2006, Lei 8.666/1993 e decretos correlatos).
 Analise o documento como um advogado faria antes de o cliente participar/assinar.
 - Fundamente CADA ponto na legislação (cite artigo/lei) e, quando pertinente, na jurisprudência do TCU/AGU.
 - Use a BASE JURÍDICA fornecida como fonte primária; se algo não estiver nela, use seu conhecimento da lei, mas seja preciso.
@@ -70,21 +59,25 @@ Deno.serve(async (req) => {
 
   const tipo = body.tipo && body.tipo !== "auto" ? body.tipo : "auto";
 
-  // 1) Recupera contexto jurídico da base (RAG)
+  // 1) Contexto jurídico = base indexada (legislação) + jurisprudência TCU/AGU
+  //    buscada AO VIVO. Reutiliza a função search-legal (RAG + web search).
   let baseJuridica = "";
-  const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
-  if (OPENAI_KEY) {
-    try {
-      const emb = await embedQuery(texto, OPENAI_KEY);
-      const { data: chunks } = await supabase.rpc("match_legal_knowledge", {
-        query_embedding: emb, match_count: 8, min_similarity: 0.2,
-      });
-      if (chunks?.length) {
-        baseJuridica = "BASE JURÍDICA (fontes indexadas):\n" +
-          chunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n");
-      }
-    } catch { /* segue sem RAG */ }
-  }
+  try {
+    const q = `${body.titulo || ""} ${texto.slice(0, 1000)}`.trim();
+    const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      },
+      body: JSON.stringify({ query: q, matchCount: 8, includeWebSearch: true }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      baseJuridica = (d.context || "").trim();
+    }
+  } catch { /* segue sem contexto externo */ }
 
   // 2) Monta o prompt e chama a Claude
   const docTrunc = texto.slice(0, 24000);
