@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, SlidersHorizontal, MapPin, Building, Tag, X,
   Radar as RadarIcon, Loader2, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight,
-  Target, Sparkles,
+  Target, Sparkles, Bell,
 } from "lucide-react";
 
 // PNCP modalidade IDs
@@ -65,22 +65,46 @@ export default function RadarPage() {
   const [matching, setMatching] = useState(false);
   const [matchMap, setMatchMap] = useState<Record<string, { match: number; motivo: string }>>({});
 
-  // Carrega o perfil da empresa do usuário
+  // Alertas automáticos
+  const [alertaAtivo, setAlertaAtivo] = useState(false);
+  const [alertaKeywords, setAlertaKeywords] = useState("");
+  const [alertaUf, setAlertaUf] = useState("");
+
+  // Carrega o perfil e as preferências de alerta do usuário
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from("profiles").select("empresa_perfil").eq("id", user.id).single();
+      const { data } = await supabase
+        .from("profiles")
+        .select("empresa_perfil, alerta_ativo, alerta_keywords, alerta_uf")
+        .eq("id", user.id)
+        .single();
       if (data?.empresa_perfil) setPerfil(data.empresa_perfil);
+      if (data?.alerta_ativo) setAlertaAtivo(Boolean(data.alerta_ativo));
+      if (data?.alerta_keywords) setAlertaKeywords(data.alerta_keywords);
+      if (data?.alerta_uf) setAlertaUf(data.alerta_uf);
     })();
   }, []);
 
   const savePerfil = async () => {
     setSavingPerfil(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) await supabase.from("profiles").update({ empresa_perfil: perfil }).eq("id", user.id);
+    if (user) {
+      await supabase.from("profiles").update({
+        empresa_perfil: perfil,
+        alerta_ativo: alertaAtivo,
+        alerta_keywords: alertaKeywords.trim() || null,
+        alerta_uf: alertaUf || null,
+      }).eq("id", user.id);
+    }
     setSavingPerfil(false);
-    toast({ title: "Perfil salvo", description: "Agora clique em \"Match IA\" para pontuar as oportunidades." });
+    toast({
+      title: "Preferências salvas",
+      description: alertaAtivo
+        ? "Você receberá alertas diários de novos editais compatíveis."
+        : "Perfil atualizado. Ative os alertas para ser avisado de novos editais.",
+    });
   };
 
   const runMatch = async () => {
@@ -223,9 +247,58 @@ export default function RadarPage() {
               rows={3}
               placeholder="Ex.: Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
             />
-            <div className="flex justify-end gap-2 mt-3">
+            {/* Alertas automáticos de editais */}
+            <div className="mt-5 pt-5 border-t border-border">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={alertaAtivo}
+                  onChange={(e) => setAlertaAtivo(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+                />
+                <span>
+                  <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Bell className="w-4 h-4 text-primary" /> Alertas automáticos de editais
+                  </span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">
+                    Todo dia buscamos no PNCP novos editais que combinam com você e enviamos uma notificação.
+                    Você não precisa mais ficar procurando.
+                  </span>
+                </span>
+              </label>
+
+              {alertaAtivo && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      Palavras-chave
+                    </p>
+                    <Input
+                      value={alertaKeywords}
+                      onChange={(e) => setAlertaKeywords(e.target.value)}
+                      placeholder="Ex.: notebook, servidor, licença de software"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      Estado (opcional)
+                    </p>
+                    <select
+                      value={alertaUf}
+                      onChange={(e) => setAlertaUf(e.target.value)}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Todos os estados</option>
+                      {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" size="sm" onClick={savePerfil} disabled={savingPerfil}>
-                {savingPerfil ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Salvar perfil"}
+                {savingPerfil ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Salvar preferências"}
               </Button>
               <Button size="sm" className="gap-2" onClick={runMatch} disabled={matching || !data?.opportunities?.length}>
                 {matching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Target className="w-3.5 h-3.5" />}
