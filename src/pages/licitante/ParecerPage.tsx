@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 interface Ponto { titulo: string; situacao: string; analise: string; fundamento?: string; fonte?: string; }
+interface Fonte { rotulo: string; url?: string; }
 interface Parecer {
   tipoDetectado?: string;
   veredito?: string;
@@ -21,6 +22,26 @@ interface Parecer {
   habilitacao?: string[];
   prazos?: string[];
   recomendacaoFinal?: string;
+  fontes?: Fonte[];
+}
+
+// Mapeia uma referência de norma para o link oficial (determinístico, sem inventar).
+const LEGIS_LINKS: { re: RegExp; url: string }[] = [
+  { re: /14\.?133/, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm" },
+  { re: /10\.?520/, url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10520.htm" },
+  { re: /(lc|complementar).*123|123\/2006/i, url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm" },
+  { re: /8\.?666/, url: "https://www.planalto.gov.br/ccivil_03/leis/l8666cons.htm" },
+  { re: /11\.?462/, url: "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/decreto/d11462.htm" },
+  { re: /11\.?246/, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2022/decreto/d11246.htm" },
+  { re: /10\.?024/, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2019/decreto/d10024.htm" },
+  { re: /65\/2021|65\.2021/, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-65-de-7-de-julho-de-2021" },
+  { re: /58\/2022|58\.2022/, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-58-de-8-de-agosto-de-2022" },
+];
+
+function linkDaFonte(texto?: string, url?: string): string | null {
+  if (url && /^https?:\/\//.test(url)) return url;
+  if (!texto) return null;
+  return LEGIS_LINKS.find((l) => l.re.test(texto))?.url || null;
 }
 
 const TIPOS = [
@@ -178,9 +199,16 @@ export default function ParecerPage() {
                           {p.titulo}
                         </p>
                         {p.analise && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{p.analise}</p>}
-                        {(p.fonte || p.fundamento) && (
-                          <p className="text-[11px] text-primary/80 mt-1">📎 {p.fonte || p.fundamento}</p>
-                        )}
+                        {(p.fonte || p.fundamento) && (() => {
+                          const rot = p.fonte || p.fundamento!;
+                          const href = linkDaFonte(rot);
+                          return href ? (
+                            <a href={href} target="_blank" rel="noopener noreferrer"
+                              className="text-[11px] text-primary hover:underline mt-1 inline-block">📎 {rot}</a>
+                          ) : (
+                            <p className="text-[11px] text-primary/80 mt-1">📎 {rot}</p>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -210,6 +238,37 @@ export default function ParecerPage() {
                 <p className="text-sm text-card-foreground leading-relaxed">{parecer.recomendacaoFinal}</p>
               </div>
             )}
+
+            {/* Fontes (recolhível) */}
+            {(() => {
+              const brutas: Fonte[] = parecer.fontes?.length
+                ? parecer.fontes
+                : (parecer.pontos || []).map((p) => ({ rotulo: p.fonte || p.fundamento || "" }));
+              const vistos = new Set<string>();
+              const fontes = brutas
+                .filter((f) => f.rotulo && !vistos.has(f.rotulo) && vistos.add(f.rotulo))
+                .map((f) => ({ rotulo: f.rotulo, href: linkDaFonte(f.rotulo, f.url) }));
+              if (fontes.length === 0) return null;
+              return (
+                <details className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+                  <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground flex items-center gap-1.5 select-none">
+                    <BookOpen className="w-4 h-4 text-primary" /> Fontes ({fontes.length})
+                  </summary>
+                  <ul className="px-5 pb-4 space-y-1.5">
+                    {fontes.map((f, i) => (
+                      <li key={i} className="text-xs flex gap-1.5">
+                        <span className="text-primary">•</span>
+                        {f.href ? (
+                          <a href={f.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{f.rotulo}</a>
+                        ) : (
+                          <span className="text-muted-foreground">{f.rotulo}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })()}
 
             <p className="text-xs text-muted-foreground/70 border-t border-border pt-3">
               ⚖️ Este parecer é gerado por IA como apoio à decisão — com base na legislação indexada e na
