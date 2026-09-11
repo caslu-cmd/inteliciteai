@@ -31,6 +31,10 @@ const LEIS: Lei[] = [
   { chave: "lcp123", title: "Lei Complementar nº 123/2006 — ME e EPP (tratamento diferenciado)", source_type: "lei", reference: "LC 123/2006", year: 2006, url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm" },
   { chave: "l8666", title: "Lei nº 8.666/1993 — Licitações (legado, ainda referência)", source_type: "lei", reference: "Lei 8.666/1993", year: 1993, url: "https://www.planalto.gov.br/ccivil_03/leis/l8666cons.htm" },
   { chave: "d10024", title: "Decreto nº 10.024/2019 — Pregão eletrônico", source_type: "outro", reference: "Decreto 10.024/2019", year: 2019, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2019/decreto/d10024.htm" },
+  { chave: "d11462", title: "Decreto nº 11.462/2023 — Regulamenta o PNCP", source_type: "outro", reference: "Decreto 11.462/2023", year: 2023, url: "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/decreto/d11462.htm" },
+  { chave: "d11246", title: "Decreto nº 11.246/2022 — Agente de contratação e comissão de contratação", source_type: "outro", reference: "Decreto 11.246/2022", year: 2022, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2022/decreto/d11246.htm" },
+  { chave: "inseges65", title: "IN SEGES/ME nº 65/2021 — Pesquisa de preços (íntegra)", source_type: "instrucao_normativa", reference: "IN SEGES/ME 65/2021 (íntegra)", year: 2021, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-65-de-7-de-julho-de-2021" },
+  { chave: "inseges58", title: "IN SEGES/ME nº 58/2022 — Plano de Contratações Anual (PCA)", source_type: "instrucao_normativa", reference: "IN SEGES/ME 58/2022", year: 2022, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-58-de-8-de-agosto-de-2022" },
 ];
 
 const ENTIDADES: Record<string, string> = {
