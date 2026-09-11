@@ -6,6 +6,8 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 function chunkText(text: string, size = 800, overlap = 120) {
   const chunks: string[] = [];
   let start = 0;
@@ -24,15 +26,24 @@ function chunkText(text: string, size = 800, overlap = 120) {
 }
 
 async function embedBatch(texts: string[], apiKey: string): Promise<number[][]> {
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "text-embedding-3-small", input: texts, dimensions: 1536 }),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return (data.data as { index: number; embedding: number[] }[])
-    .sort((a, b) => a.index - b.index).map(d => d.embedding);
+  for (let tentativa = 0; tentativa < 6; tentativa++) {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: texts, dimensions: 1536 }),
+    });
+    if (res.status === 429) {
+      const txt = await res.text();
+      const m = /try again in ([\d.]+)s/i.exec(txt);
+      await sleep(Math.min(20000, Math.ceil((m ? Number(m[1]) : 8) * 1000) + 800));
+      continue;
+    }
+    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    return (data.data as { index: number; embedding: number[] }[])
+      .sort((a, b) => a.index - b.index).map(d => d.embedding);
+  }
+  throw new Error("OpenAI 429 persistente (limite de tokens/min). Tente novamente em 1 minuto.");
 }
 
 Deno.serve(async (req) => {
@@ -58,25 +69,29 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const whereClause = body.knowledgeId
-      ? { id: body.knowledgeId }
-      : body.indexAll ? {} : { id: "none" };
-
-    const query = supabase.from("legal_knowledge").select("id, content");
     const { data: items, error } = body.knowledgeId
-      ? await query.eq("id", body.knowledgeId)
+      ? await supabase.from("legal_knowledge").select("id, content").eq("id", body.knowledgeId)
       : body.indexAll
-        ? await query.eq("active", true)
-        : await query.eq("id", "none");
+        ? await supabase.from("legal_knowledge").select("id, content").eq("active", true)
+        : await supabase.from("legal_knowledge").select("id, content").eq("id", "none");
 
     if (error || !items?.length) return new Response(JSON.stringify({ indexed: 0 }), { headers: cors });
 
-    let totalChunks = 0;
+    let indexed = 0, totalChunks = 0, pulados = 0;
     for (const item of items) {
+      // Em "indexar tudo", pula itens que já têm chunks (ex.: leis grandes
+      // mantidas automaticamente pela rotina ingest-legislacao) — evita
+      // reprocessá-las e estourar o limite da OpenAI.
+      if (body.indexAll && !body.knowledgeId) {
+        const { count } = await supabase.from("legal_knowledge_chunks")
+          .select("*", { count: "exact", head: true }).eq("knowledge_id", item.id);
+        if ((count ?? 0) > 0) { pulados++; continue; }
+      }
+
       await supabase.from("legal_knowledge_chunks").delete().eq("knowledge_id", item.id);
       const chunks = chunkText(item.content);
-      for (let i = 0; i < chunks.length; i += 50) {
-        const batch = chunks.slice(i, i + 50);
+      for (let i = 0; i < chunks.length; i += 40) {
+        const batch = chunks.slice(i, i + 40);
         const embeddings = await embedBatch(batch, OPENAI_KEY);
         const rows = batch.map((c, j) => ({
           knowledge_id: item.id,
@@ -84,13 +99,16 @@ Deno.serve(async (req) => {
           content:      c,
           embedding:    JSON.stringify(embeddings[j]),
         }));
-        const { error: insertErr } = await supabase.from("legal_knowledge_chunks").insert(rows);
+        const { error: insertErr } = await supabase.from("legal_knowledge_chunks")
+          .upsert(rows, { onConflict: "knowledge_id,chunk_index" });
         if (insertErr) throw new Error(insertErr.message);
+        if (i + 40 < chunks.length) await sleep(1200);
       }
+      indexed++;
       totalChunks += chunks.length;
     }
 
-    return new Response(JSON.stringify({ indexed: items.length, chunks: totalChunks }), { headers: cors });
+    return new Response(JSON.stringify({ indexed, chunks: totalChunks, pulados }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: cors });
   }
