@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ function ts() {
 }
 
 export default function AssistentePage() {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -95,6 +97,10 @@ export default function AssistentePage() {
             </h1>
             <p className="text-xs text-muted-foreground">Especialista em licitações · Lei 14.133/2021 · Intelicite IA</p>
           </div>
+          <Button variant="outline" size="sm" className="ml-auto gap-1.5 flex-shrink-0"
+            onClick={() => navigate("/licitante/parecer")} title="Analisar um documento e gerar parecer formal">
+            <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Gerar parecer</span>
+          </Button>
         </div>
 
         {/* Como a IA se mantém atualizada (transparência das fontes) */}

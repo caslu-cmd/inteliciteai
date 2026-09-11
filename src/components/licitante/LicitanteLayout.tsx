@@ -15,7 +15,7 @@ const NAV_MAIN = [
   { to: "/licitante/radar",     icon: Radar,             label: "Radar"         },
   { to: "/licitante/analises",  icon: FileSearch,        label: "Análises"      },
   { to: "/licitante/scanner",   icon: ScanLine,          label: "Scanner"       },
-  { to: "/licitante/parecer",   icon: Gavel,             label: "Parecer IA"    },
+  { to: "/licitante/parecer",   icon: Gavel,             label: "Parecer"       },
   { to: "/licitante/habilitacao", icon: Building2,       label: "Habilitação"   },
   { to: "/licitante/documentos",  icon: FolderCheck,     label: "Documentos"    },
   { to: "/licitante/minutas",   icon: FileText,          label: "Minutas"       },
