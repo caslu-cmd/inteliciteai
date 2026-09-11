@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Scale, Gavel, Loader2, AlertTriangle, CheckCircle2, ShieldAlert,
-  XCircle, FileText, Clock, ListChecks, Sparkles,
+  XCircle, FileText, Clock, ListChecks, Sparkles, BookOpen, Radio,
 } from "lucide-react";
 
 interface Ponto { titulo: string; situacao: string; analise: string; fundamento?: string; fonte?: string; }
@@ -88,9 +88,19 @@ export default function ParecerPage() {
             <Scale className="w-6 h-6 text-primary" /> Parecer IA — Advogado
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Cole um edital, sua proposta/habilitação ou um contrato. A IA analisa com base na Lei 14.133/2021
-            e na base jurídica do Intelicite, apontando riscos, ilegalidades e pontos de impugnação — com as fontes.
+            Cole um edital, sua proposta/habilitação ou um contrato. A IA analisa como um advogado,
+            apontando riscos, ilegalidades e pontos de impugnação — com as fontes.
           </p>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] mt-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">
+              <BookOpen className="w-3 h-3 text-primary" />
+              <span><strong className="text-foreground">Legislação</strong> — base indexada, atualizada diariamente</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 px-2.5 py-1 text-emerald-700 dark:text-emerald-400">
+              <Radio className="w-3 h-3" />
+              <span><strong>Jurisprudência TCU/AGU</strong> — busca ao vivo, em tempo real</span>
+            </span>
+          </div>
         </div>
 
         {/* Entrada */}
@@ -202,7 +212,8 @@ export default function ParecerPage() {
             )}
 
             <p className="text-xs text-muted-foreground/70 border-t border-border pt-3">
-              ⚖️ Este parecer é gerado por IA como apoio à decisão{temBase ? ", com base na legislação indexada no Intelicite" : ""} e
+              ⚖️ Este parecer é gerado por IA como apoio à decisão — com base na legislação indexada e na
+              <strong> jurisprudência do TCU/AGU buscada ao vivo</strong> — e
               <strong> não substitui a análise de um advogado</strong>. Confira as fontes antes de decidir.
             </p>
           </motion.div>

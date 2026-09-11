@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   MessageSquareText, Send, Bot, User, Sparkles,
-  FileText, Scale, HelpCircle, BookOpen, AlertTriangle,
+  FileText, Scale, HelpCircle, BookOpen, AlertTriangle, Radio,
 } from "lucide-react";
 
 interface Message {
@@ -17,7 +17,7 @@ interface Message {
 const INITIAL: Message[] = [
   {
     role: "assistant",
-    content: "Olá! Sou o assistente jurídico especializado em licitações, com conhecimento profundo da **Lei 14.133/2021**.\n\nPosso analisar editais, redigir impugnações, verificar requisitos de habilitação, orientar sobre prazos e muito mais.\n\nComo posso ajudá-lo hoje?",
+    content: "Olá! Sou o assistente jurídico especializado em licitações, com conhecimento profundo da **Lei 14.133/2021**.\n\nMinhas fontes: a **legislação** vem da base do Intelicite (atualizada diariamente) e a **jurisprudência do TCU/AGU é buscada ao vivo**, em tempo real — então minhas respostas usam decisões atuais.\n\nPosso analisar editais, redigir impugnações, verificar requisitos de habilitação, orientar sobre prazos e muito mais.\n\nComo posso ajudá-lo hoje?",
     timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
   },
 ];
@@ -94,6 +94,20 @@ export default function AssistentePage() {
               Intelicite <Sparkles className="w-4 h-4 text-primary" />
             </h1>
             <p className="text-xs text-muted-foreground">Especialista em licitações · Lei 14.133/2021 · Intelicite IA</p>
+          </div>
+        </div>
+
+        {/* Como a IA se mantém atualizada (transparência das fontes) */}
+        <div className="px-6 pt-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">
+              <BookOpen className="w-3 h-3 text-primary" />
+              <span><strong className="text-foreground">Legislação</strong> — base indexada, atualizada diariamente</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 px-2.5 py-1 text-emerald-700 dark:text-emerald-400">
+              <Radio className="w-3 h-3" />
+              <span><strong>Jurisprudência TCU/AGU</strong> — busca ao vivo, em tempo real</span>
+            </span>
           </div>
         </div>
 
