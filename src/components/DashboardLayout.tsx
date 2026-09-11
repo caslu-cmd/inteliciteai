@@ -43,13 +43,6 @@ const NAV_GESTOR = [
     ],
   },
   {
-    label: "Marketplace",
-    items: [
-      { title: "Publicar Projeto", icon: Plus,        path: "/dashboard/publicar-projeto", badge: "Novo" },
-      { title: "Meus Projetos",    icon: Briefcase,   path: "/dashboard/meus-projetos" },
-    ],
-  },
-  {
     label: "Conta",
     items: [
       { title: "Relatórios",       icon: BarChart3,   path: "/dashboard/reports" },
@@ -379,7 +372,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {[
             { label: "Agente Público", path: "/dashboard", emoji: "🏛️" },
             { label: "Licitante",      path: "/licitante", emoji: "📋" },
-            { label: "Consultor",      path: "/consultor", emoji: "🎓", disabled: true },
           ].map(({ label, path, emoji, disabled }) => {
             const active = location.pathname === path || location.pathname.startsWith(path + "/");
             if (disabled) return (

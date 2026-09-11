@@ -28,8 +28,6 @@ const tabs = [
   { id: "orgaos",         label: "Órgãos",       icon: Building2 },
   { id: "base-juridica",  label: "Base Jurídica", icon: Scale },
   { id: "users",          label: "Usuários",     icon: Users },
-  { id: "verifications",  label: "Consultores",  icon: Shield },
-  { id: "marketplace",    label: "Marketplace",  icon: Briefcase },
   { id: "sales",          label: "Vendas",       icon: CreditCard },
   { id: "gateway",        label: "Gateway",      icon: Settings },
   { id: "coupons",        label: "Cupons",       icon: Tag },

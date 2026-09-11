@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 const AREAS = [
   { to: "/admin",     label: "Super Admin", icon: Shield,          match: (p: string) => p.startsWith("/admin") },
   { to: "/dashboard", label: "Agente",      icon: LayoutDashboard, match: (p: string) => p.startsWith("/dashboard") },
-  { to: "/consultor", label: "Consultor",   icon: Briefcase,       match: (p: string) => p.startsWith("/consultor") },
   { to: "/licitante", label: "Licitante",   icon: Target,          match: (p: string) => p.startsWith("/licitante") },
 ];
 

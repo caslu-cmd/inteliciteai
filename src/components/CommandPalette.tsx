@@ -38,11 +38,9 @@ const COMMANDS: CommandItem[] = [
   { id: "analises", label: "Análises Salvas", description: "Histórico de análises de editais", icon: FileSearch, path: "/licitante/analises", group: "Licitante" },
   { id: "habilitacao", label: "Verificador de Habilitação", description: "Consulta CNPJ e certidões", icon: Building2, path: "/licitante/habilitacao", group: "Licitante" },
   { id: "minutas", label: "Gerador de Minutas", description: "Impugnações e esclarecimentos", icon: FileText, path: "/licitante/minutas", group: "Licitante" },
-  // Consultor
-  { id: "consultor", label: "Portal do Consultor", description: "Verificação e perfil profissional", icon: Shield, path: "/consultor", group: "Consultor" },
 ];
 
-const GROUPS = ["Agente Público", "Licitante", "Consultor", "Conta"];
+const GROUPS = ["Agente Público", "Licitante", "Conta"];
 
 interface Props {
   open: boolean;
