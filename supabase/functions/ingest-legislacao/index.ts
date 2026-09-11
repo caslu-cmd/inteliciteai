@@ -118,10 +118,16 @@ async function processarLei(supabase: SB, apiKey: string, lei: Lei, offset: numb
   const chunks = chunkText(texto);
   const total = chunks.length;
 
-  const { data: existente } = await supabase.from("legal_knowledge").select("id").eq("reference", lei.reference).maybeSingle();
+  const { data: existente } = await supabase.from("legal_knowledge").select("id, content").eq("reference", lei.reference).maybeSingle();
   let knowledgeId: string | undefined = existente?.id;
   if (offset === 0) {
     if (knowledgeId) {
+      // Já indexado e sem mudança na fonte? Pula (não gasta embeddings da OpenAI).
+      const { count } = await supabase.from("legal_knowledge_chunks")
+        .select("*", { count: "exact", head: true }).eq("knowledge_id", knowledgeId);
+      if (existente.content === texto && total > 0 && (count ?? 0) >= total) {
+        return { chave: lei.chave, ok: true, reference: lei.reference, total, processadosAte: total, concluido: true, inalterado: true };
+      }
       await supabase.from("legal_knowledge").update({ title: lei.title, source_type: lei.source_type, year: lei.year, content: texto, active: true }).eq("id", knowledgeId);
       await supabase.from("legal_knowledge_chunks").delete().eq("knowledge_id", knowledgeId);
     } else {
