@@ -184,7 +184,8 @@ export default function AdminBaseJuridicaTab() {
         <div className="text-xs text-muted-foreground">
           <p className="font-semibold text-foreground mb-0.5">Legislação atualizada automaticamente</p>
           As principais leis de licitações (14.133/2021, 10.520/2002, LC 123/2006, 8.666/1993 e Decreto 10.024/2019)
-          são baixadas do <strong>Planalto</strong> e reindexadas sozinhas, com atualização mensal.
+          são baixadas do <strong>Planalto</strong> e reindexadas sozinhas. Uma verificação <strong>diária</strong>
+          confere se houve mudança na fonte e só reindexa quando a lei realmente muda.
           Use <strong>“Buscar leis oficiais”</strong> para forçar uma atualização agora. A jurisprudência do TCU/AGU
           continua sendo consultada em tempo real pela IA.
         </div>

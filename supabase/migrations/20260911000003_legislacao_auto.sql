@@ -5,6 +5,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS legal_knowledge_chunks_uq
 
 -- Observação: o preenchimento é feito pela edge function `ingest-legislacao`
 -- (modo auto/reset), acionada por pg_cron:
---   * legislacao-drain          '*/5 * * * *'  → processa a próxima fatia
---   * legislacao-refresh-mensal '0 5 1 * *'    → reinicia o cursor (refresh)
+--   * legislacao-drain          '*/5 * * * *' → processa a próxima fatia pendente
+--   * legislacao-refresh-diario '0 8 * * *'   → reinicia o cursor (verificação
+--     diária; só reindexa a lei cujo texto mudou na fonte, poupando OpenAI)
 -- O segredo do cron fica em public.internal_config (key='cron_secret').
