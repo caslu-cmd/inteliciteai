@@ -98,6 +98,15 @@
   .font-extrabold { font-weight: 700; }
   .font-black     { font-weight: 800; }
 
+  /* Oculta a barra de rolagem mantendo o scroll com o mouse/trackpad. */
+  .no-scrollbar {
+    -ms-overflow-style: none;   /* IE / Edge legado */
+    scrollbar-width: none;      /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;              /* Chrome / Safari / Edge */
+  }
+
   .font-display {
     font-family: 'Space Grotesk', system-ui, sans-serif;
   }
