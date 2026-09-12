@@ -123,7 +123,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [previewRole, setPreviewRole] = useState<"gestor" | "licitante">("gestor");
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -182,10 +181,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [role, location.pathname, navigate]);
 
-  // NAV ativa: super_admin usa o previewRole, outros usam o próprio role
-  const activeNav = isSuperAdmin
-    ? (previewRole === "licitante" ? NAV_LICITANTE : NAV_GESTOR)
-    : (role === "licitante" ? NAV_LICITANTE : NAV_GESTOR);
+  // NAV ativa conforme a plataforma atual (super_admin gerencia via "Plataformas")
+  const activeNav = role === "licitante" ? NAV_LICITANTE : NAV_GESTOR;
 
   const trialDays = getTrialDays();
   const planLabel =
@@ -248,28 +245,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <img src={logoWhite} alt="Intelicite" className="h-7 w-auto" />
         )}
       </div>
-
-      {/* Preview mode selector — super admin only */}
-      {isSuperAdmin && !collapsed && (
-        <div className="px-3 py-2 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-          <p className="text-[9px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: "hsl(var(--sidebar-foreground) / 0.35)" }}>
-            Visualizar como
-          </p>
-          <div className="flex gap-1">
-            {(["gestor", "licitante"] as const).map(r => (
-              <button key={r} onClick={() => setPreviewRole(r)}
-                className="flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors"
-                style={{
-                  background: previewRole === r ? "hsl(var(--sidebar-primary) / 0.2)" : "transparent",
-                  color: previewRole === r ? "hsl(var(--sidebar-primary))" : "hsl(var(--sidebar-foreground) / 0.5)",
-                  border: `1px solid ${previewRole === r ? "hsl(var(--sidebar-primary) / 0.4)" : "transparent"}`,
-                }}>
-                {r === "gestor" ? "Órgão" : "Licitante"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2 no-scrollbar">
