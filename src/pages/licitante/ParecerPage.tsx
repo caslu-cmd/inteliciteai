@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Scale, Gavel, Loader2, AlertTriangle, CheckCircle2, ShieldAlert,
-  XCircle, FileText, Clock, ListChecks, Sparkles, BookOpen, Radio, Info, Building2, MessageSquareText,
+  XCircle, FileText, Clock, ListChecks, Sparkles, BookOpen, Radio, Info, Building2, MessageSquareText, Paperclip,
 } from "lucide-react";
 
 interface Achado {
@@ -244,11 +244,11 @@ export default function ParecerPage() {
                         {a.acao && <p className="text-xs text-foreground mt-1.5"><strong>Ação:</strong> {a.acao}</p>}
                         {(a.fonte || a.fundamento) && (
                           href ? (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline mt-1 inline-block">
-                              📎 {a.fonte || a.fundamento}
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline mt-1 inline-flex items-center gap-1">
+                              <Paperclip className="h-3 w-3" /> {a.fonte || a.fundamento}
                             </a>
                           ) : (
-                            <p className="text-[11px] text-primary/80 mt-1">📎 {a.fonte || a.fundamento}</p>
+                            <p className="text-[11px] text-primary/80 mt-1 inline-flex items-center gap-1"><Paperclip className="h-3 w-3" /> {a.fonte || a.fundamento}</p>
                           )
                         )}
                       </div>
@@ -339,7 +339,7 @@ export default function ParecerPage() {
             })()}
 
             <p className="text-xs text-muted-foreground/70 border-t border-border pt-3">
-              ⚖️ Análise técnica de apoio, com base na legislação indexada e na <strong>jurisprudência do TCU/AGU buscada ao vivo</strong>.
+              <Scale className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />Análise técnica de apoio, com base na legislação indexada e na <strong>jurisprudência do TCU/AGU buscada ao vivo</strong>.
               Não substitui a revisão e assinatura de advogado(a) inscrito(a) na OAB responsável pelo caso. Confira as fontes antes de decidir.
             </p>
           </motion.div>

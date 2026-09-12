@@ -135,7 +135,7 @@ export default function AdminUsersTab() {
         });
       }
     }
-    toast({ title: status === "approved" ? "✓ Usuário aprovado" : status === "free" ? "✓ Acesso free concedido" : status === "rejected" ? "✗ Usuário rejeitado" : "Atualizado" });
+    toast({ title: status === "approved" ? "Usuário aprovado" : status === "free" ? "Acesso free concedido" : status === "rejected" ? "Usuário rejeitado" : "Atualizado" });
     fetchUsers();
   };
 

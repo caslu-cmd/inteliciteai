@@ -128,7 +128,7 @@ export default function RadarPage() {
     const map: Record<string, { match: number; motivo: string }> = {};
     for (const s of res.scores) map[String(s.id)] = { match: s.match, motivo: s.motivo };
     setMatchMap(map);
-    toast({ title: "Match calculado! 🎯", description: "As oportunidades foram ordenadas pela aderência à sua empresa." });
+    toast({ title: "Match calculado", description: "As oportunidades foram ordenadas pela aderência à sua empresa." });
   };
 
   const fetchData = useCallback(async () => {
