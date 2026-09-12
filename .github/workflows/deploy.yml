@@ -1,0 +1,39 @@
+name: Deploy para Cloudflare
+
+# Publica automaticamente a cada push na main (branch de produção).
+# Também pode ser disparado manualmente em Actions › Deploy para Cloudflare › Run workflow.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Evita dois deploys simultâneos; o mais recente vence.
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publicar no Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
