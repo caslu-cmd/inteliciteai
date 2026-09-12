@@ -5,10 +5,11 @@ import {
   LayoutDashboard, Radar, FileSearch, ScanLine, Building2,
   FolderCheck, FileText, MessageSquareText, BarChart3,
   ChevronLeft, ChevronRight, DollarSign, FileCheck,
-  LogOut, Scale, Menu, X, ArrowLeft, CalendarClock, TrendingUp, Gavel,
+  LogOut, Menu, X, ArrowLeft, CalendarClock, TrendingUp, Gavel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import logoWhite from "@/assets/logo-white.png";
 
 const NAV_MAIN = [
   { to: "/licitante",           icon: LayoutDashboard,   label: "Dashboard"     },
@@ -89,25 +90,24 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "hsl(265 80% 55%)" }}>
-            <Scale className="w-4 h-4 text-white" />
-          </div>
+          {(!collapsed || isMobile) ? (
+            <img src={logoWhite} alt="Intelicite" className="h-7 w-auto flex-shrink-0" />
+          ) : (
+            <div className="h-8 w-8 overflow-hidden flex items-center flex-shrink-0">
+              <img src={logoWhite} alt="Intelicite" className="h-8 w-auto max-w-none object-left" />
+            </div>
+          )}
           <AnimatePresence>
             {(!collapsed || isMobile) && (
-              <motion.div
+              <motion.span
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden whitespace-nowrap"
+                className="overflow-hidden whitespace-nowrap text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ background: "hsl(265 80% 55% / 0.2)", color: "hsl(265 80% 75%)" }}
               >
-                <span className="font-display font-semibold text-base" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                  Intelicite
-                </span>
-                <span className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded"
-                  style={{ background: "hsl(265 80% 55% / 0.2)", color: "hsl(265 80% 75%)" }}>
-                  Licitante
-                </span>
-              </motion.div>
+                Licitante
+              </motion.span>
             )}
           </AnimatePresence>
         </div>
@@ -235,10 +235,11 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "hsl(265 80% 55%)" }}>
-                <Scale className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="font-display font-semibold text-sm">Intelicite Licitante</span>
+              <img src={logoWhite} alt="Intelicite" className="h-6 w-auto" />
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                style={{ background: "hsl(265 80% 55% / 0.2)", color: "hsl(265 80% 75%)" }}>
+                Licitante
+              </span>
             </div>
           )}
         </header>

@@ -139,7 +139,7 @@ export default function AdminBaseJuridicaTab() {
         load();
       }
       toast({
-        title: done ? "Base legal completa! 📚" : "Indexação em andamento",
+        title: done ? "Base legal completa" : "Indexação em andamento",
         description: done
           ? "Todas as leis oficiais foram baixadas do Planalto e indexadas."
           : "Continua rodando em segundo plano — atualize a tela em alguns minutos.",
@@ -298,7 +298,7 @@ export default function AdminBaseJuridicaTab() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        💡 Jurisprudência do TCU/AGU em tempo real: usa o <code className="bg-secondary px-1 rounded">BRAVE_SEARCH_API_KEY</code> se configurado
+        Jurisprudência do TCU/AGU em tempo real: usa o <code className="bg-secondary px-1 rounded">BRAVE_SEARCH_API_KEY</code> se configurado
         (plano grátis); caso contrário, a busca web nativa do Claude (mesma <code className="bg-secondary px-1 rounded">ANTHROPIC_API_KEY</code> do chat).
       </p>
     </div>

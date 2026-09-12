@@ -95,7 +95,7 @@ export default function AdminVerificationsTab() {
       type: "verification",
     });
 
-    toast({ title: status === "approved" ? "✓ Consultor aprovado" : status === "rejected" ? "✗ Verificação rejeitada" : "Sinalizado para revisão" });
+    toast({ title: status === "approved" ? "Consultor aprovado" : status === "rejected" ? "Verificação rejeitada" : "Sinalizado para revisão" });
     fetchVerifications();
     setProcessing(null);
   };
