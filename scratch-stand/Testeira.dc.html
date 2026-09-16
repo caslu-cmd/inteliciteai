@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Sora:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #c9a7ff; } a:hover { color: #e4d4ff; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1600px; height: 300px; overflow: hidden;
+            background:
+              radial-gradient(900px 460px at 12% -30%, rgba(169,112,255,0.35), rgba(169,112,255,0) 60%),
+              radial-gradient(700px 500px at 100% 130%, rgba(109,40,217,0.30), rgba(109,40,217,0) 60%),
+              linear-gradient(120deg, #0a0518 0%, #140a2e 52%, #0d0722 100%);
+            font-family: 'Sora', system-ui, sans-serif;">
+
+  <!-- dot grid texture -->
+  <div style="position: absolute; inset: 0; opacity: 0.5;
+              background-image: radial-gradient(rgba(201,167,255,0.16) 1.4px, transparent 1.4px);
+              background-size: 34px 34px;"></div>
+  <!-- top glow line -->
+  <div style="position: absolute; left: 0; right: 0; top: 0; height: 3px;
+              background: linear-gradient(90deg, transparent, #a970ff 30%, #c9a7ff 50%, #a970ff 70%, transparent);"></div>
+
+  <div style="position: relative; height: 100%; display: flex; align-items: center;
+              justify-content: space-between; padding: 0 72px; box-sizing: border-box;">
+
+    <!-- Brand lockup -->
+    <div style="display: flex; align-items: center; gap: 30px;">
+      <!-- gavel mark -->
+      <svg width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden="true"
+           style="filter: drop-shadow(0 0 14px rgba(169,112,255,0.55));">
+        <g stroke="#f3eefe" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="14.5" y="16.5" width="24" height="14" rx="3.2"
+                transform="rotate(45 26.5 23.5)"/>
+          <line x1="30" y1="30" x2="58" y2="58"/>
+          <path d="M40 66 h24 M46 66 v-7 h12 v7"/>
+          <line x1="37" y1="72" x2="67" y2="72"/>
+        </g>
+        <circle cx="60" cy="20" r="4.5" stroke="#c9a7ff" stroke-width="2.6"/>
+        <circle cx="70" cy="34" r="2.6" fill="#a970ff"/>
+        <circle cx="15" cy="52" r="2.6" fill="#a970ff"/>
+      </svg>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-family: 'Orbitron', system-ui, sans-serif; font-weight: 800;
+                    font-size: 82px; line-height: 0.9; letter-spacing: 6px; color: #ffffff;
+                    text-shadow: 0 0 26px rgba(169,112,255,0.45);">INTELICITE</div>
+        <div style="font-size: 24px; font-weight: 500; letter-spacing: 3px; color: #c3b6e6;
+                    text-transform: uppercase;">Inteligência Artificial para o Agente Público</div>
+      </div>
+    </div>
+
+    <!-- Legal badge -->
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px;">
+      <div style="display: inline-flex; align-items: center; gap: 12px; padding: 16px 26px;
+                  border: 1.5px solid rgba(201,167,255,0.55); border-radius: 999px;
+                  background: rgba(169,112,255,0.10);
+                  box-shadow: 0 0 26px rgba(169,112,255,0.25) inset, 0 0 20px rgba(169,112,255,0.20);">
+        <span style="width: 9px; height: 9px; border-radius: 999px; background: #a970ff;
+                     box-shadow: 0 0 12px #a970ff;"></span>
+        <span style="font-family: 'Orbitron', system-ui, sans-serif; font-weight: 700;
+                     font-size: 26px; letter-spacing: 3px; color: #ffffff;">LEI 14.133/2021</span>
+      </div>
+      <div style="font-size: 19px; letter-spacing: 4px; color: #9a8dc4; text-transform: uppercase;">
+        intelicite.com.br</div>
+    </div>
+  </div>
+
+  <!-- bottom accent -->
+  <div style="position: absolute; left: 72px; bottom: 26px; width: 132px; height: 5px; border-radius: 4px;
+              background: linear-gradient(90deg, #a970ff, #c9a7ff);
+              box-shadow: 0 0 16px rgba(169,112,255,0.7);"></div>
+</div>
+</x-dc>
+</body>
+</html>
