@@ -1,11 +1,11 @@
 {
   "artboards": [
     { "file": "Testeira.dc.html", "x": 0, "y": 0, "w": 1600, "h": 300, "title": "Testeira do stand" },
-    { "file": "Main.dc.html", "x": 0, "y": 420, "w": 1200, "h": 1700, "title": "Painel de fundo" }
+    { "file": "Main.dc.html", "x": 0, "y": 420, "w": 1200, "h": 1850, "title": "Painel de fundo" }
   ],
   "annotations": [
     { "id": "nota-testeira", "x": 1680, "y": 40, "w": 300, "text": "TESTEIRA — letreiro do topo do stand. Proporção larga (~5:1). Ajuste w/h para a medida real da estrutura." },
-    { "id": "nota-painel", "x": 1300, "y": 460, "w": 320, "text": "PAINEL DE FUNDO — retrato 3:4, no estilo da referência (glow violeta, card de vidro, mão robótica). O QR é placeholder — troque pelo QR real." }
+    { "id": "nota-painel", "x": 1300, "y": 460, "w": 320, "text": "PAINEL DE FUNDO — no estilo da referência (glow violeta, card de vidro, mão robótica apresentando o painel). O QR é placeholder — troque pelo QR real. Ajuste w/h para a medida real da parede do stand." }
   ],
   "launch": { "view": "canvas" }
 }
