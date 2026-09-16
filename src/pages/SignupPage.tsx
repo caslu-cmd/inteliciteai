@@ -50,40 +50,6 @@ const ROLES = [
     redirect: "/licitante",
     features: ["Scanner de editais", "Radar de oportunidades", "Análise competitiva", "Precificação IA"],
   },
-  {
-    id: "consultor" as Role,
-    name: "Consultor Especialista",
-    platform: "Consultor",
-    desc: "Monetize sua expertise em licitações públicas",
-    icon: Handshake,
-    badge: "Marketplace",
-    color: "amber",
-    border: "border-amber-400/30",
-    bg: "bg-amber-400/5",
-    badgeCss: "bg-amber-400/10 text-amber-400 border border-amber-400/20",
-    text: "text-amber-400",
-    btn: "bg-amber-400 hover:bg-amber-300 text-[#080D14]",
-    dot: "bg-amber-400",
-    redirect: "/consultor",
-    features: ["Receba projetos", "Envie propostas", "Pagamento seguro (escrow)", "Chat direto"],
-  },
-  {
-    id: "gestor" as Role,
-    name: "Preciso de um Consultor",
-    platform: "Marketplace",
-    desc: "Publique um projeto e receba propostas de especialistas verificados em licitações",
-    icon: Handshake,
-    badge: "Publicar Projeto",
-    color: "orange",
-    border: "border-orange-400/30",
-    bg: "bg-orange-400/5",
-    badgeCss: "bg-orange-400/10 text-orange-400 border border-orange-400/20",
-    text: "text-orange-400",
-    btn: "bg-orange-400 hover:bg-orange-300 text-[#080D14]",
-    dot: "bg-orange-400",
-    redirect: "/dashboard/publicar-projeto",
-    features: ["Publique seu projeto grátis", "Propostas de especialistas verificados", "Pagamento seguro (escrow)", "Sem mensalidade"],
-  },
 ];
 
 export default function SignupPage() {
@@ -124,14 +90,24 @@ export default function SignupPage() {
     }
     if (!role) return;
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name, organization: org, role } },
+      options: {
+        data: { full_name: name, organization: org, role },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
     });
     setLoading(false);
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
+    } else if (!data.session) {
+      // Confirmação de e-mail está ativada: não há sessão até o usuário confirmar.
+      toast({
+        title: "Conta criada! ✉️ Confirme seu e-mail",
+        description: "Enviamos um link de confirmação para o seu e-mail. Confirme para acessar o Intelicite.",
+      });
+      navigate("/login");
     } else {
       navigate(redirect);
     }
