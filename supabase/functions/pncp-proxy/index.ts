@@ -1,15 +1,26 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Real PNCP search API discovered via reverse engineering of pncp.gov.br frontend
+// Radar de oportunidades: consulta a busca do PNCP (API usada pelo próprio
+// portal) com retry, timeout e fallback. A API do PNCP oscila com frequência
+// (502/503), então quando ela falha servimos a última resposta em cache,
+// mesmo vencida, em vez de devolver erro — e registramos a causa no log.
+
 const PNCP_SEARCH = "https://pncp.gov.br/api/search";
 const ITEMS_PER_PAGE = 10; // PNCP search always returns 10 per page
 const CACHE_TTL_MINUTES = 30;
+const TRIES = 4;
+const TIMEOUT_MS = 12_000;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const jsonRes = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", ...extra } });
+
+const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 function calcRiskLevel(valor: number, diasAbertura: number): "low" | "medium" | "high" {
   if (diasAbertura < 5 || valor > 5_000_000) return "high";
@@ -27,6 +38,7 @@ function calcScore(diasAbertura: number, valor: number): number {
   return Math.min(99, Math.max(5, score));
 }
 
+// deno-lint-ignore no-explicit-any
 function normalizeOpportunity(item: any) {
   const valor = Number(item.valor_global) || 0;
 
@@ -72,17 +84,52 @@ function normalizeOpportunity(item: any) {
   };
 }
 
+// Uma tentativa contra o PNCP; devolve o JSON ou lança com a causa (status + trecho do corpo)
+// deno-lint-ignore no-explicit-any
+async function pncpOnce(params: URLSearchParams): Promise<any> {
+  const res = await fetch(`${PNCP_SEARCH}?${params}`, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (compatible; Intelicite/1.0)",
+      "Accept-Language": "pt-BR,pt;q=0.9",
+      Referer: "https://pncp.gov.br/app/editais",
+    },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    const snippet = (await res.text().catch(() => "")).slice(0, 200).replace(/\s+/g, " ");
+    const err = new Error(`PNCP ${res.status}${snippet ? `: ${snippet}` : ""}`);
+    (err as Error & { status?: number }).status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+// Retry com backoff em falha de rede, timeout, 429 e 5xx
+// deno-lint-ignore no-explicit-any
+async function pncpWithRetry(params: URLSearchParams): Promise<any> {
+  let lastErr: unknown = null;
+  for (let i = 0; i < TRIES; i++) {
+    try {
+      return await pncpOnce(params);
+    } catch (err) {
+      lastErr = err;
+      const status = (err as { status?: number }).status ?? 0;
+      const retryable = status === 0 || status === 429 || status >= 500;
+      if (!retryable) break;
+      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  if (!req.headers.get("Authorization")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
+  if (!req.headers.get("Authorization")) return jsonRes({ error: "Unauthorized" }, 401);
 
   const url = new URL(req.url);
-  const search = url.searchParams.get("search") || "licitação";
+  const search = (url.searchParams.get("search") || "licitação").trim().slice(0, 200);
   const uf = url.searchParams.get("uf") || "";
   const modalidadeId = url.searchParams.get("modalidadeId") || "";
   const pagina = url.searchParams.get("pagina") || "1";
@@ -95,45 +142,53 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Check cache
+  // Check cache (fresco → responde; vencido → guarda como fallback)
   const { data: cached } = await supabaseClient
     .from("pncp_cache")
     .select("payload, created_at")
     .eq("cache_key", cacheKey)
-    .single();
+    .maybeSingle();
 
   if (cached) {
     const age = (Date.now() - new Date(cached.created_at).getTime()) / 60000;
-    if (age < CACHE_TTL_MINUTES) {
-      return new Response(JSON.stringify(cached.payload), {
-        headers: { ...cors, "Content-Type": "application/json", "X-Cache": "HIT" },
-      });
+    if (age < CACHE_TTL_MINUTES) return jsonRes(cached.payload, 200, { "X-Cache": "HIT" });
+  }
+
+  const buildParams = (q: string) => {
+    const params = new URLSearchParams({ q, tipos_documento: "edital", pagina });
+    if (uf) params.set("uf", uf.toUpperCase());
+    if (modalidadeId) params.set("modalidade_licitacao_id", modalidadeId);
+    return params;
+  };
+
+  // deno-lint-ignore no-explicit-any
+  let pncpData: any;
+  try {
+    pncpData = await pncpWithRetry(buildParams(search));
+  } catch (err1) {
+    // Segunda chance: a busca do PNCP já engasgou com acentos; tenta sem eles
+    const plain = semAcento(search);
+    if (plain !== search) {
+      try {
+        pncpData = await pncpWithRetry(buildParams(plain));
+        console.warn(`pncp-proxy: "${search}" falhou (${(err1 as Error).message}); "${plain}" funcionou`);
+      } catch (err2) {
+        console.error(`pncp-proxy: falha em "${search}" e "${plain}": ${(err2 as Error).message}`);
+      }
+    } else {
+      console.error(`pncp-proxy: falha em "${search}": ${(err1 as Error).message}`);
+    }
+
+    if (!pncpData) {
+      // PNCP fora do ar: serve o cache vencido, se houver, em vez de erro
+      if (cached) {
+        return jsonRes({ ...cached.payload, stale: true, fetchedAt: cached.created_at }, 200, { "X-Cache": "STALE" });
+      }
+      return jsonRes({ error: "O Portal Nacional de Contratações Públicas (PNCP) está instável no momento. Tente novamente em instantes.", detail: String((err1 as Error).message) }, 502);
     }
   }
 
-  // Build PNCP search query
-  const params = new URLSearchParams({
-    q: search,
-    tipos_documento: "edital",
-    pagina,
-  });
-  if (uf) params.set("uf", uf.toUpperCase());
-  if (modalidadeId) params.set("modalidade_licitacao_id", modalidadeId);
-
-  let pncpData: any;
-  try {
-    const res = await fetch(`${PNCP_SEARCH}?${params}`, {
-      headers: { Accept: "application/json", "User-Agent": "Intelicite/1.0" },
-    });
-
-    if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
-    pncpData = await res.json();
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha ao acessar PNCP", detail: String(err) }), {
-      status: 502, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-
+  // deno-lint-ignore no-explicit-any
   const rawItems: any[] = pncpData.items || [];
   const total: number = pncpData.total || 0;
   const opportunities = rawItems.map(normalizeOpportunity);
@@ -155,7 +210,5 @@ Deno.serve(async (req: Request) => {
     created_at: new Date().toISOString(),
   }, { onConflict: "cache_key" });
 
-  return new Response(JSON.stringify(payload), {
-    headers: { ...cors, "Content-Type": "application/json", "X-Cache": "MISS" },
-  });
+  return jsonRes(payload, 200, { "X-Cache": "MISS" });
 });

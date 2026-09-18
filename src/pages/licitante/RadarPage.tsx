@@ -141,27 +141,26 @@ export default function RadarPage() {
       if (selectedModalidade) params.set("modalidadeId", selectedModalidade);
       params.set("search", searchTerm || "licitação");
 
-      const { data: result, error: fnErr } = await supabase.functions.invoke("pncp-proxy", {
-        method: "GET",
-        headers: { "x-query": params.toString() },
-      });
-
-      // functions.invoke doesn't support query params directly — use fetch instead
+      // functions.invoke não aceita query string — usa fetch direto
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pncp-proxy?${params}`,
         { headers: { "Authorization": `Bearer ${session?.access_token}`, "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
       );
 
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const json: PncpResponse = await res.json();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ${res.status}`);
+      }
+      const json: PncpResponse & { stale?: boolean } = await res.json();
       setData(json);
+      if (json.stale) toast({ title: "PNCP instável", description: "Mostrando a última consulta salva enquanto o portal não responde." });
     } catch (err: any) {
       setError(err.message || "Falha ao carregar dados do PNCP");
     } finally {
       setLoading(false);
     }
-  }, [pagina, selectedUf, selectedModalidade, searchTerm]);
+  }, [pagina, selectedUf, selectedModalidade, searchTerm, toast]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

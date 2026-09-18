@@ -94,6 +94,12 @@ function parseScript(script: string): Segment[] {
   return segments.filter((s) => s.text.length > 5);
 }
 
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 async function tts(text: string, voiceId: string, elevenKey: string): Promise<Uint8Array> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
@@ -121,14 +127,37 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
   if (authErr || !user) return json({ error: "Token inválido" }, 401);
 
-  let notebookId = "";
-  try { ({ notebookId } = await req.json()); } catch { return json({ error: "JSON inválido" }, 400); }
-  if (!notebookId) return json({ error: "notebookId obrigatório" }, 400);
+  let body: { notebookId?: string; sources?: Source[] } = {};
+  try { body = await req.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+  const notebookId = body.notebookId || "";
 
   const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
   const ELEVEN_KEY  = Deno.env.get("ELEVENLABS_API_KEY");
   if (!LOVABLE_KEY) return json({ error: "LOVABLE_API_KEY não configurada" }, 503);
   if (!ELEVEN_KEY)  return json({ error: "ELEVENLABS_API_KEY não configurada" }, 503);
+
+  // Modo legado: frontend anterior à Fase 1 envia as fontes no corpo e espera
+  // o MP3 em base64, sem persistência. Mantido até o novo front ir ao ar.
+  if (!notebookId) {
+    const legacy = (Array.isArray(body.sources) ? body.sources : [])
+      .filter((s) => s && typeof s.content === "string" && s.content.trim())
+      .map((s) => ({ title: String(s.title || "Fonte"), content: s.content }));
+    if (!legacy.length) return json({ error: "notebookId obrigatório (ou sources)" }, 400);
+    try {
+      const script   = await generateScript(legacy, LOVABLE_KEY);
+      const segments = parseScript(script);
+      if (!segments.length) throw new Error("Roteiro vazio — tente novamente");
+      const out: (Segment & { audio: string })[] = [];
+      for (const seg of segments) {
+        const bytes = await tts(seg.text, seg.speaker === "A" ? VOICE_ANA : VOICE_CARLOS, ELEVEN_KEY);
+        out.push({ ...seg, audio: toBase64(bytes) });
+      }
+      return json({ segments: out, script });
+    } catch (err) {
+      console.error("audio-overview (legado):", (err as Error).message);
+      return json({ error: (err as Error).message }, 500);
+    }
+  }
 
   // O notebook precisa ser do usuário; as fontes vêm do banco
   const { data: notebook } = await supabase
@@ -178,6 +207,7 @@ Deno.serve(async (req: Request) => {
 
     return json({ id: row.id, createdAt: row.created_at, script, segments: stored });
   } catch (err) {
+    console.error("audio-overview:", (err as Error).message);
     return json({ error: (err as Error).message }, 500);
   }
 });

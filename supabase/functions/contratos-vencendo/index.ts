@@ -19,7 +19,7 @@ const cors = {
 const fmtData = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
 
 function normalizar(s: string): string {
-  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 async function fetchRetry(url: string, tries = 5): Promise<Response | null> {
@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
 
   // Cache
   const { data: cached } = await supabase
-    .from("pncp_cache").select("payload, created_at").eq("cache_key", cacheKey).single();
+    .from("pncp_cache").select("payload, created_at").eq("cache_key", cacheKey).maybeSingle();
   if (cached) {
     const age = (Date.now() - new Date(cached.created_at).getTime()) / 60000;
     if (age < CACHE_TTL_MINUTES) {
@@ -122,7 +122,14 @@ Deno.serve(async (req: Request) => {
   }
 
   if (brutos.length === 0) {
-    return new Response(JSON.stringify({ error: "PNCP indisponível no momento. Tente novamente em instantes." }), {
+    console.error(`${new URL(req.url).pathname}: PNCP sem resposta para ${cacheKey}`);
+    // PNCP fora do ar: serve o cache vencido, se houver, em vez de erro
+    if (cached) {
+      return new Response(JSON.stringify({ ...cached.payload, stale: true, geradoEm: cached.created_at }), {
+        headers: { ...cors, "Content-Type": "application/json", "X-Cache": "STALE" },
+      });
+    }
+    return new Response(JSON.stringify({ error: "O Portal Nacional de Contratações Públicas (PNCP) está instável no momento. Tente novamente em instantes." }), {
       status: 502, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
