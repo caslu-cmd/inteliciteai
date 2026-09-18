@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
 import { KpiCard } from "@/components/licitante/KpiCard";
 import { OpportunityCard } from "@/components/licitante/OpportunityCard";
+import { PrimeiraLicitacao } from "@/components/licitante/PrimeiraLicitacao";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +97,9 @@ export default function LicitantePage() {
             </Button>
           </div>
         </div>
+
+        {/* Onboarding — sua primeira licitação (some quando concluído/dispensado) */}
+        <PrimeiraLicitacao />
 
         {/* Upload CTA */}
         <motion.div
