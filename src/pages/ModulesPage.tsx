@@ -26,6 +26,7 @@ interface ModuleSub {
   active: boolean;
   next_billing_at: string | null;
   unlocked_at: string | null;
+  cancelled_at: string | null;
 }
 
 const MODULE_ICONS: Record<string, React.ElementType> = {

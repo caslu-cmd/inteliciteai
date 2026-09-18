@@ -341,10 +341,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           )}
           {collapsed && <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
-          {[
+          {([
             { label: "Agente Público", path: "/dashboard", icon: Landmark },
             { label: "Licitante",      path: "/licitante", icon: FileText },
-          ].map(({ label, path, icon: Icon, disabled }) => {
+          ] as { label: string; path: string; icon: typeof Landmark; disabled?: boolean }[]).map(({ label, path, icon: Icon, disabled }) => {
             const active = location.pathname === path || location.pathname.startsWith(path + "/");
             if (disabled) return (
               <div key={path} title={collapsed ? label : undefined}
