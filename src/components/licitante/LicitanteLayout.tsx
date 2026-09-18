@@ -5,13 +5,14 @@ import {
   LayoutDashboard, Radar, FileSearch, ScanLine, Building2,
   FolderCheck, FileText, MessageSquareText, BarChart3,
   ChevronLeft, ChevronRight, DollarSign, FileCheck,
-  LogOut, Scale, Menu, X, ArrowLeft, CalendarClock, TrendingUp, Gavel,
+  LogOut, Scale, Menu, X, ArrowLeft, CalendarClock, TrendingUp, Gavel, GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const NAV_MAIN = [
   { to: "/licitante",           icon: LayoutDashboard,   label: "Dashboard"     },
+  { to: "/licitante/guia",      icon: GraduationCap,     label: "Entenda"       },
   { to: "/licitante/radar",     icon: Radar,             label: "Radar"         },
   { to: "/licitante/analises",  icon: FileSearch,        label: "Análises"      },
   { to: "/licitante/scanner",   icon: ScanLine,          label: "Scanner"       },
