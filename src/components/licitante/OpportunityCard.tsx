@@ -70,7 +70,12 @@ export function OpportunityCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 mt-auto">
-        <VictoryScore score={score} size={52} />
+        <div className="flex items-center gap-2.5">
+          <VictoryScore score={score} size={52} />
+          <span className="text-[11px] leading-tight text-muted-foreground max-w-[72px]">
+            chance de vitória
+          </span>
+        </div>
         <div className="flex items-center gap-1.5">
           {link && (
             <a href={link} target="_blank" rel="noopener noreferrer">

@@ -175,7 +175,7 @@ const GENERATORS: {
     description: "Cronograma visual de etapas e marcos",
     icon: Clock,
     color: "text-orange-600",
-    prompt: "Construa uma **Linha do Tempo detalhada** do processo licitatório extraindo todas as etapas, marcos, prazos e eventos dos documentos. Organize em ordem cronológica. Para cada evento: Data/Prazo, Evento, Descrição, Responsável e Base Legal. Use emojis de calendário (📅) para marcar cada etapa. Destaque marcos críticos.",
+    prompt: "Construa uma **Linha do Tempo detalhada** do processo licitatório extraindo todas as etapas, marcos, prazos e eventos dos documentos. Organize em ordem cronológica. Para cada evento: Data/Prazo, Evento, Descrição, Responsável e Base Legal. Não use emojis. Destaque marcos críticos.",
   },
   {
     type: "briefing",

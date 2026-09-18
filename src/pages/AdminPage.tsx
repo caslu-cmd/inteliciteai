@@ -122,9 +122,9 @@ export default function AdminPage() {
       await supabase.from("subscriptions").update({ status: "active", price_cents: 0 }).eq("user_id", userId);
     }
     toast({
-      title: status === "approved" ? "✓ Usuário aprovado"
-           : status === "free"     ? "✓ Acesso free concedido"
-           : "✗ Usuário rejeitado",
+      title: status === "approved" ? "Usuário aprovado"
+           : status === "free"     ? "Acesso free concedido"
+           : "Usuário rejeitado",
     });
     fetchData();
   };

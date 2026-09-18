@@ -87,6 +87,26 @@
 }
 
 @layer utilities {
+  /* ── Peso tipográfico mais leve ─────────────────────
+     Reduz toda a escala de peso em um degrau para um visual
+     mais leve e menos "pesado", preservando a hierarquia
+     (cada nível continua um passo acima do anterior).
+     A fonte Sora já carrega os pesos 300–800.            */
+  .font-medium    { font-weight: 400; }
+  .font-semibold  { font-weight: 500; }
+  .font-bold      { font-weight: 600; }
+  .font-extrabold { font-weight: 700; }
+  .font-black     { font-weight: 800; }
+
+  /* Oculta a barra de rolagem mantendo o scroll com o mouse/trackpad. */
+  .no-scrollbar {
+    -ms-overflow-style: none;   /* IE / Edge legado */
+    scrollbar-width: none;      /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;              /* Chrome / Safari / Edge */
+  }
+
   .font-display {
     font-family: 'Space Grotesk', system-ui, sans-serif;
   }

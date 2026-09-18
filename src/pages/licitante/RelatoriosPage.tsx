@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { exportAsPdf } from "@/lib/exportDocument";
+import { ChartTooltip, ChartLegend, CHART_ROLE, AXIS_TICK, GRID_STROKE, CHART_MARGIN } from "@/lib/chartTheme";
 
 interface Minuta {
   id: string;
@@ -21,8 +22,6 @@ interface Minuta {
   status: string;
   created_at: string;
 }
-
-const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success, 142 71% 45%))", "hsl(var(--muted-foreground))"];
 
 const statusConfig: Record<string, { label: string; cls: string; icon: any }> = {
   rascunho:    { label: "Rascunho",    cls: "bg-muted/60 text-muted-foreground", icon: FileEdit },
@@ -75,9 +74,10 @@ export default function RelatoriosPage() {
   })();
 
   const pieData = [
-    { name: "Impugnações", value: impugnacoes },
-    { name: "Esclarecimentos", value: esclarecimentos },
+    { name: "Impugnações", value: impugnacoes, color: CHART_ROLE.impugnacoes },
+    { name: "Esclarecimentos", value: esclarecimentos, color: CHART_ROLE.esclarecimentos },
   ].filter(d => d.value > 0);
+  const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   const handleExport = () => {
     exportAsPdf({
@@ -139,44 +139,74 @@ export default function RelatoriosPage() {
         {/* Charts */}
         <div className="grid gap-6 lg:grid-cols-2 mb-6">
           <div className="bg-card rounded-xl border border-border p-6 shadow-card">
-            <h3 className="font-display font-semibold text-base text-card-foreground mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> Minutas por mês (últimos 6 meses)
+            <h3 className="font-display font-semibold text-base text-card-foreground mb-1 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> Minutas por mês
             </h3>
+            <p className="text-xs text-muted-foreground mb-4">Últimos 6 meses</p>
             {minutas.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma minuta gerada ainda</p>
+              <p className="text-sm text-muted-foreground text-center py-12">Nenhuma minuta gerada ainda</p>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="Impugnações" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Esclarecimentos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={monthlyData} margin={CHART_MARGIN} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                    <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+                    <YAxis allowDecimals={false} tick={AXIS_TICK} tickLine={false} axisLine={false} width={28} />
+                    <Tooltip cursor={{ fill: "hsl(var(--muted) / 0.4)" }} content={<ChartTooltip />} />
+                    <Bar dataKey="Impugnações" fill={CHART_ROLE.impugnacoes} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="Esclarecimentos" fill={CHART_ROLE.esclarecimentos} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 pt-3 border-t border-border/60">
+                  <ChartLegend items={[
+                    { label: "Impugnações", color: CHART_ROLE.impugnacoes },
+                    { label: "Esclarecimentos", color: CHART_ROLE.esclarecimentos },
+                  ]} />
+                </div>
+              </>
             )}
           </div>
 
           <div className="bg-card rounded-xl border border-border p-6 shadow-card">
-            <h3 className="font-display font-semibold text-base text-card-foreground mb-4 flex items-center gap-2">
+            <h3 className="font-display font-semibold text-base text-card-foreground mb-1 flex items-center gap-2">
               <PieChart className="h-4 w-4 text-primary" /> Distribuição por tipo
             </h3>
+            <p className="text-xs text-muted-foreground mb-4">Participação de cada tipo de minuta</p>
             {pieData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <PieChart className="h-8 w-8 mb-2 opacity-20" />
                 <p className="text-sm">Nenhuma minuta gerada ainda</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsPie>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                </RechartsPie>
-              </ResponsiveContainer>
+              <div className="flex flex-col sm:flex-row items-center gap-5">
+                <div className="relative w-[180px] h-[180px] flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={58} outerRadius={82}
+                        paddingAngle={pieData.length > 1 ? 3 : 0} dataKey="value" strokeWidth={0}>
+                        {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="font-display font-bold text-2xl text-card-foreground tabular-nums">{pieTotal}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</span>
+                  </div>
+                </div>
+                <div className="flex-1 w-full space-y-2.5">
+                  {pieData.map((d) => (
+                    <div key={d.name} className="flex items-center gap-2.5">
+                      <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ background: d.color }} />
+                      <span className="text-sm text-card-foreground">{d.name}</span>
+                      <span className="ml-auto text-sm font-semibold text-card-foreground tabular-nums">{d.value}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums w-9 text-right">
+                        {Math.round((d.value / pieTotal) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

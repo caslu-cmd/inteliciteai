@@ -4,6 +4,7 @@ import {
   Calculator, BarChart3, CreditCard, Settings, Shield, LogOut,
   ChevronLeft, ChevronRight, Bell, BookMarked, LayoutDashboard,
   Zap, ChevronDown, Command, Layers, ArrowLeft, Briefcase, Plus, Unlock, Radar,
+  Landmark,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import logoWhite from "@/assets/logo-white.png";
@@ -122,7 +123,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [previewRole, setPreviewRole] = useState<"gestor" | "licitante">("gestor");
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -181,10 +181,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [role, location.pathname, navigate]);
 
-  // NAV ativa: super_admin usa o previewRole, outros usam o próprio role
-  const activeNav = isSuperAdmin
-    ? (previewRole === "licitante" ? NAV_LICITANTE : NAV_GESTOR)
-    : (role === "licitante" ? NAV_LICITANTE : NAV_GESTOR);
+  // NAV ativa conforme a plataforma atual (super_admin gerencia via "Plataformas")
+  const activeNav = role === "licitante" ? NAV_LICITANTE : NAV_GESTOR;
 
   const trialDays = getTrialDays();
   const planLabel =
@@ -207,75 +205,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center gap-3 px-4 border-b transition-all duration-300",
-          collapsed ? "h-14 justify-center" : "h-14"
+          "flex items-center gap-2.5 border-b transition-all duration-300 h-14",
+          collapsed ? "justify-center px-0" : "px-4"
         )}
         style={{ borderColor: "hsl(var(--sidebar-border))" }}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
-          {orgao?.logo_url
-            ? <img src={orgao.logo_url} alt={orgao.name} className="h-full w-full object-contain" />
-            : <img src={logoWhite} alt="Intelicite" className="h-full w-full object-contain" />
-          }
-        </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden whitespace-nowrap"
-            >
-              {orgao ? (
-                <div>
-                  <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
+        {orgao ? (
+          <>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+              {orgao.logo_url
+                ? <img src={orgao.logo_url} alt={orgao.name} className="h-full w-full object-contain" />
+                : <div className="h-8 w-8 overflow-hidden flex items-center"><img src={logoWhite} alt="Intelicite" className="h-8 w-auto max-w-none object-left" /></div>
+              }
+            </div>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden whitespace-nowrap"
+                >
+                  <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
                     {orgao.name}
                   </span>
                   <p className="text-[9px] text-muted-foreground leading-none mt-0.5">
-                    {orgao.state} · InteliCite AI
+                    {orgao.state} · Intelicite
                   </p>
-                </div>
-              ) : (
-                <>
-                  <span className="text-sm font-bold tracking-tight" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                    Intelicite
-                  </span>
-                  <span className="ml-1 text-[10px] font-semibold px-1 py-0.5 rounded"
-                    style={{ background: "hsl(var(--sidebar-primary) / 0.15)", color: "hsl(var(--sidebar-primary))" }}>
-                    AI
-                  </span>
-                </>
+                </motion.div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </AnimatePresence>
+          </>
+        ) : collapsed ? (
+          <div className="h-8 w-8 overflow-hidden flex items-center">
+            <img src={logoWhite} alt="Intelicite" className="h-8 w-auto max-w-none object-left" />
+          </div>
+        ) : (
+          <img src={logoWhite} alt="Intelicite" className="h-7 w-auto" />
+        )}
       </div>
 
-      {/* Preview mode selector — super admin only */}
-      {isSuperAdmin && !collapsed && (
-        <div className="px-3 py-2 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-          <p className="text-[9px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: "hsl(var(--sidebar-foreground) / 0.35)" }}>
-            Visualizar como
-          </p>
-          <div className="flex gap-1">
-            {(["gestor", "licitante"] as const).map(r => (
-              <button key={r} onClick={() => setPreviewRole(r)}
-                className="flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors"
-                style={{
-                  background: previewRole === r ? "hsl(var(--sidebar-primary) / 0.2)" : "transparent",
-                  color: previewRole === r ? "hsl(var(--sidebar-primary))" : "hsl(var(--sidebar-foreground) / 0.5)",
-                  border: `1px solid ${previewRole === r ? "hsl(var(--sidebar-primary) / 0.4)" : "transparent"}`,
-                }}>
-                {r === "gestor" ? "🏛️ Órgão" : "📋 Licitante"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2 no-scrollbar">
         {activeNav.map((group, gi) => (
           <div key={gi} className={gi > 0 ? "pt-3" : ""}>
             {/* Section label */}
@@ -370,15 +342,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           {collapsed && <div className="mx-3 mb-2 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
           {[
-            { label: "Agente Público", path: "/dashboard", emoji: "🏛️" },
-            { label: "Licitante",      path: "/licitante", emoji: "📋" },
-          ].map(({ label, path, emoji, disabled }) => {
+            { label: "Agente Público", path: "/dashboard", icon: Landmark },
+            { label: "Licitante",      path: "/licitante", icon: FileText },
+          ].map(({ label, path, icon: Icon, disabled }) => {
             const active = location.pathname === path || location.pathname.startsWith(path + "/");
             if (disabled) return (
               <div key={path} title={collapsed ? label : undefined}
                 className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium opacity-35 cursor-not-allowed select-none"
                 style={{ color: "hsl(var(--sidebar-foreground))" }}>
-                <span className="text-sm shrink-0">{emoji}</span>
+                <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="truncate">{label} <span className="text-[9px]">(em breve)</span></span>}
               </div>
             );
@@ -395,7 +367,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = "hsl(var(--sidebar-accent) / 0.5)"; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
               >
-                <span className="text-sm shrink-0">{emoji}</span>
+                <Icon className="h-4 w-4 shrink-0" style={{ color: active ? "hsl(var(--sidebar-primary))" : "hsl(var(--sidebar-foreground) / 0.7)" }} />
                 <AnimatePresence>
                   {!collapsed && (
                     <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="truncate">

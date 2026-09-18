@@ -64,7 +64,7 @@ export default function PlanActivatedPage() {
             >
               <CheckCircle className="h-20 w-20 text-success mx-auto mb-6" />
             </motion.div>
-            <h1 className="text-2xl font-bold mb-2">Plano ativado com sucesso! 🎉</h1>
+            <h1 className="text-2xl font-bold mb-2">Plano ativado com sucesso</h1>
             <p className="text-muted-foreground mb-2">
               Seu plano <span className="font-semibold capitalize">{subscription.plan?.replace("_", " ")}</span> está ativo.
             </p>
