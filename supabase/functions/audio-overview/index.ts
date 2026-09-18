@@ -1,21 +1,39 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// Visão Geral em Áudio: gera um roteiro de podcast a partir das fontes ativas
+// do notebook, sintetiza cada fala na ElevenLabs e grava os MP3 no bucket
+// privado `notebook-audio`. O resultado fica persistido em
+// notebook_audio_overviews (um por notebook; regenerar substitui o anterior).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
 const VOICE_ANA    = "21m00Tcm4TlvDq8ikWAM"; // Rachel — female, multilingual
 const VOICE_CARLOS = "ErXwobaYiN019PkySvjV"; // Antoni — male, multilingual
 const ELEVEN_MODEL = "eleven_multilingual_v2";
+const BUCKET = "notebook-audio";
+const MAX_CHARS_PER_SOURCE = 6000;
+const MAX_CHARS_TOTAL = 40000;
 
 interface Source { title: string; content: string }
 interface Segment { speaker: "A" | "B"; text: string }
-interface AudioSegment extends Segment { audio: string }
+interface StoredSegment extends Segment { path: string }
 
 async function generateScript(sources: Source[], apiKey: string): Promise<string> {
+  let budget = MAX_CHARS_TOTAL;
   const docs = sources
-    .map((s, i) => `[Fonte ${i + 1}: ${s.title}]\n${s.content.slice(0, 3000)}`)
+    .map((s, i) => {
+      const slice = s.content.slice(0, Math.min(MAX_CHARS_PER_SOURCE, Math.max(0, budget)));
+      budget -= slice.length;
+      return `[Fonte ${i + 1}: ${s.title}]\n${slice}`;
+    })
+    .filter((d) => d.length > 0)
     .join("\n\n---\n\n");
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -49,6 +67,7 @@ ${docs}`,
       ],
     }),
   });
+  if (!res.ok) throw new Error(`Falha ao gerar roteiro (${res.status})`);
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
 }
@@ -75,7 +94,13 @@ function parseScript(script: string): Segment[] {
   return segments.filter((s) => s.text.length > 5);
 }
 
-async function tts(text: string, voiceId: string, elevenKey: string): Promise<string> {
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+async function tts(text: string, voiceId: string, elevenKey: string): Promise<Uint8Array> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
     headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
@@ -85,48 +110,104 @@ async function tts(text: string, voiceId: string, elevenKey: string): Promise<st
       voice_settings: { stability: 0.45, similarity_boost: 0.82 },
     }),
   });
-
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(`ElevenLabs ${res.status}: ${msg}`);
-  }
-
-  const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
+  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`);
+  return new Uint8Array(await res.arrayBuffer());
 }
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return json({ error: "Não autenticado" }, 401);
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (authErr || !user) return json({ error: "Token inválido" }, 401);
+
+  let body: { notebookId?: string; sources?: Source[] } = {};
+  try { body = await req.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+  const notebookId = body.notebookId || "";
+
+  const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const ELEVEN_KEY  = Deno.env.get("ELEVENLABS_API_KEY");
+  if (!LOVABLE_KEY) return json({ error: "LOVABLE_API_KEY não configurada" }, 503);
+  if (!ELEVEN_KEY)  return json({ error: "ELEVENLABS_API_KEY não configurada" }, 503);
+
+  // Modo legado: frontend anterior à Fase 1 envia as fontes no corpo e espera
+  // o MP3 em base64, sem persistência. Mantido até o novo front ir ao ar.
+  if (!notebookId) {
+    const legacy = (Array.isArray(body.sources) ? body.sources : [])
+      .filter((s) => s && typeof s.content === "string" && s.content.trim())
+      .map((s) => ({ title: String(s.title || "Fonte"), content: s.content }));
+    if (!legacy.length) return json({ error: "notebookId obrigatório (ou sources)" }, 400);
+    try {
+      const script   = await generateScript(legacy, LOVABLE_KEY);
+      const segments = parseScript(script);
+      if (!segments.length) throw new Error("Roteiro vazio — tente novamente");
+      const out: (Segment & { audio: string })[] = [];
+      for (const seg of segments) {
+        const bytes = await tts(seg.text, seg.speaker === "A" ? VOICE_ANA : VOICE_CARLOS, ELEVEN_KEY);
+        out.push({ ...seg, audio: toBase64(bytes) });
+      }
+      return json({ segments: out, script });
+    } catch (err) {
+      console.error("audio-overview (legado):", (err as Error).message);
+      return json({ error: (err as Error).message }, 500);
+    }
+  }
+
+  // O notebook precisa ser do usuário; as fontes vêm do banco
+  const { data: notebook } = await supabase
+    .from("notebooks").select("id").eq("id", notebookId).eq("user_id", user.id).maybeSingle();
+  if (!notebook) return json({ error: "Notebook não encontrado" }, 404);
+
+  const { data: sources } = await supabase
+    .from("notebook_sources")
+    .select("title, content")
+    .eq("notebook_id", notebookId)
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .order("created_at", { ascending: true });
+  if (!sources?.length) return json({ error: "Ative pelo menos uma fonte" }, 400);
+
   try {
-    const { sources } = (await req.json()) as { sources: Source[] };
-
-    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const ELEVEN_KEY  = Deno.env.get("ELEVENLABS_API_KEY");
-    if (!LOVABLE_KEY) throw new Error("LOVABLE_API_KEY não configurada");
-    if (!ELEVEN_KEY)  throw new Error("ELEVENLABS_API_KEY não configurada");
-
-    const script   = await generateScript(sources, LOVABLE_KEY);
+    const script   = await generateScript(sources as Source[], LOVABLE_KEY);
     const segments = parseScript(script);
-    if (!segments.length) throw new Error("Script vazio — tente novamente");
+    if (!segments.length) throw new Error("Roteiro vazio — tente novamente");
 
-    const audioSegments: AudioSegment[] = [];
-    for (const seg of segments) {
-      const voiceId = seg.speaker === "A" ? VOICE_ANA : VOICE_CARLOS;
-      const audio   = await tts(seg.text, voiceId, ELEVEN_KEY);
-      audioSegments.push({ ...seg, audio });
+    const overviewId = crypto.randomUUID();
+    const stored: StoredSegment[] = [];
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const bytes = await tts(seg.text, seg.speaker === "A" ? VOICE_ANA : VOICE_CARLOS, ELEVEN_KEY);
+      const path = `${user.id}/${notebookId}/${overviewId}/${String(i).padStart(2, "0")}.mp3`;
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType: "audio/mpeg", upsert: true });
+      if (upErr) throw new Error(`Falha ao salvar áudio: ${upErr.message}`);
+      stored.push({ ...seg, path });
     }
 
-    return new Response(JSON.stringify({ segments: audioSegments, script }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Substitui a visão geral anterior deste notebook (linha + arquivos)
+    const { data: previous } = await supabase
+      .from("notebook_audio_overviews").select("id, segments").eq("notebook_id", notebookId).maybeSingle();
+    if (previous) {
+      const oldPaths = ((previous.segments as StoredSegment[]) || []).map((s) => s.path).filter(Boolean);
+      if (oldPaths.length) await supabase.storage.from(BUCKET).remove(oldPaths);
+      await supabase.from("notebook_audio_overviews").delete().eq("id", previous.id);
+    }
+
+    const { data: row, error: insErr } = await supabase
+      .from("notebook_audio_overviews")
+      .insert({ id: overviewId, notebook_id: notebookId, user_id: user.id, script, segments: stored })
+      .select("id, created_at")
+      .single();
+    if (insErr) throw new Error(`Falha ao registrar áudio: ${insErr.message}`);
+
+    return json({ id: row.id, createdAt: row.created_at, script, segments: stored });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("audio-overview:", (err as Error).message);
+    return json({ error: (err as Error).message }, 500);
   }
 });

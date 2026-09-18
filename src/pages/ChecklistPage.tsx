@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { CheckSquare, CheckCircle2, Circle, Download } from "lucide-react";
+import { CheckSquare, CheckCircle2, Circle, Download, Loader2, Cloud } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import FloatingChat from "@/components/FloatingChat";
 
 interface CheckItem {
@@ -54,15 +56,54 @@ const checklistItems: Record<string, CheckItem[]> = {
 export default function ChecklistPage() {
   const [tipo, setTipo] = useState("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [savedTick, setSavedTick] = useState(false);
+  const userIdRef = useRef<string | null>(null);
 
   const items = tipo ? checklistItems[tipo] || [] : [];
   const categories = [...new Set(items.map((i) => i.category))];
   const progress = items.length > 0 ? Math.round((checked.size / items.length) * 100) : 0;
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => { userIdRef.current = user?.id ?? null; });
+  }, []);
+
+  // Carrega o progresso salvo ao trocar o tipo de contratação
+  useEffect(() => {
+    if (!tipo) { setChecked(new Set()); return; }
+    let active = true;
+    setLoading(true);
+    supabase
+      .from("checklists")
+      .select("checked_ids")
+      .eq("tipo", tipo)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        const ids = Array.isArray(data?.checked_ids) ? (data!.checked_ids as string[]) : [];
+        setChecked(new Set(ids));
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, [tipo]);
+
+  const persist = async (next: Set<string>) => {
+    const userId = userIdRef.current;
+    if (!userId || !tipo) return;
+    const { error } = await supabase
+      .from("checklists")
+      .upsert({ user_id: userId, tipo, checked_ids: [...next] }, { onConflict: "user_id,tipo" });
+    if (error) { toast.error("Falha ao salvar progresso"); return; }
+    setSavedTick(true);
+    setTimeout(() => setSavedTick(false), 1500);
+  };
+
   const toggleItem = (id: string) => {
     setChecked((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      persist(next);
       return next;
     });
   };
@@ -75,13 +116,13 @@ export default function ChecklistPage() {
         </div>
         <h1 className="text-2xl font-bold">Checklist de Qualificação</h1>
         <p className="mt-2 text-muted-foreground">
-          Geração dinâmica conforme tipo de contratação e Lei 14.133/2021.
+          Geração dinâmica conforme tipo de contratação e Lei 14.133/2021. Seu progresso é salvo automaticamente.
         </p>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6 mb-6">
         <Label>Tipo de Contratação</Label>
-        <Select value={tipo} onValueChange={(v) => { setTipo(v); setChecked(new Set()); }}>
+        <Select value={tipo} onValueChange={setTipo}>
           <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="bens">Aquisição de Bens</SelectItem>
@@ -91,13 +132,18 @@ export default function ChecklistPage() {
         </Select>
       </div>
 
-      {items.length > 0 && (
+      {loading ? (
+        <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+      ) : items.length > 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           {/* Progress */}
           <div className="rounded-xl border border-border bg-card p-4 mb-6 flex items-center gap-4">
             <div className="flex-1">
               <div className="flex justify-between text-sm mb-1">
-                <span className="font-medium">{checked.size} de {items.length} itens</span>
+                <span className="font-medium flex items-center gap-2">
+                  {checked.size} de {items.length} itens
+                  {savedTick && <span className="text-xs text-success flex items-center gap-1"><Cloud className="w-3 h-3" /> salvo</span>}
+                </span>
                 <span className="text-muted-foreground">{progress}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">

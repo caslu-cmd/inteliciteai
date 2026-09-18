@@ -34,6 +34,11 @@ FUNCTIONS=(
   "auto-block"
   "save-gateway-config"
   "send-email"
+  "embed-source"
+  "search-chunks"
+  "notebook-fetch"
+  "notebook-search"
+  "audio-overview"
 )
 
 for fn in "${FUNCTIONS[@]}"; do

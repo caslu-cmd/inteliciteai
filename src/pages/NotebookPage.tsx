@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
@@ -8,7 +8,7 @@ import {
   ChevronRight, MessageSquare, BookMarked, Search, Layers, Globe,
   Link2, ExternalLink, HelpCircle, Headphones, Play, Pause,
   SkipForward, SkipBack, ChevronLeft, Clock, ListChecks, Briefcase,
-  ArrowLeft, MoreVertical, Volume2, BookCopy,
+  ArrowLeft, MoreVertical, Volume2, BookCopy, RefreshCw, Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { streamChat } from "@/lib/streamChat";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { exportAsPdf } from "@/lib/exportDocument";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -29,6 +30,8 @@ interface Notebook {
   sourceCount?: number;
 }
 
+type EmbedStatus = "pending" | "processing" | "done" | "error";
+
 interface Source {
   id: string;
   notebookId: string;
@@ -39,8 +42,9 @@ interface Source {
   charCount: number;
   sourceUrl?: string;
   createdAt: string;
-  isEmbedded?: boolean;
-  embedding?: "pending" | "done" | "error";
+  embedStatus: EmbedStatus;
+  chunkCount: number;
+  embedError?: string;
 }
 
 interface RetrievedChunk {
@@ -53,13 +57,23 @@ interface RetrievedChunk {
   similarity: number;
 }
 
+// Trecho de uma fonte efetivamente enviado ao modelo (para citação clicável)
+interface CitationExcerpt { start: number; end: number; text: string }
+
+interface Citation {
+  index: number;      // número usado no texto: [Fonte N]
+  sourceId: string;
+  title: string;
+  excerpts: CitationExcerpt[];
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
   persisted?: boolean;
-  chunks?: RetrievedChunk[];
+  citations?: Citation[];
 }
 
 type GeneratorType = "summary" | "prazos" | "riscos" | "perguntas" | "faq" | "timeline" | "briefing";
@@ -73,10 +87,12 @@ interface GeneratedOutput {
 interface AudioSegment {
   speaker: "A" | "B";
   text: string;
-  audio: string;
+  path: string;
+  url?: string;
 }
 
 interface AudioOverview {
+  id: string;
   segments: AudioSegment[];
   script: string;
   generatedAt: string;
@@ -93,6 +109,15 @@ interface SearchResult {
 const uid = () => Math.random().toString(36).slice(2, 10);
 const nowStr = () =>
   new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const timeOf = (iso: string) =>
+  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const AUDIO_BUCKET = "notebook-audio";
+const RAG_CHAT_CHUNKS = 8;        // trechos por pergunta no chat
+const RAG_STUDIO_CHUNKS = 30;     // trechos por análise do Estúdio (precisa de cobertura)
+const FALLBACK_CHARS_PER_SOURCE = 8000; // fonte ainda não indexada: texto integral, limitado
+const HISTORY_WINDOW = 20;        // últimas mensagens reenviadas ao modelo
 
 const mapNotebook = (row: any): Notebook => ({
   id: row.id,
@@ -112,6 +137,9 @@ const mapSource = (row: any): Source => ({
   charCount: row.char_count,
   sourceUrl: row.source_url ?? undefined,
   createdAt: row.created_at,
+  embedStatus: (row.embed_status as EmbedStatus) || (row.is_embedded ? "done" : "pending"),
+  chunkCount: row.chunk_count ?? 0,
+  embedError: row.embed_error ?? undefined,
 });
 
 const SOURCE_TYPE_CONFIG = {
@@ -196,162 +224,158 @@ const QUICK_ACTIONS = [
   "Esta dispensa tem fundamentação adequada?",
 ];
 
-// ── Build system prompt ───────────────────────────────────────
-const buildSystemPrompt = (sources: Source[]) => {
-  const active = sources.filter((s) => s.active);
-  if (!active.length) return undefined;
+// ── Contexto para o modelo (RAG) ──────────────────────────────
+// Fontes indexadas entram só com os trechos recuperados pela busca semântica;
+// fontes ainda não indexadas entram com o texto integral, limitado. Em ambos
+// os casos a numeração [Fonte N] segue a ordem das fontes ativas, e devolvemos
+// a lista de citações (fonte + trechos) para tornar as referências clicáveis.
+const buildContext = (active: Source[], chunks: RetrievedChunk[]) => {
+  if (!active.length) return null;
 
-  const docs = active
-    .map(
-      (s, i) =>
-        `### [Fonte ${i + 1}] ${s.title} (${SOURCE_TYPE_CONFIG[s.type].label}${s.sourceUrl ? ` · ${s.sourceUrl}` : ""})\n\n${s.content}`
-    )
-    .join("\n\n---\n\n");
+  const bySource = new Map<string, RetrievedChunk[]>();
+  for (const c of chunks) {
+    if (!bySource.has(c.source_id)) bySource.set(c.source_id, []);
+    bySource.get(c.source_id)!.push(c);
+  }
 
-  return `Você é um assistente jurídico especializado em licitações públicas e na Lei 14.133/2021. Responda sempre em português do Brasil.
+  const citations: Citation[] = [];
+  const blocks: string[] = [];
+  const silent: string[] = [];
 
-O usuário carregou os seguintes documentos/fontes para análise:
+  active.forEach((s, i) => {
+    const n = i + 1;
+    const header = `### [Fonte ${n}] ${s.title} (${SOURCE_TYPE_CONFIG[s.type].label}${s.sourceUrl ? ` · ${s.sourceUrl}` : ""})`;
+    const own = (bySource.get(s.id) || []).sort((a, b) => a.chunk_index - b.chunk_index);
 
-${docs}
+    if (own.length) {
+      const body = own.map((c, k) => `[Trecho ${n}.${k + 1} — caracteres ${c.char_start}–${c.char_end}]\n${c.content}`).join("\n\n");
+      blocks.push(`${header}\n\n${body}`);
+      citations.push({ index: n, sourceId: s.id, title: s.title, excerpts: own.map((c) => ({ start: c.char_start, end: c.char_end, text: c.content })) });
+    } else if (s.embedStatus !== "done") {
+      const truncated = s.content.length > FALLBACK_CHARS_PER_SOURCE;
+      const text = truncated ? s.content.slice(0, FALLBACK_CHARS_PER_SOURCE) + "\n[… conteúdo truncado; a fonte ainda está sendo indexada]" : s.content;
+      blocks.push(`${header}\n\n${text}`);
+      citations.push({ index: n, sourceId: s.id, title: s.title, excerpts: [] });
+    } else {
+      silent.push(`[Fonte ${n}] ${s.title}`);
+    }
+  });
+
+  const prompt = `Você é um assistente jurídico especializado em licitações públicas e na Lei 14.133/2021. Responda sempre em português do Brasil.
+
+O usuário carregou fontes para análise. Abaixo estão os trechos mais relevantes para a pergunta atual:
+
+${blocks.join("\n\n---\n\n") || "(nenhum trecho relevante foi encontrado nas fontes)"}
+${silent.length ? `\n\nOutras fontes ativas sem trechos relevantes para esta pergunta: ${silent.join("; ")}` : ""}
 
 ---
 
 Instruções:
-- Cite as fontes pelo número ([Fonte 1], [Fonte 2], etc.)
+- Baseie-se APENAS nos trechos acima para afirmações sobre os documentos; se a informação não estiver neles, diga isso claramente
+- Cite as fontes pelo número exatamente no formato [Fonte 1], [Fonte 2] etc., sempre que usar informação de um trecho
+- Nunca cite um número de fonte que não aparece acima
 - Cite artigos da Lei 14.133/2021 quando pertinente
 - Use markdown para formatar respostas longas
 - Seja preciso e fundamentado`;
+
+  return { prompt, citations };
 };
 
-// ── Web helpers ───────────────────────────────────────────────
-function htmlToText(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replace(/<header[\s\S]*?<\/header>/gi, "")
-    .replace(/<\/(p|div|h[1-6]|li|tr|section|article)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/ {2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-}
-function extractTitle(html: string): string {
-  return html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "";
-}
-async function fetchUrlContent(url: string): Promise<{ title: string; text: string; charCount: number }> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/notebook-fetch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ url }),
-    });
-    if (res.ok) return res.json();
-  } catch { /* fall through */ }
+// Transforma "[Fonte 2]" em link interno para o renderizador de markdown
+const linkifyCitations = (text: string) => text.replace(/\[Fonte (\d+)\]/g, "[Fonte $1](#cite-$1)");
 
-  const proxy = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-  if (!proxy.ok) throw new Error(`Não foi possível acessar a URL (HTTP ${proxy.status})`);
-  const json = await proxy.json();
-  if (!json.contents) throw new Error("A página não retornou conteúdo legível");
-  const title = extractTitle(json.contents) || new URL(url).hostname;
-  const text = htmlToText(json.contents).slice(0, 50000);
-  return { title, text, charCount: text.length };
-}
-async function searchWeb(query: string): Promise<{ results: SearchResult[]; instantAnswer: string }> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/notebook-search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ query }),
-    });
-    if (res.ok) return res.json();
-  } catch { /* fall through */ }
+// ── API helpers ───────────────────────────────────────────────
+const authHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Você precisa estar logado.");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` };
+};
 
-  const res = await fetch(
-    `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-    { headers: { Accept: "application/json" } }
-  );
-  if (!res.ok) throw new Error("Erro ao buscar na web");
-  const data = await res.json();
-  const instantAnswer: string = data.AbstractText || data.Answer || "";
-  const results: SearchResult[] = [];
-  for (const topic of (data.RelatedTopics || []).slice(0, 8)) {
-    if (topic.FirstURL && topic.Text) {
-      try {
-        const hostname = new URL(topic.FirstURL).hostname.replace("www.", "");
-        results.push({ title: topic.Text.split(" - ")[0]?.slice(0, 100) || topic.Text.slice(0, 80), url: topic.FirstURL, snippet: topic.Text, source: hostname });
-      } catch { /* skip */ }
-    }
-  }
-  for (const r of (data.Results || []).slice(0, 5)) {
-    if (r.FirstURL && r.Text) {
-      try {
-        const hostname = new URL(r.FirstURL).hostname.replace("www.", "");
-        results.push({ title: r.Text.slice(0, 100), url: r.FirstURL, snippet: r.Text, source: hostname });
-      } catch { /* skip */ }
-    }
-  }
-  return { results, instantAnswer };
-}
+const callFn = async <T,>(name: string, body: unknown): Promise<T> => {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, { method: "POST", headers: await authHeaders(), body: JSON.stringify(body) });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json as T;
+};
+
+const fetchUrlContent = (url: string) =>
+  callFn<{ title: string; text: string; charCount: number }>("notebook-fetch", { url });
+
+const searchWeb = (query: string) =>
+  callFn<{ results: SearchResult[]; instantAnswer: string }>("notebook-search", { query });
+
+const searchChunks = async (query: string, sourceIds: string[], matchCount: number): Promise<RetrievedChunk[]> => {
+  if (!sourceIds.length) return [];
+  const { chunks } = await callFn<{ chunks: RetrievedChunk[] }>("search-chunks", { query, sourceIds, matchCount });
+  return chunks || [];
+};
+
+const embedSourceRemote = (sourceId: string) =>
+  callFn<{ chunks_count: number }>("embed-source", { sourceId });
+
+const signAudio = async (segments: AudioSegment[]): Promise<AudioSegment[]> => {
+  const paths = segments.map((s) => s.path);
+  const { data } = await supabase.storage.from(AUDIO_BUCKET).createSignedUrls(paths, 60 * 60);
+  const byPath = new Map((data || []).map((d) => [d.path, d.signedUrl]));
+  return segments.map((s) => ({ ...s, url: byPath.get(s.path) || undefined }));
+};
 
 // ── Audio Player Hook ─────────────────────────────────────────
 function useAudioPlayer(segments: AudioSegment[]) {
   const [currentIdx, setCurrentIdx]   = useState(0);
   const [isPlaying, setIsPlaying]     = useState(false);
   const [isLoading, setIsLoading]     = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef  = useRef<HTMLAudioElement | null>(null);
+  const loadedIdx = useRef<number | null>(null);
 
   const playSegment = useCallback((idx: number) => {
     if (idx < 0 || idx >= segments.length) { setIsPlaying(false); return; }
+    const seg = segments[idx];
+    if (!seg.url) { toast.error("Áudio indisponível — gere novamente."); return; }
     setCurrentIdx(idx);
     setIsLoading(true);
 
-    const seg = segments[idx];
-    const blob = new Blob(
-      [Uint8Array.from(atob(seg.audio), (c) => c.charCodeAt(0))],
-      { type: "audio/mpeg" }
-    );
-    const url = URL.createObjectURL(blob);
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      URL.revokeObjectURL(audioRef.current.src);
-    }
-    const audio = new Audio(url);
+    audioRef.current?.pause();
+    const audio = new Audio(seg.url);
     audioRef.current = audio;
+    loadedIdx.current = idx;
     audio.oncanplaythrough = () => setIsLoading(false);
     audio.onended = () => playSegment(idx + 1);
     audio.onerror = () => { setIsLoading(false); setIsPlaying(false); };
     audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
   }, [segments]);
 
-  const play  = () => { if (!isPlaying) playSegment(currentIdx); };
+  // Retoma de onde parou se o segmento atual já está carregado
+  const play = () => {
+    if (isPlaying) return;
+    const a = audioRef.current;
+    if (a && loadedIdx.current === currentIdx && a.paused && !a.ended) {
+      a.play().then(() => setIsPlaying(true)).catch(() => playSegment(currentIdx));
+    } else playSegment(currentIdx);
+  };
   const pause = () => { audioRef.current?.pause(); setIsPlaying(false); };
   const prev  = () => playSegment(Math.max(0, currentIdx - 1));
   const next  = () => playSegment(Math.min(segments.length - 1, currentIdx + 1));
   const seek  = (idx: number) => playSegment(idx);
 
-  useEffect(() => () => { audioRef.current?.pause(); }, []);
+  useEffect(() => () => { audioRef.current?.pause(); audioRef.current = null; }, []);
 
   return { currentIdx, isPlaying, isLoading, play, pause, prev, next, seek };
 }
 
 // ── Source Card ───────────────────────────────────────────────
+const EMBED_LABEL: Record<EmbedStatus, string> = {
+  pending: "Aguardando indexação", processing: "Indexando…", done: "Indexada", error: "Falha na indexação",
+};
+
 const SourceCard = ({
-  source, onToggle, onDelete, onView,
+  source, onToggle, onDelete, onView, onReindex,
 }: {
   source: Source;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onView: (source: Source) => void;
+  onReindex: (id: string) => void;
 }) => {
   const cfg = SOURCE_TYPE_CONFIG[source.type];
   return (
@@ -372,10 +396,20 @@ const SourceCard = ({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold truncate text-foreground">{source.title}</p>
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className={cn("text-[10px] font-medium", cfg.color)}>{cfg.label}</span>
             <span className="text-[10px] text-muted-foreground">·</span>
             <span className="text-[10px] text-muted-foreground">{source.charCount.toLocaleString("pt-BR")} chars</span>
+            <span className="text-[10px] text-muted-foreground">·</span>
+            <span
+              title={source.embedError || EMBED_LABEL[source.embedStatus]}
+              className={cn("inline-flex items-center gap-1 text-[10px] font-medium",
+                source.embedStatus === "done" ? "text-success" : source.embedStatus === "error" ? "text-destructive" : "text-muted-foreground")}>
+              {source.embedStatus === "processing" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+              {source.embedStatus === "done" && <CheckCheck className="h-2.5 w-2.5" />}
+              {source.embedStatus === "error" && <AlertTriangle className="h-2.5 w-2.5" />}
+              {source.embedStatus === "done" ? `${source.chunkCount} trecho${source.chunkCount === 1 ? "" : "s"}` : EMBED_LABEL[source.embedStatus]}
+            </span>
           </div>
           {source.sourceUrl && (
             <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
@@ -386,6 +420,11 @@ const SourceCard = ({
           )}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+          {(source.embedStatus === "error" || source.embedStatus === "pending") && (
+            <button onClick={() => onReindex(source.id)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Indexar fonte">
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )}
           <button onClick={() => onToggle(source.id)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title={source.active ? "Desativar" : "Ativar"}>
             {source.active ? <Eye className="h-3.5 w-3.5 text-accent" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
@@ -399,44 +438,97 @@ const SourceCard = ({
 };
 
 // ── Source Viewer Sheet ───────────────────────────────────────
-const SourceViewer = ({ source, onClose }: { source: Source | null; onClose: () => void }) => (
-  <Sheet open={!!source} onOpenChange={(open) => !open && onClose()}>
-    <SheetContent side="right" className="p-0 w-[90vw] sm:w-[520px] flex flex-col">
-      {source && (
-        <>
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
-            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl bg-secondary")}>
-              {(() => { const C = SOURCE_TYPE_CONFIG[source.type].icon; return <C className={cn("h-5 w-5", SOURCE_TYPE_CONFIG[source.type].color)} />; })()}
+// Recebe os trechos citados e os destaca no texto, rolando até o primeiro.
+const mergeRanges = (ranges: CitationExcerpt[], max: number) => {
+  const sorted = ranges
+    .map((r) => ({ start: Math.max(0, r.start), end: Math.min(max, r.end) }))
+    .filter((r) => r.end > r.start)
+    .sort((a, b) => a.start - b.start);
+  const out: { start: number; end: number }[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+    else out.push({ ...r });
+  }
+  return out;
+};
+
+const SourceViewer = ({
+  source, highlights, onClose,
+}: {
+  source: Source | null;
+  highlights: CitationExcerpt[];
+  onClose: () => void;
+}) => {
+  const firstMark = useRef<HTMLElement | null>(null);
+  const ranges = useMemo(() => source ? mergeRanges(highlights, source.content.length) : [], [source, highlights]);
+
+  useEffect(() => {
+    if (!source || !ranges.length) return;
+    const t = setTimeout(() => firstMark.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 120);
+    return () => clearTimeout(t);
+  }, [source, ranges]);
+
+  const pieces: React.ReactNode[] = [];
+  if (source) {
+    let cursor = 0;
+    ranges.forEach((r, i) => {
+      if (r.start > cursor) pieces.push(<span key={`t${i}`}>{source.content.slice(cursor, r.start)}</span>);
+      pieces.push(
+        <mark key={`m${i}`} ref={i === 0 ? (el) => { firstMark.current = el; } : undefined}
+          className="bg-accent/25 text-foreground rounded-sm px-0.5 ring-1 ring-accent/40">
+          {source.content.slice(r.start, r.end)}
+        </mark>
+      );
+      cursor = r.end;
+    });
+    if (cursor < source.content.length) pieces.push(<span key="tail">{source.content.slice(cursor)}</span>);
+  }
+
+  return (
+    <Sheet open={!!source} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="p-0 w-[90vw] sm:w-[520px] flex flex-col">
+        {source && (
+          <>
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
+              <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl bg-secondary")}>
+                {(() => { const C = SOURCE_TYPE_CONFIG[source.type].icon; return <C className={cn("h-5 w-5", SOURCE_TYPE_CONFIG[source.type].color)} />; })()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm truncate">{source.title}</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {source.charCount.toLocaleString("pt-BR")} caracteres · {SOURCE_TYPE_CONFIG[source.type].label}
+                  {ranges.length > 0 && <> · <span className="text-accent font-medium">{ranges.length} trecho{ranges.length > 1 ? "s" : ""} citado{ranges.length > 1 ? "s" : ""}</span></>}
+                </p>
+              </div>
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm truncate">{source.title}</h3>
-              <p className="text-[11px] text-muted-foreground">{source.charCount.toLocaleString("pt-BR")} caracteres · {SOURCE_TYPE_CONFIG[source.type].label}</p>
+            {source.sourceUrl && (
+              <div className="px-5 py-2 border-b border-border shrink-0">
+                <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-accent hover:underline">
+                  <ExternalLink className="h-3.5 w-3.5" /> {source.sourceUrl}
+                </a>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed">{pieces}</pre>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {source.sourceUrl && (
-            <div className="px-5 py-2 border-b border-border shrink-0">
-              <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-accent hover:underline">
-                <ExternalLink className="h-3.5 w-3.5" /> {source.sourceUrl}
-              </a>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed">{source.content}</pre>
-          </div>
-        </>
-      )}
-    </SheetContent>
-  </Sheet>
-);
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+};
 
 // ── Add Source Modal ──────────────────────────────────────────
+type NewSource = Omit<Source, "id" | "notebookId" | "createdAt" | "embedStatus" | "chunkCount" | "embedError">;
+
 const AddSourceModal = ({
   onAdd, onClose,
 }: {
-  onAdd: (source: Omit<Source, "id" | "notebookId" | "createdAt">) => Promise<void> | void;
+  onAdd: (source: NewSource) => Promise<void> | void;
   onClose: () => void;
 }) => {
   type Tab = "text" | "pdf" | "url" | "search";
@@ -456,6 +548,7 @@ const AddSourceModal = ({
     setLoading(true);
     try {
       const text = await extractPdfText(file);
+      if (!text.trim()) { toast.error("Este PDF não tem texto extraível (provavelmente é digitalizado). Cole o texto manualmente."); return; }
       setTitle(file.name.replace(/\.pdf$/i, ""));
       setContent(text);
       toast.success(`PDF extraído: ${text.length.toLocaleString()} caracteres`);
@@ -471,7 +564,7 @@ const AddSourceModal = ({
       setTitle(data.title || urlInput);
       setContent(data.text);
       toast.success(`Página importada: ${data.charCount.toLocaleString()} caracteres`);
-    } catch {
+    } catch (err) {
       let hostname = "", productName = "";
       try {
         const parsed = new URL(urlInput.trim());
@@ -481,7 +574,7 @@ const AddSourceModal = ({
       } catch { hostname = urlInput.trim().slice(0, 40); }
       setTitle(productName || hostname);
       setContent(`Produto: ${productName || "—"}\nFonte: ${hostname}\nURL: ${urlInput.trim()}\n\nPreço unitário: R$ \nData da pesquisa: ${new Date().toLocaleDateString("pt-BR")}\nObservações: `);
-      toast.warning("Site não permite extração automática. Preencha as informações antes de salvar.");
+      toast.warning(`Não foi possível importar a página (${err instanceof Error ? err.message : "erro"}). Preencha as informações antes de salvar.`);
     } finally { setLoading(false); }
   };
 
@@ -703,10 +796,11 @@ const AddSourceModal = ({
 
 // ── Generator Output Card ─────────────────────────────────────
 const OutputCard = ({
-  output, onRegenerate, isRegenerating,
+  output, onRegenerate, onDelete, isRegenerating,
 }: {
   output: GeneratedOutput;
   onRegenerate: (type: GeneratorType) => void;
+  onDelete: (type: GeneratorType) => void;
   isRegenerating: boolean;
 }) => {
   const [copied, setCopied] = useState(false);
@@ -723,11 +817,12 @@ const OutputCard = ({
         </div>
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-muted-foreground mr-1">{output.generatedAt}</span>
-          <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+          <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Copiar">
             {copied ? <CheckCheck className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
-          <button onClick={handleExport} className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><Download className="h-3.5 w-3.5 text-muted-foreground" /></button>
-          <button onClick={() => onRegenerate(output.type)} disabled={isRegenerating} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-40"><RotateCcw className="h-3.5 w-3.5 text-muted-foreground" /></button>
+          <button onClick={handleExport} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" title="Exportar PDF"><Download className="h-3.5 w-3.5 text-muted-foreground" /></button>
+          <button onClick={() => onRegenerate(output.type)} disabled={isRegenerating} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-40" title="Gerar novamente"><RotateCcw className="h-3.5 w-3.5 text-muted-foreground" /></button>
+          <button onClick={() => { if (confirm(`Excluir "${gen.label}"?`)) onDelete(output.type); }} disabled={isRegenerating} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-40" title="Excluir"><Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" /></button>
         </div>
       </div>
       <div className="px-4 py-4 max-h-96 overflow-y-auto">
@@ -740,7 +835,7 @@ const OutputCard = ({
 };
 
 // ── Audio Overview Player ─────────────────────────────────────
-const AudioOverviewPlayer = ({ overview, onClose }: { overview: AudioOverview; onClose: () => void }) => {
+const AudioOverviewPlayer = ({ overview, onClose, onDelete }: { overview: AudioOverview; onClose: () => void; onDelete: () => void }) => {
   const { currentIdx, isPlaying, isLoading, play, pause, prev, next, seek } = useAudioPlayer(overview.segments);
   const [showScript, setShowScript] = useState(false);
   const current = overview.segments[currentIdx];
@@ -755,7 +850,10 @@ const AudioOverviewPlayer = ({ overview, onClose }: { overview: AudioOverview; o
           <span className="text-sm font-semibold text-accent">Visão Geral em Áudio</span>
           <span className="text-[10px] text-muted-foreground">{overview.generatedAt}</span>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"><X className="h-3.5 w-3.5" /></button>
+        <div className="flex items-center gap-0.5">
+          <button onClick={() => { if (confirm("Excluir esta visão geral em áudio?")) onDelete(); }} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground" title="Fechar"><X className="h-3.5 w-3.5" /></button>
+        </div>
       </div>
 
       {/* Speaker + text */}
@@ -827,15 +925,17 @@ const AudioOverviewPlayer = ({ overview, onClose }: { overview: AudioOverview; o
 
 // ── Studio Panel ──────────────────────────────────────────────
 const StudioPanel = ({
-  sources, outputs, generating, onGenerate, audioOverview, audioLoading, onGenerateAudio,
+  sources, outputs, generating, onGenerate, onDeleteOutput, audioOverview, audioLoading, onGenerateAudio, onDeleteAudio,
 }: {
   sources: Source[];
   outputs: GeneratedOutput[];
   generating: GeneratorType | null;
   onGenerate: (type: GeneratorType) => void;
+  onDeleteOutput: (type: GeneratorType) => void;
   audioOverview: AudioOverview | null;
   audioLoading: boolean;
   onGenerateAudio: () => void;
+  onDeleteAudio: () => void;
 }) => {
   const activeCount = sources.filter((s) => s.active).length;
   const [view, setView]               = useState<"buttons" | "outputs">("buttons");
@@ -882,17 +982,22 @@ const StudioPanel = ({
                 </div>
 
                 {showAudio && audioOverview ? (
-                  <AudioOverviewPlayer overview={audioOverview} onClose={() => setShowAudio(false)} />
+                  <AudioOverviewPlayer overview={audioOverview} onClose={() => setShowAudio(false)} onDelete={onDeleteAudio} />
                 ) : (
-                  <Button variant="gold" size="sm" className="w-full" onClick={onGenerateAudio} disabled={activeCount === 0 || audioLoading}>
+                  <Button variant="gold" size="sm" className="w-full" onClick={audioOverview ? () => setShowAudio(true) : onGenerateAudio} disabled={activeCount === 0 || audioLoading}>
                     {audioLoading ? (
-                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Gerando áudio…</>
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Gerando áudio… (pode levar ~1 min)</>
                     ) : audioOverview ? (
-                      <><Play className="h-4 w-4 mr-2" /> Reproduzir novamente</>
+                      <><Play className="h-4 w-4 mr-2" /> Abrir áudio salvo</>
                     ) : (
                       <><Headphones className="h-4 w-4 mr-2" /> Gerar Visão Geral em Áudio</>
                     )}
                   </Button>
+                )}
+                {audioOverview && !audioLoading && (
+                  <button onClick={onGenerateAudio} disabled={activeCount === 0} className="mt-2 w-full text-[11px] text-muted-foreground hover:text-accent transition-colors disabled:opacity-50">
+                    Gerar novamente com as fontes atuais
+                  </button>
                 )}
                 {activeCount === 0 && <p className="text-[10px] text-muted-foreground text-center mt-2">Ative pelo menos uma fonte</p>}
               </div>
@@ -933,7 +1038,7 @@ const StudioPanel = ({
                 </div>
               ) : (
                 [...outputs].reverse().map((output) => (
-                  <OutputCard key={output.type} output={output} onRegenerate={onGenerate} isRegenerating={generating === output.type} />
+                  <OutputCard key={output.type} output={output} onRegenerate={onGenerate} onDelete={onDeleteOutput} isRegenerating={generating === output.type} />
                 ))
               )}
             </motion.div>
@@ -944,22 +1049,38 @@ const StudioPanel = ({
   );
 };
 
+// ── Citação clicável dentro da resposta ───────────────────────
+const CitationChip = ({ n, citations, onOpen }: { n: number; citations?: Citation[]; onOpen: (c: Citation) => void }) => {
+  const c = citations?.find((x) => x.index === n);
+  if (!c) {
+    return (
+      <span title="Esta fonte não foi consultada nesta resposta — verifique a informação"
+        className="inline-flex items-center align-baseline rounded-md border border-dashed border-muted-foreground/40 px-1.5 text-[11px] font-medium text-muted-foreground line-through decoration-muted-foreground/60 mx-0.5">
+        Fonte {n}
+      </span>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onOpen(c)} title={`${c.title}${c.excerpts.length ? ` · ${c.excerpts.length} trecho${c.excerpts.length > 1 ? "s" : ""}` : ""}`}
+      className="inline-flex items-center gap-0.5 align-baseline rounded-md bg-accent/10 hover:bg-accent/20 border border-accent/30 px-1.5 text-[11px] font-semibold text-accent transition-colors mx-0.5">
+      <Quote className="h-2.5 w-2.5" /> Fonte {n}
+    </button>
+  );
+};
+
 // ── Chat Panel ────────────────────────────────────────────────
+const WELCOME_TEXT = "Olá! Sou seu assistente jurídico no Notebook IA.\n\nCarregue documentos, importe URLs ou faça buscas na web para adicionar fontes — e me faça perguntas sobre elas. Cada resposta traz os trechos usados: clique em **[Fonte N]** para abrir o documento no ponto citado.\n\nPosso ajudar com:\n- **Interpretação** de cláusulas e artigos\n- **Análise de preços** e referências de mercado\n- **Dúvidas** sobre a Lei 14.133/2021\n- **Comparação** entre documentos";
+
 const ChatPanel = ({
-  sources, notebookId, userId, userEmail,
+  sources, notebookId, userId, userEmail, onOpenCitation,
 }: {
   sources: Source[];
   notebookId: string;
   userId: string;
   userEmail: string;
+  onOpenCitation: (c: Citation) => void;
 }) => {
-  const welcomeMsg: ChatMessage = {
-    id: "welcome",
-    role: "assistant",
-    content: "Olá! Sou seu assistente jurídico no Notebook IA.\n\nCarregue documentos, importe URLs ou faça buscas na web para adicionar fontes — e me faça perguntas sobre elas.\n\nPosso ajudar com:\n- **Interpretação** de cláusulas e artigos\n- **Análise de preços** e referências de mercado\n- **Dúvidas** sobre a Lei 14.133/2021\n- **Comparação** entre documentos",
-    timestamp: nowStr(),
-    persisted: false,
-  };
+  const welcomeMsg = useMemo<ChatMessage>(() => ({ id: "welcome", role: "assistant", content: WELCOME_TEXT, timestamp: nowStr(), persisted: false }), []);
 
   const [messages, setMessages]   = useState<ChatMessage[]>([welcomeMsg]);
   const [history, setHistory]     = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -974,12 +1095,14 @@ const ChatPanel = ({
 
   // Load persisted messages on mount
   useEffect(() => {
+    let active = true;
     const load = async () => {
       const { data } = await supabase
         .from("notebook_messages")
         .select("*")
         .eq("notebook_id", notebookId)
         .order("created_at", { ascending: true });
+      if (!active) return;
       if (data && data.length > 0) {
         const loaded: ChatMessage[] = data.map((r: any) => ({
           id: r.id,
@@ -987,6 +1110,7 @@ const ChatPanel = ({
           content: r.content,
           timestamp: new Date(r.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
           persisted: true,
+          citations: Array.isArray(r.citations) ? (r.citations as Citation[]) : undefined,
         }));
         setMessages([welcomeMsg, ...loaded]);
         setHistory(data.map((r: any) => ({ role: r.role as "user" | "assistant", content: r.content })));
@@ -994,14 +1118,16 @@ const ChatPanel = ({
       setLoaded(true);
     };
     load();
-  }, [notebookId]);
+    return () => { active = false; };
+  }, [notebookId, welcomeMsg]);
 
-  const saveMessage = async (role: "user" | "assistant", content: string): Promise<string | null> => {
+  const saveMessage = async (role: "user" | "assistant", content: string, citations?: Citation[]): Promise<string | null> => {
     const { data, error } = await supabase.from("notebook_messages").insert({
       notebook_id: notebookId,
       user_id: userId,
       role,
       content,
+      citations: citations && citations.length ? (citations as unknown as Json) : null,
     }).select().single();
     if (error) return null;
     return data?.id ?? null;
@@ -1019,47 +1145,69 @@ const ChatPanel = ({
     setInput("");
     setIsTyping(true);
 
+    // RAG: busca os trechos mais relevantes nas fontes indexadas
+    const active = sources.filter((s) => s.active);
+    let chunks: RetrievedChunk[] = [];
+    const embeddedIds = active.filter((s) => s.embedStatus === "done").map((s) => s.id);
+    if (embeddedIds.length) {
+      try { chunks = await searchChunks(text, embeddedIds, RAG_CHAT_CHUNKS); }
+      catch (err) { toast.warning(`Busca nas fontes falhou (${err instanceof Error ? err.message : "erro"}); respondendo com o texto integral limitado.`); }
+    }
+    const ctx = buildContext(active, chunks);
+
     const aiId  = uid();
     let accumulated = "";
-    const systemPrompt = buildSystemPrompt(sources);
-    const chatMessages = systemPrompt
+    const citations = ctx?.citations;
+    const window = newHistory.slice(-HISTORY_WINDOW);
+    const chatMessages = ctx
       ? [
-          { role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${systemPrompt}` },
-          { role: "assistant" as const, content: "Entendido. Li todos os documentos e estou pronto." },
-          ...newHistory,
+          { role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${ctx.prompt}` },
+          { role: "assistant" as const, content: "Entendido. Li os trechos e estou pronto." },
+          ...window,
         ]
-      : newHistory;
+      : window;
+
+    setMessages((prev) => [...prev, { id: aiId, role: "assistant", content: "", timestamp: nowStr(), citations }]);
 
     streamChat({
       messages: chatMessages,
       usuarioId: userEmail,
       onDelta: (chunk) => {
         accumulated += chunk;
-        setMessages((prev) => {
-          const without = prev.filter((m) => m.id !== aiId);
-          return [...without, { id: aiId, role: "assistant", content: accumulated, timestamp: nowStr() }];
-        });
+        setMessages((prev) => prev.map((m) => m.id === aiId ? { ...m, content: accumulated } : m));
       },
       onDone: async () => {
         setIsTyping(false);
+        if (!accumulated) { setMessages((prev) => prev.filter((m) => m.id !== aiId)); return; }
         setHistory((prev) => [...prev, { role: "assistant", content: accumulated }]);
-        const savedId = await saveMessage("assistant", accumulated);
+        const savedId = await saveMessage("assistant", accumulated, citations);
         if (savedId) {
           setMessages((prev) => prev.map((m) => m.id === aiId ? { ...m, id: savedId, persisted: true } : m));
         }
       },
-      onError: (err) => { toast.error(err); setIsTyping(false); },
+      onError: (err) => { toast.error(err); setIsTyping(false); setMessages((prev) => prev.filter((m) => m.id !== aiId || m.content)); },
     });
   };
 
   const clearChat = async () => {
-    await supabase.from("notebook_messages").delete().eq("notebook_id", notebookId);
+    if (!confirm("Apagar toda a conversa deste notebook? Esta ação não pode ser desfeita.")) return;
+    const { error } = await supabase.from("notebook_messages").delete().eq("notebook_id", notebookId);
+    if (error) { toast.error("Não foi possível apagar a conversa"); return; }
     setMessages([{ ...welcomeMsg, id: uid() }]);
     setHistory([]);
     toast.success("Conversa apagada");
   };
 
   const activeCount = sources.filter((s) => s.active).length;
+  const indexedCount = sources.filter((s) => s.active && s.embedStatus === "done").length;
+
+  const markdownComponents = (citations?: Citation[]) => ({
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+      const m = href?.match(/^#cite-(\d+)$/);
+      if (m) return <CitationChip n={Number(m[1])} citations={citations} onOpen={onOpenCitation} />;
+      return <a href={href} target="_blank" rel="noopener noreferrer" className="text-accent underline">{children}</a>;
+    },
+  });
 
   return (
     <div className="flex flex-col h-full">
@@ -1068,8 +1216,8 @@ const ChatPanel = ({
           <MessageSquare className="h-4 w-4 text-accent" />
           <span className="text-sm font-semibold">Chat Jurídico</span>
           {activeCount > 0 && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent/10 text-accent">
-              {activeCount} fonte{activeCount > 1 ? "s" : ""} ativa{activeCount > 1 ? "s" : ""}
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent/10 text-accent" title={`${indexedCount} de ${activeCount} fontes indexadas para busca semântica`}>
+              {activeCount} fonte{activeCount > 1 ? "s" : ""} ativa{activeCount > 1 ? "s" : ""}{indexedCount < activeCount ? ` · ${indexedCount} indexada${indexedCount === 1 ? "" : "s"}` : ""}
             </span>
           )}
         </div>
@@ -1083,7 +1231,11 @@ const ChatPanel = ({
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 text-muted-foreground animate-spin" /></div>
         )}
         <AnimatePresence mode="popLayout">
-          {messages.map((msg) => (
+          {messages.map((msg) => {
+            const used = msg.citations?.filter((c) => c.excerpts.length > 0 || msg.citations!.every((x) => x.excerpts.length === 0)) ?? [];
+            const isStreamingEmpty = msg.role === "assistant" && !msg.content;
+            if (isStreamingEmpty) return null;
+            return (
             <motion.div key={msg.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
               className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
@@ -1095,9 +1247,24 @@ const ChatPanel = ({
                 <div className={cn("rounded-2xl px-4 py-3 text-sm leading-relaxed",
                   msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-foreground rounded-bl-md")}>
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+                    <div className="prose prose-sm max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1">
+                      <ReactMarkdown components={markdownComponents(msg.citations)}>{linkifyCitations(msg.content)}</ReactMarkdown>
+                    </div>
                   ) : msg.content}
                 </div>
+                {msg.role === "assistant" && used.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                    <span className="text-[10px] text-muted-foreground mr-0.5">Fontes consultadas:</span>
+                    {used.map((c) => (
+                      <button key={c.index} type="button" onClick={() => onOpenCitation(c)}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-card hover:border-accent/40 hover:text-accent px-2 py-0.5 text-[10px] text-muted-foreground transition-colors max-w-[220px]">
+                        <span className="font-semibold shrink-0">{c.index}</span>
+                        <span className="truncate">{c.title}</span>
+                        {c.excerpts.length > 0 && <span className="shrink-0 opacity-70">· {c.excerpts.length}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className={cn("flex items-center gap-1", msg.role === "user" ? "justify-end" : "justify-start")}>
                   <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
                   {msg.role === "assistant" && (
@@ -1113,7 +1280,7 @@ const ChatPanel = ({
                 </div>
               )}
             </motion.div>
-          ))}
+          );})}
         </AnimatePresence>
 
         {isTyping && (
@@ -1162,6 +1329,7 @@ const ChatPanel = ({
     </div>
   );
 };
+
 
 // ── Notebook List Page ────────────────────────────────────────
 const NotebookList = ({
@@ -1285,29 +1453,67 @@ const NotebookView = ({
   const [loadingSources, setLoading]  = useState(true);
   const [showAddModal, setShowAdd]    = useState(false);
   const [viewingSource, setViewing]   = useState<Source | null>(null);
+  const [highlights, setHighlights]   = useState<CitationExcerpt[]>([]);
   const [outputs, setOutputs]         = useState<GeneratedOutput[]>([]);
   const [generating, setGenerating]   = useState<GeneratorType | null>(null);
   const [audioOverview, setAudio]     = useState<AudioOverview | null>(null);
   const [audioLoading, setAudioLoad]  = useState(false);
   const [editingTitle, setEditTitle]  = useState(false);
   const [title, setTitle]             = useState(notebook.title);
+  const indexing = useRef<Set<string>>(new Set());
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+  const setSourceStatus = (id: string, patch: Partial<Source>) =>
+    setSources((prev) => prev.map((s) => s.id === id ? { ...s, ...patch } : s));
+
+  // Indexa uma fonte (chunks + embeddings) e reflete o status no card
+  const indexSource = useCallback(async (id: string) => {
+    if (indexing.current.has(id)) return;
+    indexing.current.add(id);
+    setSourceStatus(id, { embedStatus: "processing", embedError: undefined });
+    try {
+      const { chunks_count } = await embedSourceRemote(id);
+      setSourceStatus(id, { embedStatus: "done", chunkCount: chunks_count });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setSourceStatus(id, { embedStatus: "error", embedError: message });
+      toast.error(`Falha ao indexar fonte: ${message}`);
+    } finally {
+      indexing.current.delete(id);
+    }
+  }, []);
 
   useEffect(() => {
+    let active = true;
     const load = async () => {
-      const { data } = await supabase
-        .from("notebook_sources")
-        .select("*")
-        .eq("notebook_id", notebook.id)
-        .order("created_at", { ascending: true });
-      if (data) setSources(data.map(mapSource));
+      const [{ data: srcRows }, { data: outRows }, { data: audioRow }] = await Promise.all([
+        supabase.from("notebook_sources").select("*").eq("notebook_id", notebook.id).order("created_at", { ascending: true }),
+        supabase.from("notebook_outputs").select("*").eq("notebook_id", notebook.id).order("updated_at", { ascending: true }),
+        supabase.from("notebook_audio_overviews").select("*").eq("notebook_id", notebook.id).maybeSingle(),
+      ]);
+      if (!active) return;
+
+      const loadedSources = (srcRows || []).map(mapSource);
+      setSources(loadedSources);
       setLoading(false);
+
+      setOutputs((outRows || []).map((r) => ({ type: r.type as GeneratorType, content: r.content, generatedAt: timeOf(r.updated_at || r.created_at) })));
+
+      if (audioRow) {
+        const segments = await signAudio((audioRow.segments as unknown as AudioSegment[]) || []);
+        if (active) setAudio({ id: audioRow.id, segments, script: audioRow.script, generatedAt: timeOf(audioRow.created_at) });
+      }
+
+      // Fontes antigas (anteriores ao RAG) são indexadas automaticamente, uma por vez
+      for (const s of loadedSources) {
+        if (!active) break;
+        if (s.embedStatus === "pending") await indexSource(s.id);
+      }
     };
     load();
-  }, [notebook.id]);
+    return () => { active = false; };
+  }, [notebook.id, indexSource]);
 
-  const addSource = async (data: Omit<Source, "id" | "notebookId" | "createdAt">) => {
+  const addSource = async (data: NewSource) => {
     const { data: row, error } = await supabase
       .from("notebook_sources")
       .insert({ notebook_id: notebook.id, user_id: userId, title: data.title, content: data.content, type: data.type, active: data.active, char_count: data.charCount, source_url: data.sourceUrl || null })
@@ -1315,6 +1521,7 @@ const NotebookView = ({
     if (error || !row) { toast.error(`Erro ao salvar: ${error?.message}`); return; }
     setSources((prev) => [...prev, mapSource(row)]);
     await supabase.from("notebooks").update({ updated_at: new Date().toISOString() }).eq("id", notebook.id);
+    indexSource(row.id);
   };
 
   const toggleSource = async (id: string) => {
@@ -1335,15 +1542,32 @@ const NotebookView = ({
     setSources((prev) => prev.map((s) => ({ ...s, active })));
   };
 
+  const openCitation = (c: Citation) => {
+    const src = sources.find((s) => s.id === c.sourceId);
+    if (!src) { toast.error("Esta fonte foi removida do notebook."); return; }
+    setHighlights(c.excerpts);
+    setViewing(src);
+  };
+
+  const viewSource = (src: Source) => { setHighlights([]); setViewing(src); };
+
   const generateAnalysis = useCallback(async (type: GeneratorType) => {
     const activeSources = sources.filter((s) => s.active);
     if (!activeSources.length) { toast.error("Ative pelo menos uma fonte"); return; }
     const gen = GENERATORS.find((g) => g.type === type)!;
     setGenerating(type);
-    const systemPrompt = buildSystemPrompt(sources);
-    const chatMessages = systemPrompt
-      ? [{ role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${systemPrompt}` }, { role: "assistant" as const, content: "Entendido." }, { role: "user" as const, content: gen.prompt }]
+
+    let chunks: RetrievedChunk[] = [];
+    const embeddedIds = activeSources.filter((s) => s.embedStatus === "done").map((s) => s.id);
+    if (embeddedIds.length) {
+      try { chunks = await searchChunks(`${gen.label}: ${gen.prompt}`, embeddedIds, RAG_STUDIO_CHUNKS); }
+      catch { /* cai no texto integral limitado */ }
+    }
+    const ctx = buildContext(activeSources, chunks);
+    const chatMessages = ctx
+      ? [{ role: "user" as const, content: `[CONTEXTO DO NOTEBOOK]\n${ctx.prompt}` }, { role: "assistant" as const, content: "Entendido." }, { role: "user" as const, content: gen.prompt }]
       : [{ role: "user" as const, content: gen.prompt }];
+
     let accumulated = "";
     const generatedAt = nowStr();
     streamChat({
@@ -1353,32 +1577,49 @@ const NotebookView = ({
         accumulated += chunk;
         setOutputs((prev) => [...prev.filter((o) => o.type !== type), { type, content: accumulated, generatedAt }]);
       },
-      onDone: () => { setGenerating(null); toast.success(`${gen.label} gerado!`); },
+      onDone: async () => {
+        setGenerating(null);
+        if (!accumulated) { toast.error("A análise voltou vazia. Tente novamente."); return; }
+        const { error } = await supabase
+          .from("notebook_outputs")
+          .upsert({ notebook_id: notebook.id, user_id: userId, type, content: accumulated }, { onConflict: "notebook_id,type" });
+        if (error) toast.error("Análise gerada, mas não foi salva.");
+        else toast.success(`${gen.label} gerado e salvo!`);
+      },
       onError: (err) => { toast.error(`Erro: ${err}`); setGenerating(null); },
     });
-  }, [sources, userEmail]);
+  }, [sources, userEmail, notebook.id, userId]);
+
+  const deleteOutput = async (type: GeneratorType) => {
+    const { error } = await supabase.from("notebook_outputs").delete().eq("notebook_id", notebook.id).eq("type", type);
+    if (error) { toast.error("Não foi possível excluir"); return; }
+    setOutputs((prev) => prev.filter((o) => o.type !== type));
+  };
 
   const generateAudio = async () => {
     const activeSources = sources.filter((s) => s.active);
     if (!activeSources.length) { toast.error("Ative pelo menos uma fonte"); return; }
     setAudioLoad(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/audio-overview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ sources: activeSources.map((s) => ({ title: s.title, content: s.content.slice(0, 4000) })) }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || `HTTP ${res.status}`); }
-      const data = await res.json();
-      setAudio({ segments: data.segments, script: data.script, generatedAt: nowStr() });
-      toast.success("Áudio gerado com sucesso!");
+      const data = await callFn<{ id: string; createdAt: string; script: string; segments: AudioSegment[] }>("audio-overview", { notebookId: notebook.id });
+      const segments = await signAudio(data.segments);
+      setAudio({ id: data.id, segments, script: data.script, generatedAt: timeOf(data.createdAt) });
+      toast.success("Áudio gerado e salvo!");
     } catch (err) {
       toast.error(`Erro ao gerar áudio: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setAudioLoad(false);
     }
+  };
+
+  const deleteAudio = async () => {
+    if (!audioOverview) return;
+    const paths = audioOverview.segments.map((s) => s.path).filter(Boolean);
+    if (paths.length) await supabase.storage.from(AUDIO_BUCKET).remove(paths);
+    const { error } = await supabase.from("notebook_audio_overviews").delete().eq("id", audioOverview.id);
+    if (error) { toast.error("Não foi possível excluir o áudio"); return; }
+    setAudio(null);
+    toast.success("Áudio excluído");
   };
 
   const saveTitle = async () => {
@@ -1389,8 +1630,9 @@ const NotebookView = ({
     }
   };
 
-  const activeCount  = sources.filter((s) => s.active).length;
-  const totalChars   = sources.filter((s) => s.active).reduce((a, s) => a + s.charCount, 0);
+  const activeCount   = sources.filter((s) => s.active).length;
+  const indexedCount  = sources.filter((s) => s.embedStatus === "done").length;
+  const processing    = sources.some((s) => s.embedStatus === "processing");
 
   const SourcesListContent = (
     <>
@@ -1409,7 +1651,7 @@ const NotebookView = ({
             </motion.div>
           ) : (
             sources.map((s) => (
-              <SourceCard key={s.id} source={s} onToggle={toggleSource} onDelete={deleteSource} onView={setViewing} />
+              <SourceCard key={s.id} source={s} onToggle={toggleSource} onDelete={deleteSource} onView={viewSource} onReindex={indexSource} />
             ))
           )}
         </AnimatePresence>
@@ -1421,6 +1663,11 @@ const NotebookView = ({
         </div>
       )}
     </>
+  );
+
+  const studio = (
+    <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis} onDeleteOutput={deleteOutput}
+      audioOverview={audioOverview} audioLoading={audioLoading} onGenerateAudio={generateAudio} onDeleteAudio={deleteAudio} />
   );
 
   return (
@@ -1445,7 +1692,12 @@ const NotebookView = ({
             )}
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-muted-foreground">{activeCount} de {sources.length} fonte{sources.length !== 1 ? "s" : ""} ativa{activeCount !== 1 ? "s" : ""}</span>
-              {totalChars > 0 && <span className="text-[10px] text-muted-foreground">· {(totalChars / 1000).toFixed(1)}k chars em contexto</span>}
+              {sources.length > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                  · {processing && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                  {indexedCount} indexada{indexedCount !== 1 ? "s" : ""} para busca semântica
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1475,8 +1727,7 @@ const NotebookView = ({
             <Button variant="outline" size="sm" className="flex-1 xl:hidden"><Sparkles className="h-4 w-4 mr-1.5" /> Studio</Button>
           </SheetTrigger>
           <SheetContent side="right" className="p-0 w-[88vw] sm:w-[380px]">
-            <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis}
-              audioOverview={audioOverview} audioLoading={audioLoading} onGenerateAudio={generateAudio} />
+            {studio}
           </SheetContent>
         </Sheet>
       </div>
@@ -1494,23 +1745,23 @@ const NotebookView = ({
 
         {/* Center: Chat */}
         <div className="flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden min-w-0">
-          <ChatPanel sources={sources} notebookId={notebook.id} userId={userId} userEmail={userEmail} />
+          <ChatPanel sources={sources} notebookId={notebook.id} userId={userId} userEmail={userEmail} onOpenCitation={openCitation} />
         </div>
 
         {/* Right: Studio */}
         <div className="hidden xl:flex w-80 shrink-0 flex-col rounded-xl border border-border bg-card overflow-hidden">
-          <StudioPanel sources={sources} outputs={outputs} generating={generating} onGenerate={generateAnalysis}
-            audioOverview={audioOverview} audioLoading={audioLoading} onGenerateAudio={generateAudio} />
+          {studio}
         </div>
       </div>
 
-      <SourceViewer source={viewingSource} onClose={() => setViewing(null)} />
+      <SourceViewer source={viewingSource} highlights={highlights} onClose={() => { setViewing(null); setHighlights([]); }} />
       <AnimatePresence>
         {showAddModal && <AddSourceModal onAdd={addSource} onClose={() => setShowAdd(false)} />}
       </AnimatePresence>
     </div>
   );
 };
+
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function NotebookPage() {
