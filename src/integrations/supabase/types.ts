@@ -977,6 +977,41 @@ export type Database = {
           },
         ]
       }
+      notebook_audio_overviews: {
+        Row: {
+          created_at: string | null
+          id: string
+          notebook_id: string
+          script: string
+          segments: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notebook_id: string
+          script?: string
+          segments?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notebook_id?: string
+          script?: string
+          segments?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_audio_overviews_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: true
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notebook_chunks: {
         Row: {
           char_end: number
@@ -1033,6 +1068,7 @@ export type Database = {
       }
       notebook_messages: {
         Row: {
+          citations: Json | null
           content: string
           created_at: string | null
           id: string
@@ -1041,6 +1077,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          citations?: Json | null
           content: string
           created_at?: string | null
           id?: string
@@ -1049,6 +1086,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          citations?: Json | null
           content?: string
           created_at?: string | null
           id?: string
@@ -1066,12 +1104,53 @@ export type Database = {
           },
         ]
       }
+      notebook_outputs: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          notebook_id: string
+          type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          notebook_id: string
+          type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          notebook_id?: string
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_outputs_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notebook_sources: {
         Row: {
           active: boolean
           char_count: number
+          chunk_count: number
           content: string
           created_at: string | null
+          embed_error: string | null
+          embed_status: string
           id: string
           is_embedded: boolean
           notebook_id: string | null
@@ -1083,8 +1162,11 @@ export type Database = {
         Insert: {
           active?: boolean
           char_count?: number
+          chunk_count?: number
           content?: string
           created_at?: string | null
+          embed_error?: string | null
+          embed_status?: string
           id?: string
           is_embedded?: boolean
           notebook_id?: string | null
@@ -1096,8 +1178,11 @@ export type Database = {
         Update: {
           active?: boolean
           char_count?: number
+          chunk_count?: number
           content?: string
           created_at?: string | null
+          embed_error?: string | null
+          embed_status?: string
           id?: string
           is_embedded?: boolean
           notebook_id?: string | null
@@ -1760,7 +1845,6 @@ export type Database = {
           match_count?: number
           min_similarity?: number
           p_source_ids: string[]
-          p_user_id: string
           query_embedding: string
         }
         Returns: {

@@ -16,10 +16,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notebook-search]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notebook-fetch]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-email]
 verify_jwt = true
