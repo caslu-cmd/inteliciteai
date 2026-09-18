@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Radar, Gavel, Bell, CheckCircle2, ChevronRight, X, Rocket } from "lucide-react";
+import { Building2, Radar, Gavel, Bell, CheckCircle2, ChevronRight, X, Rocket, GraduationCap } from "lucide-react";
 
 // Onboarding "Sua primeira licitação": guia o usuário novo do zero até analisar
 // o primeiro edital. Some sozinho quando concluído ou dispensado.
@@ -138,6 +138,11 @@ export function PrimeiraLicitacao() {
             </button>
           ))}
         </div>
+
+        <button onClick={() => navigate("/licitante/guia")}
+          className="relative mt-4 inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+          <GraduationCap className="w-3.5 h-3.5" /> Nunca participou de uma licitação? Comece entendendo o básico
+        </button>
       </motion.div>
     </AnimatePresence>
   );
