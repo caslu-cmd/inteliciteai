@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scale, ArrowRight, AlertTriangle, CheckCircle2, Info, Download } from "lucide-react";
+import { Scale, ArrowRight, AlertTriangle, CheckCircle2, Info, Download, Clock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import FloatingChat from "@/components/FloatingChat";
 
 interface DiagnosticResult {
@@ -13,6 +15,16 @@ interface DiagnosticResult {
   descricao: string;
   alertas: string[];
   recomendacoes: string[];
+}
+
+interface DiagnosticoRow {
+  id: string;
+  valor_estimado: number;
+  urgencia: string;
+  tipo_objeto: string;
+  modalidade: string;
+  fundamento: string;
+  created_at: string;
 }
 
 const diagnosticResults: Record<string, DiagnosticResult> = {
@@ -39,11 +51,15 @@ const diagnosticResults: Record<string, DiagnosticResult> = {
   },
 };
 
+const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
 export default function DiagnosticPage() {
   const [valorEstimado, setValorEstimado] = useState("");
   const [urgencia, setUrgencia] = useState("");
   const [tipoObjeto, setTipoObjeto] = useState("");
   const [showResult, setShowResult] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<DiagnosticoRow[]>([]);
 
   const getResult = (): DiagnosticResult => {
     const valor = parseFloat(valorEstimado.replace(/\D/g, "")) || 0;
@@ -53,6 +69,37 @@ export default function DiagnosticPage() {
   };
 
   const result = getResult();
+
+  const loadHistory = async () => {
+    const { data } = await supabase
+      .from("diagnosticos")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setHistory((data as DiagnosticoRow[]) || []);
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const diagnosticar = async () => {
+    setShowResult(true);
+    setSaving(true);
+    const r = getResult();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase.from("diagnosticos").insert({
+        user_id: user.id,
+        valor_estimado: parseFloat(valorEstimado.replace(/\D/g, "")) || 0,
+        urgencia,
+        tipo_objeto: tipoObjeto,
+        modalidade: r.modalidade,
+        fundamento: r.fundamento,
+      });
+      if (error) toast.error("Diagnóstico gerado, mas não foi salvo no histórico.");
+      else loadHistory();
+    }
+    setSaving(false);
+  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -108,10 +155,12 @@ export default function DiagnosticPage() {
         <div className="mt-6 text-center space-y-3">
           <Button
             variant="gold"
-            onClick={() => { setShowResult(true); }}
-            disabled={!valorEstimado || !urgencia || !tipoObjeto}
+            onClick={diagnosticar}
+            disabled={!valorEstimado || !urgencia || !tipoObjeto || saving}
           >
-            Diagnosticar <ArrowRight className="ml-2 h-4 w-4" />
+            {saving
+              ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Diagnosticando...</>
+              : <>Diagnosticar <ArrowRight className="ml-2 h-4 w-4" /></>}
           </Button>
           {showResult && (
             <div>
@@ -174,6 +223,30 @@ export default function DiagnosticPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Histórico */}
+      {history.length > 0 && (
+        <div className="mt-10">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Diagnósticos recentes
+          </h3>
+          <div className="space-y-2">
+            {history.map((h) => (
+              <div key={h.id} className="rounded-lg border border-border bg-card px-4 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{h.modalidade}</p>
+                  <p className="text-xs text-muted-foreground truncate">{h.fundamento}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold text-foreground">{fmtBRL(Number(h.valor_estimado))}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString("pt-BR")}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <FloatingChat />
     </div>
   );

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -44,6 +44,63 @@ export type Database = {
         }
         Relationships: []
       }
+      alertas_enviados: {
+        Row: {
+          created_at: string
+          edital_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          edital_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          edital_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      annual_forecasts: {
+        Row: {
+          ano_previsao: number
+          created_at: string | null
+          dados_estruturados: Json
+          id: string
+          narrativa: string
+          orgao: string
+          report_ids: string[]
+          tipo_documento: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ano_previsao: number
+          created_at?: string | null
+          dados_estruturados?: Json
+          id?: string
+          narrativa?: string
+          orgao?: string
+          report_ids?: string[]
+          tipo_documento?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ano_previsao?: number
+          created_at?: string | null
+          dados_estruturados?: Json
+          id?: string
+          narrativa?: string
+          orgao?: string
+          report_ids?: string[]
+          tipo_documento?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           created_at: string | null
@@ -71,19 +128,46 @@ export type Database = {
         }
         Relationships: []
       }
+      checklists: {
+        Row: {
+          checked_ids: Json
+          created_at: string | null
+          id: string
+          tipo: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          checked_ids?: Json
+          created_at?: string | null
+          id?: string
+          tipo: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          checked_ids?: Json
+          created_at?: string | null
+          id?: string
+          tipo?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       consultant_verifications: {
         Row: {
           bio: string | null
           birth_date: string | null
           cpf: string
-          created_at: string
+          created_at: string | null
           doc_identity: string | null
           doc_professional: string | null
           doc_selfie: string | null
           full_name: string
           id: string
           linkedin_url: string | null
-          phone: string | null
+          phone: string
           professional_type: string
           registration_number: string | null
           registration_state: string | null
@@ -94,22 +178,22 @@ export type Database = {
           risk_score: number | null
           specialties: string[] | null
           status: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
           years_experience: number | null
         }
         Insert: {
           bio?: string | null
           birth_date?: string | null
-          cpf?: string
-          created_at?: string
+          cpf: string
+          created_at?: string | null
           doc_identity?: string | null
           doc_professional?: string | null
           doc_selfie?: string | null
-          full_name?: string
+          full_name: string
           id?: string
           linkedin_url?: string | null
-          phone?: string | null
+          phone: string
           professional_type?: string
           registration_number?: string | null
           registration_state?: string | null
@@ -120,7 +204,7 @@ export type Database = {
           risk_score?: number | null
           specialties?: string[] | null
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
           years_experience?: number | null
         }
@@ -128,14 +212,14 @@ export type Database = {
           bio?: string | null
           birth_date?: string | null
           cpf?: string
-          created_at?: string
+          created_at?: string | null
           doc_identity?: string | null
           doc_professional?: string | null
           doc_selfie?: string | null
           full_name?: string
           id?: string
           linkedin_url?: string | null
-          phone?: string | null
+          phone?: string
           professional_type?: string
           registration_number?: string | null
           registration_state?: string | null
@@ -146,9 +230,60 @@ export type Database = {
           risk_score?: number | null
           specialties?: string[] | null
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
           years_experience?: number | null
+        }
+        Relationships: []
+      }
+      contratos: {
+        Row: {
+          aditivos_pendentes: number
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          numero: string
+          orgao: string
+          progresso: number
+          proxima_data: string
+          proximo_marco: string
+          titulo: string
+          updated_at: string | null
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          aditivos_pendentes?: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          numero?: string
+          orgao?: string
+          progresso?: number
+          proxima_data?: string
+          proximo_marco?: string
+          titulo: string
+          updated_at?: string | null
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          aditivos_pendentes?: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          numero?: string
+          orgao?: string
+          progresso?: number
+          proxima_data?: string
+          proximo_marco?: string
+          titulo?: string
+          updated_at?: string | null
+          user_id?: string
+          valor?: number
         }
         Relationships: []
       }
@@ -185,44 +320,92 @@ export type Database = {
         }
         Relationships: []
       }
+      diagnosticos: {
+        Row: {
+          created_at: string | null
+          fundamento: string
+          id: string
+          modalidade: string
+          tipo_objeto: string
+          urgencia: string
+          user_id: string
+          valor_estimado: number
+        }
+        Insert: {
+          created_at?: string | null
+          fundamento?: string
+          id?: string
+          modalidade?: string
+          tipo_objeto?: string
+          urgencia?: string
+          user_id: string
+          valor_estimado?: number
+        }
+        Update: {
+          created_at?: string | null
+          fundamento?: string
+          id?: string
+          modalidade?: string
+          tipo_objeto?: string
+          urgencia?: string
+          user_id?: string
+          valor_estimado?: number
+        }
+        Relationships: []
+      }
       document_attachments: {
         Row: {
-          created_at: string
-          document_id: string | null
+          ano_referencia: number | null
+          created_at: string | null
+          document_id: string
           file_name: string
           file_path: string
-          file_size: number | null
+          file_size: number
+          forecast_id: string | null
           id: string
-          mime_type: string | null
           tipo: string
-          updated_at: string
           user_id: string
         }
         Insert: {
-          created_at?: string
-          document_id?: string | null
+          ano_referencia?: number | null
+          created_at?: string | null
+          document_id: string
           file_name: string
-          file_path: string
-          file_size?: number | null
+          file_path?: string
+          file_size?: number
+          forecast_id?: string | null
           id?: string
-          mime_type?: string | null
           tipo: string
-          updated_at?: string
           user_id: string
         }
         Update: {
-          created_at?: string
-          document_id?: string | null
+          ano_referencia?: number | null
+          created_at?: string | null
+          document_id?: string
           file_name?: string
           file_path?: string
-          file_size?: number | null
+          file_size?: number
+          forecast_id?: string | null
           id?: string
-          mime_type?: string | null
           tipo?: string
-          updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "document_attachments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_attachments_forecast_id_fkey"
+            columns: ["forecast_id"]
+            isOneToOne: false
+            referencedRelation: "annual_forecasts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_memory_chunks: {
         Row: {
@@ -379,6 +562,57 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_reports: {
+        Row: {
+          ano: number
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          orgao: string
+          texto_extraido: string
+          user_id: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          file_name: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          orgao?: string
+          texto_extraido?: string
+          user_id: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          orgao?: string
+          texto_extraido?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      internal_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       legal_knowledge: {
         Row: {
           active: boolean
@@ -452,7 +686,7 @@ export type Database = {
           budget_max: number
           budget_min: number
           category: string
-          client_id: string
+          client_id: string | null
           created_at: string | null
           deadline: string | null
           description: string
@@ -468,7 +702,7 @@ export type Database = {
           budget_max?: number
           budget_min?: number
           category: string
-          client_id: string
+          client_id?: string | null
           created_at?: string | null
           deadline?: string | null
           description: string
@@ -484,7 +718,7 @@ export type Database = {
           budget_max?: number
           budget_min?: number
           category?: string
-          client_id?: string
+          client_id?: string | null
           created_at?: string | null
           deadline?: string | null
           description?: string
@@ -503,14 +737,14 @@ export type Database = {
           base_legal: string
           clausula: string
           conteudo: string
-          created_at: string
+          created_at: string | null
           edital: string
           id: string
           orgao: string
           status: string
           tipo: string
           titulo: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
           version: number
         }
@@ -518,14 +752,14 @@ export type Database = {
           base_legal?: string
           clausula?: string
           conteudo?: string
-          created_at?: string
+          created_at?: string | null
           edital?: string
           id?: string
           orgao?: string
           status?: string
           tipo: string
-          titulo?: string
-          updated_at?: string
+          titulo: string
+          updated_at?: string | null
           user_id: string
           version?: number
         }
@@ -533,14 +767,14 @@ export type Database = {
           base_legal?: string
           clausula?: string
           conteudo?: string
-          created_at?: string
+          created_at?: string | null
           edital?: string
           id?: string
           orgao?: string
           status?: string
           tipo?: string
           titulo?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
           version?: number
         }
@@ -651,11 +885,57 @@ export type Database = {
         }
         Relationships: []
       }
+      municipality_regulation_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          municipality_id: string
+          regulation_id: string
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          municipality_id: string
+          regulation_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          municipality_id?: string
+          regulation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "municipality_regulation_chunks_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "municipality_regulation_chunks_regulation_id_fkey"
+            columns: ["regulation_id"]
+            isOneToOne: false
+            referencedRelation: "municipality_regulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       municipality_regulations: {
         Row: {
           active: boolean
           content: string
           created_at: string
+          embedding: string | null
           id: string
           municipality_id: string
           numero: string | null
@@ -667,6 +947,7 @@ export type Database = {
           active?: boolean
           content: string
           created_at?: string
+          embedding?: string | null
           id?: string
           municipality_id: string
           numero?: string | null
@@ -678,6 +959,7 @@ export type Database = {
           active?: boolean
           content?: string
           created_at?: string
+          embedding?: string | null
           id?: string
           municipality_id?: string
           numero?: string | null
@@ -695,6 +977,95 @@ export type Database = {
           },
         ]
       }
+      notebook_chunks: {
+        Row: {
+          char_end: number
+          char_start: number
+          chunk_index: number
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          notebook_id: string
+          source_id: string
+          user_id: string
+        }
+        Insert: {
+          char_end?: number
+          char_start?: number
+          chunk_index?: number
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          notebook_id: string
+          source_id: string
+          user_id: string
+        }
+        Update: {
+          char_end?: number
+          char_start?: number
+          chunk_index?: number
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          notebook_id?: string
+          source_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_chunks_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notebook_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "notebook_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notebook_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          notebook_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          notebook_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          notebook_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_messages_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notebook_sources: {
         Row: {
           active: boolean
@@ -702,6 +1073,8 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          is_embedded: boolean
+          notebook_id: string | null
           source_url: string | null
           title: string
           type: string
@@ -713,6 +1086,8 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          is_embedded?: boolean
+          notebook_id?: string | null
           source_url?: string | null
           title?: string
           type: string
@@ -724,16 +1099,52 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          is_embedded?: boolean
+          notebook_id?: string | null
           source_url?: string | null
           title?: string
           type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_sources_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notebooks: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
       notifications: {
         Row: {
+          action_url: string | null
           created_at: string
+          icon: string | null
           id: string
           message: string
           read: boolean
@@ -742,7 +1153,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          action_url?: string | null
           created_at?: string
+          icon?: string | null
           id?: string
           message: string
           read?: boolean
@@ -751,7 +1164,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          action_url?: string | null
           created_at?: string
+          icon?: string | null
           id?: string
           message?: string
           read?: boolean
@@ -760,6 +1175,54 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      organ_memory_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string | null
+          document_tipo: string | null
+          embedding: string | null
+          id: string
+          municipality_id: string
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id?: string | null
+          document_tipo?: string | null
+          embedding?: string | null
+          id?: string
+          municipality_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string | null
+          document_tipo?: string | null
+          embedding?: string | null
+          id?: string
+          municipality_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organ_memory_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organ_memory_chunks_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -850,14 +1313,66 @@ export type Database = {
         }
         Relationships: []
       }
+      precificacao_simulacoes: {
+        Row: {
+          created_at: string | null
+          custo: number
+          id: string
+          margem: number
+          margem_desejada: number
+          num_concorrentes: number
+          orgao: string
+          preco_sugerido: number
+          prob_vitoria: number
+          recomendacao: string
+          titulo: string
+          user_id: string
+          valor_estimado: number
+        }
+        Insert: {
+          created_at?: string | null
+          custo?: number
+          id?: string
+          margem?: number
+          margem_desejada?: number
+          num_concorrentes?: number
+          orgao?: string
+          preco_sugerido?: number
+          prob_vitoria?: number
+          recomendacao?: string
+          titulo: string
+          user_id: string
+          valor_estimado?: number
+        }
+        Update: {
+          created_at?: string | null
+          custo?: number
+          id?: string
+          margem?: number
+          margem_desejada?: number
+          num_concorrentes?: number
+          orgao?: string
+          preco_sugerido?: number
+          prob_vitoria?: number
+          recomendacao?: string
+          titulo?: string
+          user_id?: string
+          valor_estimado?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_status: string
+          alerta_ativo: boolean
+          alerta_keywords: string | null
+          alerta_uf: string | null
           avatar_url: string | null
           city: string | null
           country: string | null
           created_at: string
           email: string
+          empresa_perfil: string | null
           full_name: string
           id: string
           municipality_id: string | null
@@ -869,11 +1384,15 @@ export type Database = {
         }
         Insert: {
           account_status?: string
+          alerta_ativo?: boolean
+          alerta_keywords?: string | null
+          alerta_uf?: string | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           email?: string
+          empresa_perfil?: string | null
           full_name?: string
           id: string
           municipality_id?: string | null
@@ -885,11 +1404,15 @@ export type Database = {
         }
         Update: {
           account_status?: string
+          alerta_ativo?: boolean
+          alerta_keywords?: string | null
+          alerta_uf?: string | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           email?: string
+          empresa_perfil?: string | null
           full_name?: string
           id?: string
           municipality_id?: string | null
@@ -1197,6 +1720,7 @@ export type Database = {
     }
     Functions: {
       cleanup_pncp_cache: { Args: never; Returns: undefined }
+      expire_trials: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1228,6 +1752,53 @@ export type Database = {
           content: string
           id: string
           knowledge_id: string
+          similarity: number
+        }[]
+      }
+      match_notebook_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_source_ids: string[]
+          p_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          char_end: number
+          char_start: number
+          chunk_index: number
+          content: string
+          id: string
+          similarity: number
+          source_id: string
+        }[]
+      }
+      match_organ_memory: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_municipality_id: string
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          document_id: string
+          document_tipo: string
+          id: string
+          similarity: number
+        }[]
+      }
+      match_regulation_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_municipality_id: string
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          regulation_id: string
           similarity: number
         }[]
       }
@@ -1278,12 +1849,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1307,11 +1878,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1332,11 +1903,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1357,11 +1928,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1374,11 +1945,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
