@@ -238,14 +238,15 @@ export default function RadarPage() {
               <Sparkles className="w-4 h-4 text-primary" /> Perfil da sua empresa
             </p>
             <p className="text-xs text-muted-foreground mb-3">
-              Descreva o que sua empresa fornece (produtos, serviços, segmentos, palavras-chave). A IA usa isso para
-              pontuar o quanto cada licitação combina com você.
+              Descreva o que sua empresa fornece (produtos, serviços, segmentos, palavras-chave). Pode incluir o seu
+              CNAE — a Intelicite traduz o código para a atividade automaticamente. A IA usa isso para pontuar o
+              quanto cada licitação combina com você.
             </p>
             <Textarea
               value={perfil}
               onChange={(e) => setPerfil(e.target.value)}
               rows={3}
-              placeholder="Ex.: Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
+              placeholder="Ex.: CNAE 4751-2/01. Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
             />
             {/* Alertas automáticos de editais */}
             <div className="mt-5 pt-5 border-t border-border">
