@@ -14,13 +14,16 @@ import {
 } from "lucide-react";
 import { type EmpresaDados, formatarCnpj } from "@/lib/empresa";
 
-// PNCP modalidade IDs
+// Ids oficiais de modalidade do PNCP (tabela de domínio da Lei 14.133):
+// 6 Pregão Eletrônico · 4 Concorrência Eletrônica · 5 Concorrência Presencial ·
+// 8 Dispensa · 9 Inexigibilidade · 12 Credenciamento
 const MODALIDADES = [
-  { id: "11", label: "Pregão Eletrônico" },
-  { id: "4",  label: "Concorrência" },
-  { id: "5",  label: "Concorrência Eletrônica" },
-  { id: "7",  label: "Dispensa" },
-  { id: "8",  label: "Inexigibilidade" },
+  { id: "6",  label: "Pregão Eletrônico" },
+  { id: "4",  label: "Concorrência Eletrônica" },
+  { id: "5",  label: "Concorrência Presencial" },
+  { id: "8",  label: "Dispensa" },
+  { id: "9",  label: "Inexigibilidade" },
+  { id: "12", label: "Credenciamento" },
 ];
 
 const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
@@ -43,6 +46,9 @@ interface PncpResponse {
   opportunities: Opportunity[];
   stale?: boolean;     // PNCP fora do ar → resultados do cache
   cachedAt?: string;
+  fallback?: boolean;  // consulta oficial fora → busca do portal (menos confiável)
+  fallbackNota?: string;
+  fonte?: string;
   totalRegistros: number;
   totalPaginas: number;
   numeroPagina: number;
@@ -391,6 +397,17 @@ export default function RadarPage() {
               <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
             </div>
             <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData}>Tentar novamente</Button>
+          </div>
+        )}
+
+        {data?.fallback && !data?.stale && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 mb-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">PNCP instável — resultados em modo reserva</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{data.fallbackNota}</p>
+            </div>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData}>Atualizar</Button>
           </div>
         )}
 
