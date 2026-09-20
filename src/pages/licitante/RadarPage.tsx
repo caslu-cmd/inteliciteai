@@ -41,6 +41,8 @@ interface Opportunity {
 
 interface PncpResponse {
   opportunities: Opportunity[];
+  stale?: boolean;     // PNCP fora do ar → resultados do cache
+  cachedAt?: string;
   totalRegistros: number;
   totalPaginas: number;
   numeroPagina: number;
@@ -143,23 +145,18 @@ export default function RadarPage() {
       if (selectedModalidade) params.set("modalidadeId", selectedModalidade);
       params.set("search", searchTerm || "licitação");
 
-      const { data: result, error: fnErr } = await supabase.functions.invoke("pncp-proxy", {
-        method: "GET",
-        headers: { "x-query": params.toString() },
-      });
-
-      // functions.invoke doesn't support query params directly — use fetch instead
+      // functions.invoke não aceita query string — usa fetch direto
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pncp-proxy?${params}`,
         { headers: { "Authorization": `Bearer ${session?.access_token}`, "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
       );
 
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const json: PncpResponse = await res.json();
+      const json: PncpResponse & { error?: string } = await res.json().catch(() => ({} as any));
+      if (!res.ok) throw new Error(json?.error || `Erro ${res.status}`);
       setData(json);
     } catch (err: any) {
-      setError(err.message || "Falha ao carregar dados do PNCP");
+      setError(err.message || "O portal do PNCP está instável no momento. Tente novamente em alguns minutos.");
     } finally {
       setLoading(false);
     }
@@ -390,10 +387,25 @@ export default function RadarPage() {
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 mb-6 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-destructive">Falha ao carregar dados do PNCP</p>
+              <p className="text-sm font-medium text-destructive">Não foi possível consultar o PNCP</p>
               <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
             </div>
             <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData}>Tentar novamente</Button>
+          </div>
+        )}
+
+        {data?.stale && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 mb-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">O portal do PNCP está instável agora</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Mostrando os últimos resultados que guardamos
+                {data.cachedAt ? ` (${new Date(data.cachedAt).toLocaleString("pt-BR")})` : ""}. Os links "Abrir no PNCP"
+                podem dar erro até o portal do governo voltar — tente de novo em alguns minutos.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData}>Atualizar</Button>
           </div>
         )}
 

@@ -129,7 +129,18 @@ Deno.serve(async (req: Request) => {
     if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
     pncpData = await res.json();
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha ao acessar PNCP", detail: String(err) }), {
+    // PNCP fora do ar (5xx intermitente é comum): serve o cache antigo, se
+    // houver, marcando como "stale" para o front avisar a pessoa.
+    if (cached?.payload) {
+      const stale = { ...cached.payload, stale: true, cachedAt: cached.created_at };
+      return new Response(JSON.stringify(stale), {
+        headers: { ...cors, "Content-Type": "application/json", "X-Cache": "STALE" },
+      });
+    }
+    return new Response(JSON.stringify({
+      error: "O portal do PNCP (governo federal) está instável no momento. Não é um problema da Intelicite — tente novamente em alguns minutos.",
+      detail: String(err),
+    }), {
       status: 502, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
