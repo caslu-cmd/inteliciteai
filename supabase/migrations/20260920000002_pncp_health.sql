@@ -44,11 +44,13 @@ begin
     select * into r from net._http_response where id = p.request_id;
     if found then
       insert into public.pncp_health (checked_at, endpoint, ok, status_code, latency_ms, detail, origem)
+      -- pg_net não guarda a hora da resposta (created = hora do disparo), então
+      -- a latência do monitor fica nula; a real vem das linhas origem = 'proxy'.
       values (
-        coalesce(r.created, now()), p.endpoint,
+        p.fired_at, p.endpoint,
         (coalesce(r.status_code, 0) between 200 and 399) and not coalesce(r.timed_out, false),
         r.status_code,
-        greatest(0, (extract(epoch from (coalesce(r.created, now()) - p.fired_at)) * 1000)::int),
+        null,
         left(coalesce(r.error_msg, ''), 200),
         'monitor'
       );
