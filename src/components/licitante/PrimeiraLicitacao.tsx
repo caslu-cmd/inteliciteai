@@ -64,7 +64,7 @@ export function PrimeiraLicitacao() {
   };
 
   const passos: Passo[] = [
-    { chave: "perfil",  titulo: "Conte sobre sua empresa", desc: "O que você fornece e em quais estados — destrava o Match IA.", icon: Building2, rota: "/licitante/radar", feito: temPerfil },
+    { chave: "perfil",  titulo: "Cadastre sua empresa pelo CNPJ", desc: "Digite o CNPJ e a Intelicite monta seu perfil com os dados da Receita Federal.", icon: Building2, rota: "/licitante/empresa", feito: temPerfil },
     { chave: "radar",   titulo: "Ache oportunidades",       desc: "Abra o Radar e rode o Match IA nos editais do PNCP.",          icon: Radar,     rota: "/licitante/radar", feito: !!locais.radar, marcarAoClicar: true },
     { chave: "analise", titulo: "Analise um edital",        desc: "Jogue um edital no Parecer IA e veja o veredito com fontes.",  icon: Gavel,     rota: "/licitante/parecer", feito: !!locais.analise, marcarAoClicar: true },
     { chave: "alertas", titulo: "Ative os alertas",         desc: "Receba todo dia os editais compatíveis com você.",             icon: Bell,      rota: "/licitante/radar", feito: alertaAtivo },

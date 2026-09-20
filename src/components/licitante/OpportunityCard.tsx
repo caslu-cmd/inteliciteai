@@ -79,7 +79,7 @@ export function OpportunityCard({
         <div className="flex items-center gap-1.5">
           {link && (
             <a href={link} target="_blank" rel="noopener noreferrer">
-              <Button size="icon" variant="ghost" className="h-8 w-8" title="Abrir no PNCP">
+              <Button size="icon" variant="ghost" className="h-8 w-8" title="Abrir no PNCP (se o portal mostrar erro, ele está instável — tente de novo em instantes)">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
