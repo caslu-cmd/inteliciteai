@@ -3,8 +3,31 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Real PNCP search API discovered via reverse engineering of pncp.gov.br frontend
 const PNCP_SEARCH = "https://pncp.gov.br/api/search";
+// API oficial de consulta (backend diferente da busca; bem mais estável).
+// Exige modalidade: sem filtro, usamos Pregão Eletrônico (6), a mais comum.
+const PNCP_CONSULTA = "https://pncp.gov.br/api/consulta/v1/contratacoes/proposta";
+const MODALIDADE_PADRAO = "6";
 const ITEMS_PER_PAGE = 10; // PNCP search always returns 10 per page
 const CACHE_TTL_MINUTES = 30;
+
+// O PNCP responde 5xx/timeout com frequência: tenta de novo com espera crescente.
+async function fetchRetry(url: string, tries = 3): Promise<Response> {
+  let ultimo: unknown = null;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, {
+        headers: { Accept: "application/json", "User-Agent": "Intelicite/1.0" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (r.status >= 500) { ultimo = new Error(`PNCP ${r.status}`); }
+      else return r;
+    } catch (e) { ultimo = e; }
+    await new Promise((s) => setTimeout(s, 500 * (i + 1)));
+  }
+  throw ultimo instanceof Error ? ultimo : new Error(String(ultimo));
+}
+
+const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +95,40 @@ function normalizeOpportunity(item: any) {
   };
 }
 
+// Item da API de consulta → mesmo formato do Radar. Aqui temos a data real
+// de encerramento das propostas, então o prazo é exato (não estimado).
+function normalizeConsulta(c: any) {
+  const valor = Number(c.valorTotalEstimado) || 0;
+  const fim = c.dataEncerramentoProposta ? new Date(c.dataEncerramentoProposta) : null;
+  const diasAbertura = fim ? Math.max(0, Math.ceil((fim.getTime() - Date.now()) / 86400000)) : 7;
+  const cnpj = c.orgaoEntidade?.cnpj || "";
+  const link = cnpj && c.anoCompra && c.sequencialCompra
+    ? `https://pncp.gov.br/app/editais/${cnpj}/${c.anoCompra}/${c.sequencialCompra}`
+    : "https://pncp.gov.br";
+  const municipio = c.unidadeOrgao?.municipioNome || "";
+  const uf = c.unidadeOrgao?.ufSigla || "";
+  return {
+    id: c.numeroControlePNCP || String(Math.random()),
+    title: c.objetoCompra || "Sem descrição",
+    organ: [c.orgaoEntidade?.razaoSocial, c.unidadeOrgao?.nomeUnidade].filter(Boolean).join(" — ") || "Órgão não informado",
+    location: municipio ? `${municipio}, ${uf}` : (uf || "Brasil"),
+    deadline: fim
+      ? `Propostas até ${fim.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`
+      : "",
+    value: valor > 0
+      ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor)
+      : "Valor sigiloso",
+    score: calcScore(diasAbertura, valor),
+    risk: calcRiskLevel(valor, diasAbertura),
+    modalidade: c.modalidadeNome || "",
+    situacao: c.situacaoCompraNome || "",
+    link,
+    orgaoCnpj: cnpj.replace(/\D/g, ""),
+    dataPublicacao: c.dataPublicacaoPncp || null,
+    dataAbertura: c.dataEncerramentoProposta || null,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -120,44 +177,87 @@ Deno.serve(async (req: Request) => {
   if (uf) params.set("uf", uf.toUpperCase());
   if (modalidadeId) params.set("modalidade_licitacao_id", modalidadeId);
 
-  let pncpData: any;
-  try {
-    const res = await fetch(`${PNCP_SEARCH}?${params}`, {
-      headers: { Accept: "application/json", "User-Agent": "Intelicite/1.0" },
-    });
+  let payload: any = null;
 
+  // 1) Busca (texto livre). Retenta; se falhar, cai para a API de consulta.
+  try {
+    const res = await fetchRetry(`${PNCP_SEARCH}?${params}`);
     if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
-    pncpData = await res.json();
-  } catch (err) {
-    // PNCP fora do ar (5xx intermitente é comum): serve o cache antigo, se
-    // houver, marcando como "stale" para o front avisar a pessoa.
-    if (cached?.payload) {
-      const stale = { ...cached.payload, stale: true, cachedAt: cached.created_at };
-      return new Response(JSON.stringify(stale), {
-        headers: { ...cors, "Content-Type": "application/json", "X-Cache": "STALE" },
+    const pncpData = await res.json();
+    const rawItems: any[] = pncpData.items || [];
+    const total: number = pncpData.total || 0;
+    payload = {
+      opportunities: rawItems.map(normalizeOpportunity),
+      totalRegistros: total,
+      totalPaginas: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
+      numeroPagina: Number(pagina),
+      tamanhoPagina: ITEMS_PER_PAGE,
+      source: "pncp-search",
+      fetchedAt: new Date().toISOString(),
+    };
+  } catch (errBusca) {
+    console.error(`pncp-proxy: busca falhou (${String(errBusca)}), tentando consulta`);
+
+    // 2) Consulta oficial: filtra por UF e modalidade no servidor; a palavra-chave
+    //    é aplicada aqui no objeto da contratação (a API não tem busca textual).
+    try {
+      const hoje = new Date();
+      const fim = new Date(hoje.getTime() + 365 * 86400000);
+      const yyyymmdd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
+      const modalidade = modalidadeId || MODALIDADE_PADRAO;
+      const q = new URLSearchParams({
+        dataFinal: yyyymmdd(fim),
+        codigoModalidadeContratacao: modalidade,
+        pagina,
+        tamanhoPagina: String(ITEMS_PER_PAGE),
+      });
+      if (uf) q.set("uf", uf.toUpperCase());
+
+      const res = await fetchRetry(`${PNCP_CONSULTA}?${q}`);
+      if (!res.ok) throw new Error(`PNCP consulta error: ${res.status}`);
+      const dados = await res.json();
+      let itens: any[] = dados.data || [];
+
+      const termo = semAcento(search.trim());
+      const termoPadrao = !termo || termo === "licitacao";
+      if (!termoPadrao) {
+        const palavras = termo.split(/\s+/).filter((w) => w.length > 2);
+        itens = itens.filter((c) => {
+          const alvo = semAcento(`${c.objetoCompra || ""} ${c.orgaoEntidade?.razaoSocial || ""}`);
+          return palavras.some((w) => alvo.includes(w));
+        });
+      }
+
+      payload = {
+        opportunities: itens.map(normalizeConsulta),
+        totalRegistros: Number(dados.totalRegistros) || itens.length,
+        totalPaginas: Math.max(1, Number(dados.totalPaginas) || 1),
+        numeroPagina: Number(pagina),
+        tamanhoPagina: ITEMS_PER_PAGE,
+        source: "pncp-consulta",
+        fallback: true,
+        fallbackNota: modalidadeId
+          ? "Resultados da consulta oficial do PNCP, filtrados por estado e modalidade."
+          : "Resultados da consulta oficial do PNCP (pregões eletrônicos). Escolha uma modalidade para ver outras.",
+        fetchedAt: new Date().toISOString(),
+      };
+    } catch (errConsulta) {
+      console.error(`pncp-proxy: consulta também falhou (${String(errConsulta)})`);
+      // 3) Tudo caiu: serve o cache antigo, se houver, marcado como "stale".
+      if (cached?.payload) {
+        const stale = { ...cached.payload, stale: true, cachedAt: cached.created_at };
+        return new Response(JSON.stringify(stale), {
+          headers: { ...cors, "Content-Type": "application/json", "X-Cache": "STALE" },
+        });
+      }
+      return new Response(JSON.stringify({
+        error: "O portal do PNCP (governo federal) está instável no momento. Não é um problema da Intelicite — tente novamente em alguns minutos.",
+        detail: `${String(errBusca)} / ${String(errConsulta)}`,
+      }), {
+        status: 502, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({
-      error: "O portal do PNCP (governo federal) está instável no momento. Não é um problema da Intelicite — tente novamente em alguns minutos.",
-      detail: String(err),
-    }), {
-      status: 502, headers: { ...cors, "Content-Type": "application/json" },
-    });
   }
-
-  const rawItems: any[] = pncpData.items || [];
-  const total: number = pncpData.total || 0;
-  const opportunities = rawItems.map(normalizeOpportunity);
-
-  const payload = {
-    opportunities,
-    totalRegistros: total,
-    totalPaginas: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
-    numeroPagina: Number(pagina),
-    tamanhoPagina: ITEMS_PER_PAGE,
-    source: "pncp-search",
-    fetchedAt: new Date().toISOString(),
-  };
 
   // Store in cache
   await supabaseClient.from("pncp_cache").upsert({
