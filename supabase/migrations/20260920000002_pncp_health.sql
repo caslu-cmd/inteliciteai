@@ -60,10 +60,10 @@ begin
     end if;
   end loop;
 
-  -- 2) Dispara a nova rodada (busca e consulta oficial, 1 item cada).
+  -- 2) Dispara a nova rodada (busca e consulta oficial; a API exige >= 10 itens).
   insert into public.pncp_health_pending (request_id, endpoint) values (
     net.http_get(
-      'https://pncp.gov.br/api/search/?q=&tipos_documento=edital&ordenacao=-data&pagina=1&tam_pagina=1&status=recebendo_proposta',
+      'https://pncp.gov.br/api/search/?q=&tipos_documento=edital&ordenacao=-data&pagina=1&tam_pagina=10&status=recebendo_proposta',
       headers => '{"Accept":"application/json","User-Agent":"Intelicite/1.0"}'::jsonb,
       timeout_milliseconds => 10000
     ), 'busca');
@@ -71,7 +71,7 @@ begin
     net.http_get(
       'https://pncp.gov.br/api/consulta/v1/contratacoes/proposta?dataFinal='
         || to_char(now() + interval '365 days', 'YYYYMMDD')
-        || '&codigoModalidadeContratacao=6&pagina=1&tamanhoPagina=1',
+        || '&codigoModalidadeContratacao=6&pagina=1&tamanhoPagina=10',
       headers => '{"Accept":"application/json","User-Agent":"Intelicite/1.0"}'::jsonb,
       timeout_milliseconds => 10000
     ), 'consulta');
