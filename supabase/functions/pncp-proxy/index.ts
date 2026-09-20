@@ -200,8 +200,15 @@ Deno.serve(async (req: Request) => {
     };
   };
 
+  // Sinal em tempo real para o monitor do PNCP (tabela pncp_health).
+  const registrar = (endpoint: "busca" | "consulta", ok: boolean, inicio: number, detail = "") =>
+    supabaseClient.from("pncp_health")
+      .insert({ endpoint, ok, latency_ms: Date.now() - inicio, detail: detail.slice(0, 200), origem: "proxy" })
+      .then(() => {}, () => {});
+
   let payload: any = null;
   let erroConsulta: unknown = null;
+  const t0 = Date.now();
 
   // 1) Fonte principal: consulta oficial (só propostas abertas, UF e modalidade
   //    corretos, prazo real). Sem modalidade, junta pregão eletrônico + dispensa.
@@ -224,13 +231,16 @@ Deno.serve(async (req: Request) => {
       fonte: "Consulta oficial do PNCP · somente editais com propostas abertas",
       fetchedAt: new Date().toISOString(),
     };
+    await registrar("consulta", true, t0);
   } catch (err) {
     erroConsulta = err;
     console.error(`pncp-proxy: consulta falhou (${String(err)}), tentando busca`);
+    await registrar("consulta", false, t0, String(err));
   }
 
   // 2) Reserva: busca textual do PNCP (instável; pode ignorar filtros).
   if (!payload) {
+    const t1 = Date.now();
     try {
       const params = new URLSearchParams({ q: search, tipos_documento: "edital", ordenacao: "-data", pagina, tam_pagina: String(ITEMS_PER_PAGE), status: "recebendo_proposta" });
       if (uf) { params.set("uf", uf.toUpperCase()); params.set("ufs", uf.toUpperCase()); }
@@ -251,8 +261,10 @@ Deno.serve(async (req: Request) => {
         fallbackNota: "A consulta oficial do PNCP falhou; usando a busca do portal, que pode trazer editais encerrados ou de outros estados. Confira o prazo antes de se animar.",
         fetchedAt: new Date().toISOString(),
       };
+      await registrar("busca", true, t1);
     } catch (errBusca) {
       console.error(`pncp-proxy: busca também falhou (${String(errBusca)})`);
+      await registrar("busca", false, t1, String(errBusca));
       // 3) Tudo caiu: serve o cache antigo, se houver, marcado como "stale".
       if (cached?.payload) {
         const stale = { ...cached.payload, stale: true, cachedAt: cached.created_at };

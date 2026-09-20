@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import logoWhite from "@/assets/logo-white.png";
+import { PncpStatusBanner, PncpStatusChip } from "@/components/licitante/PncpStatusBanner";
 
 const NAV_MAIN = [
   { to: "/licitante",           icon: LayoutDashboard,   label: "Dashboard"     },
@@ -148,6 +149,7 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="py-3 px-2 border-t space-y-0.5" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+        <PncpStatusChip collapsed={collapsed && !isMobile} />
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -266,6 +268,8 @@ export function LicitanteLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         )}
+
+        <PncpStatusBanner />
 
         {children}
       </main>
