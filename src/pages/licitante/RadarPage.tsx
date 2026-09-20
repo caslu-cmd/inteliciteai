@@ -46,8 +46,9 @@ interface PncpResponse {
   opportunities: Opportunity[];
   stale?: boolean;     // PNCP fora do ar → resultados do cache
   cachedAt?: string;
-  fallback?: boolean;  // busca do PNCP fora → consulta oficial
+  fallback?: boolean;  // consulta oficial fora → busca do portal (menos confiável)
   fallbackNota?: string;
+  fonte?: string;
   totalRegistros: number;
   totalPaginas: number;
   numeroPagina: number;
@@ -400,10 +401,10 @@ export default function RadarPage() {
         )}
 
         {data?.fallback && !data?.stale && (
-          <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4 mb-6 flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 text-sky-600 flex-shrink-0" />
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 mb-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-sky-700 dark:text-sky-400">A busca do PNCP está instável — usando a consulta oficial</p>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">PNCP instável — resultados em modo reserva</p>
               <p className="text-xs text-muted-foreground mt-0.5">{data.fallbackNota}</p>
             </div>
             <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData}>Atualizar</Button>

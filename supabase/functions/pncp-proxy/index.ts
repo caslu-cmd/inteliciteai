@@ -6,7 +6,10 @@ const PNCP_SEARCH = "https://pncp.gov.br/api/search";
 // API oficial de consulta (backend diferente da busca; bem mais estável).
 // Exige modalidade: sem filtro, usamos Pregão Eletrônico (6), a mais comum.
 const PNCP_CONSULTA = "https://pncp.gov.br/api/consulta/v1/contratacoes/proposta";
-const MODALIDADE_PADRAO = "6";
+// Sem filtro de modalidade: Pregão Eletrônico (6) + Dispensa (8), as mais
+// relevantes para quem está começando.
+const MODALIDADES_PADRAO = ["6", "8"];
+const CONSULTA_PAGINA_BUSCA = 50; // com palavra-chave, pega mais itens para filtrar
 const ITEMS_PER_PAGE = 10; // PNCP search always returns 10 per page
 const CACHE_TTL_MINUTES = 30;
 
@@ -168,81 +171,88 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Build PNCP search query
-  const params = new URLSearchParams({
-    q: search,
-    tipos_documento: "edital",
-    pagina,
-  });
-  if (uf) params.set("uf", uf.toUpperCase());
-  if (modalidadeId) params.set("modalidade_licitacao_id", modalidadeId);
+  const termo = semAcento(search.trim());
+  const comPalavraChave = !!termo && termo !== "licitacao";
+  const palavras = termo.split(/\s+/).filter((w) => w.length > 2);
+  const bateTermo = (c: any) => {
+    if (!comPalavraChave) return true;
+    const alvo = semAcento(`${c.objetoCompra || ""} ${c.orgaoEntidade?.razaoSocial || ""} ${c.unidadeOrgao?.nomeUnidade || ""}`);
+    return palavras.some((w) => alvo.includes(w));
+  };
+
+  // Uma página da consulta oficial para uma modalidade.
+  const consultar = async (modalidade: string) => {
+    const fim = new Date(Date.now() + 365 * 86400000);
+    const q = new URLSearchParams({
+      dataFinal: fim.toISOString().slice(0, 10).replace(/-/g, ""),
+      codigoModalidadeContratacao: modalidade,
+      pagina,
+      tamanhoPagina: String(comPalavraChave ? CONSULTA_PAGINA_BUSCA : ITEMS_PER_PAGE),
+    });
+    if (uf) q.set("uf", uf.toUpperCase());
+    const res = await fetchRetry(`${PNCP_CONSULTA}?${q}`);
+    if (!res.ok) throw new Error(`PNCP consulta error: ${res.status}`);
+    const d = await res.json();
+    return {
+      itens: (d.data || []) as any[],
+      total: Number(d.totalRegistros) || 0,
+      paginas: Number(d.totalPaginas) || 1,
+    };
+  };
 
   let payload: any = null;
+  let erroConsulta: unknown = null;
 
-  // 1) Busca (texto livre). Retenta; se falhar, cai para a API de consulta.
+  // 1) Fonte principal: consulta oficial (só propostas abertas, UF e modalidade
+  //    corretos, prazo real). Sem modalidade, junta pregão eletrônico + dispensa.
   try {
-    const res = await fetchRetry(`${PNCP_SEARCH}?${params}`);
-    if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
-    const pncpData = await res.json();
-    const rawItems: any[] = pncpData.items || [];
-    const total: number = pncpData.total || 0;
+    const modalidades = modalidadeId ? [modalidadeId] : MODALIDADES_PADRAO;
+    const resultados = await Promise.allSettled(modalidades.map(consultar));
+    const ok = resultados.filter((r): r is PromiseFulfilledResult<{ itens: any[]; total: number; paginas: number }> => r.status === "fulfilled").map((r) => r.value);
+    if (ok.length === 0) throw (resultados[0] as PromiseRejectedResult).reason;
+
+    const itens = ok.flatMap((r) => r.itens).filter(bateTermo)
+      .sort((a, b) => String(a.dataEncerramentoProposta || "").localeCompare(String(b.dataEncerramentoProposta || "")));
+
     payload = {
-      opportunities: rawItems.map(normalizeOpportunity),
-      totalRegistros: total,
-      totalPaginas: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
+      opportunities: itens.map(normalizeConsulta),
+      totalRegistros: ok.reduce((n, r) => n + r.total, 0),
+      totalPaginas: Math.max(1, ...ok.map((r) => r.paginas)),
       numeroPagina: Number(pagina),
       tamanhoPagina: ITEMS_PER_PAGE,
-      source: "pncp-search",
+      source: "pncp-consulta",
+      fonte: "Consulta oficial do PNCP · somente editais com propostas abertas",
       fetchedAt: new Date().toISOString(),
     };
-  } catch (errBusca) {
-    console.error(`pncp-proxy: busca falhou (${String(errBusca)}), tentando consulta`);
+  } catch (err) {
+    erroConsulta = err;
+    console.error(`pncp-proxy: consulta falhou (${String(err)}), tentando busca`);
+  }
 
-    // 2) Consulta oficial: filtra por UF e modalidade no servidor; a palavra-chave
-    //    é aplicada aqui no objeto da contratação (a API não tem busca textual).
+  // 2) Reserva: busca textual do PNCP (instável; pode ignorar filtros).
+  if (!payload) {
     try {
-      const hoje = new Date();
-      const fim = new Date(hoje.getTime() + 365 * 86400000);
-      const yyyymmdd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
-      const modalidade = modalidadeId || MODALIDADE_PADRAO;
-      const q = new URLSearchParams({
-        dataFinal: yyyymmdd(fim),
-        codigoModalidadeContratacao: modalidade,
-        pagina,
-        tamanhoPagina: String(ITEMS_PER_PAGE),
-      });
-      if (uf) q.set("uf", uf.toUpperCase());
-
-      const res = await fetchRetry(`${PNCP_CONSULTA}?${q}`);
-      if (!res.ok) throw new Error(`PNCP consulta error: ${res.status}`);
-      const dados = await res.json();
-      let itens: any[] = dados.data || [];
-
-      const termo = semAcento(search.trim());
-      const termoPadrao = !termo || termo === "licitacao";
-      if (!termoPadrao) {
-        const palavras = termo.split(/\s+/).filter((w) => w.length > 2);
-        itens = itens.filter((c) => {
-          const alvo = semAcento(`${c.objetoCompra || ""} ${c.orgaoEntidade?.razaoSocial || ""}`);
-          return palavras.some((w) => alvo.includes(w));
-        });
-      }
-
+      const params = new URLSearchParams({ q: search, tipos_documento: "edital", ordenacao: "-data", pagina, tam_pagina: String(ITEMS_PER_PAGE), status: "recebendo_proposta" });
+      if (uf) { params.set("uf", uf.toUpperCase()); params.set("ufs", uf.toUpperCase()); }
+      if (modalidadeId) { params.set("modalidade_licitacao_id", modalidadeId); params.set("modalidades", modalidadeId); }
+      const res = await fetchRetry(`${PNCP_SEARCH}?${params}`);
+      if (!res.ok) throw new Error(`PNCP search error: ${res.status}`);
+      const d = await res.json();
+      const rawItems: any[] = d.items || [];
+      const total: number = d.total || 0;
       payload = {
-        opportunities: itens.map(normalizeConsulta),
-        totalRegistros: Number(dados.totalRegistros) || itens.length,
-        totalPaginas: Math.max(1, Number(dados.totalPaginas) || 1),
+        opportunities: rawItems.map(normalizeOpportunity),
+        totalRegistros: total,
+        totalPaginas: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
         numeroPagina: Number(pagina),
         tamanhoPagina: ITEMS_PER_PAGE,
-        source: "pncp-consulta",
+        source: "pncp-search",
         fallback: true,
-        fallbackNota: modalidadeId
-          ? "Resultados da consulta oficial do PNCP, filtrados por estado e modalidade."
-          : "Resultados da consulta oficial do PNCP (pregões eletrônicos). Escolha uma modalidade para ver outras.",
+        fallbackNota: "A consulta oficial do PNCP falhou; usando a busca do portal, que pode trazer editais encerrados ou de outros estados. Confira o prazo antes de se animar.",
         fetchedAt: new Date().toISOString(),
       };
-    } catch (errConsulta) {
-      console.error(`pncp-proxy: consulta também falhou (${String(errConsulta)})`);
+    } catch (errBusca) {
+      console.error(`pncp-proxy: busca também falhou (${String(errBusca)})`);
       // 3) Tudo caiu: serve o cache antigo, se houver, marcado como "stale".
       if (cached?.payload) {
         const stale = { ...cached.payload, stale: true, cachedAt: cached.created_at };
@@ -252,7 +262,7 @@ Deno.serve(async (req: Request) => {
       }
       return new Response(JSON.stringify({
         error: "O portal do PNCP (governo federal) está instável no momento. Não é um problema da Intelicite — tente novamente em alguns minutos.",
-        detail: `${String(errBusca)} / ${String(errConsulta)}`,
+        detail: `${String(erroConsulta)} / ${String(errBusca)}`,
       }), {
         status: 502, headers: { ...cors, "Content-Type": "application/json" },
       });
