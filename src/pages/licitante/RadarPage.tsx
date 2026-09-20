@@ -62,6 +62,8 @@ export default function RadarPage() {
   const [perfil, setPerfil] = useState("");
   const [showPerfil, setShowPerfil] = useState(false);
   const [savingPerfil, setSavingPerfil] = useState(false);
+  const [cnpjInput, setCnpjInput] = useState("");
+  const [cnpjLoading, setCnpjLoading] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchMap, setMatchMap] = useState<Record<string, { match: number; motivo: string }>>({});
 
@@ -105,6 +107,57 @@ export default function RadarPage() {
         ? "Você receberá alertas diários de novos editais compatíveis."
         : "Perfil atualizado. Ative os alertas para ser avisado de novos editais.",
     });
+  };
+
+  // Preenche o perfil com os dados públicos da Receita (o mesmo que está no cartão CNPJ):
+  // razão social, CNAE principal e secundários, município/UF. A pessoa só revisa e salva.
+  const preencherPeloCnpj = async () => {
+    const raw = cnpjInput.replace(/\D/g, "");
+    if (raw.length !== 14) {
+      toast({ title: "CNPJ inválido", description: "Digite os 14 dígitos do CNPJ.", variant: "destructive" });
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cnpj-proxy?cnpj=${raw}`,
+        { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `Erro ${res.status}`);
+
+      const cnpjFmt = raw.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+      const nome = [d.razaoSocial, d.nomeFantasia && d.nomeFantasia !== d.razaoSocial ? `(${d.nomeFantasia})` : ""].filter(Boolean).join(" ");
+      const local = [d.municipio, d.uf].filter(Boolean).join("/");
+      const linhas = [
+        `${nome} — CNPJ ${cnpjFmt}${local ? `, ${local}` : ""}${d.porte ? `, porte ${d.porte}` : ""}.`,
+      ];
+      if (d.cnaePrincipal?.codigo) {
+        linhas.push(`Atividade principal: CNAE ${d.cnaePrincipal.codigo} — ${d.cnaePrincipal.descricao}.`);
+      }
+      const sec: { codigo: string; descricao: string }[] = d.cnaesSecundarios || [];
+      if (sec.length) {
+        linhas.push(`Atividades secundárias: ${sec.map((c) => `CNAE ${c.codigo} — ${c.descricao}`).join("; ")}.`);
+      }
+      const bloco = linhas.join("\n");
+
+      // Mantém o que a pessoa já escreveu (descrição própria), trocando só o bloco da Receita.
+      const proprio = perfil.replace(/^.*CNPJ \d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}[\s\S]*?(?=\n\n|$)/, "").trim();
+      setPerfil(proprio ? `${bloco}\n\n${proprio}` : bloco);
+      if (!alertaUf && d.uf && UFS.includes(d.uf)) setAlertaUf(d.uf);
+
+      toast({
+        title: "Perfil preenchido pela Receita Federal",
+        description: d.ativo === false
+          ? `Atenção: situação cadastral "${d.situacaoCadastral}". Revise o texto e salve.`
+          : "Revise o texto (pode acrescentar o que a empresa fornece) e salve.",
+      });
+    } catch (err: any) {
+      toast({ title: "Não foi possível consultar o CNPJ", description: err?.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setCnpjLoading(false);
+    }
   };
 
   const runMatch = async () => {
@@ -238,14 +291,33 @@ export default function RadarPage() {
               <Sparkles className="w-4 h-4 text-primary" /> Perfil da sua empresa
             </p>
             <p className="text-xs text-muted-foreground mb-3">
-              Descreva o que sua empresa fornece (produtos, serviços, segmentos, palavras-chave). A IA usa isso para
-              pontuar o quanto cada licitação combina com você.
+              Descreva o que sua empresa fornece (produtos, serviços, segmentos, palavras-chave). Pode incluir o seu
+              CNAE — a Intelicite traduz o código para a atividade automaticamente. A IA usa isso para pontuar o
+              quanto cada licitação combina com você.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <Input
+                value={cnpjInput}
+                onChange={(e) => setCnpjInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); preencherPeloCnpj(); } }}
+                inputMode="numeric"
+                placeholder="CNPJ da empresa (só números)"
+                className="sm:max-w-xs"
+              />
+              <Button variant="outline" size="sm" className="gap-2 h-10" onClick={preencherPeloCnpj} disabled={cnpjLoading}>
+                {cnpjLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Building className="w-3.5 h-3.5" />}
+                Preencher pelo CNPJ
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground -mt-1 mb-3">
+              Buscamos na Receita Federal a razão social e as atividades (CNAE) — os mesmos dados do cartão CNPJ — e
+              montamos o perfil para você. Depois é só revisar e salvar.
             </p>
             <Textarea
               value={perfil}
               onChange={(e) => setPerfil(e.target.value)}
-              rows={3}
-              placeholder="Ex.: Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
+              rows={5}
+              placeholder="Ex.: CNAE 4751-2/01. Fornecemos equipamentos de informática (notebooks, servidores), licenciamento de software e serviços de TI para o setor público. Atendemos em SP, MG e RJ."
             />
             {/* Alertas automáticos de editais */}
             <div className="mt-5 pt-5 border-t border-border">

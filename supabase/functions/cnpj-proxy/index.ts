@@ -2,6 +2,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const BRASILAPI = "https://brasilapi.com.br/api/cnpj/v1";
 
+// BrasilAPI devolve o CNAE como número (perde zeros à esquerda): 600001 → "0600-0/01".
+const fmtCnae = (c: unknown) => {
+  const s = String(c ?? "").replace(/\D/g, "").padStart(7, "0");
+  return s.length === 7 ? `${s.slice(0, 4)}-${s.slice(4, 5)}/${s.slice(5)}` : String(c ?? "");
+};
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -49,6 +55,12 @@ Deno.serve(async (req: Request) => {
       naturezaJuridica: d.natureza_juridica ?? "",
       porte: d.porte ?? "",
       atividadePrincipal: d.cnae_fiscal_descricao ?? "",
+      cnaePrincipal: d.cnae_fiscal
+        ? { codigo: fmtCnae(d.cnae_fiscal), descricao: d.cnae_fiscal_descricao ?? "" }
+        : null,
+      cnaesSecundarios: (d.cnaes_secundarios ?? [])
+        .filter((c: any) => Number(c?.codigo) > 0)
+        .map((c: any) => ({ codigo: fmtCnae(c.codigo), descricao: c.descricao ?? "" })),
       email: d.email ?? "",
       municipio: d.municipio ?? "",
       uf: d.uf ?? "",
