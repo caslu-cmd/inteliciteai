@@ -92,7 +92,10 @@ const SCHEMA = {
 const SYSTEM =
   `Você avalia o "match" (aderência comercial) entre o que uma empresa fornece e licitações públicas brasileiras. ` +
   `Para CADA licitação, devolva o MESMO id, "match" de 0 a 100 e "motivo" curto em português. ` +
-  `Se o perfil trouxer códigos CNAE, interprete-os pela classificação do IBGE. Não omita nenhuma licitação.`;
+  `Se o perfil trouxer códigos CNAE, interprete-os pela classificação do IBGE. Não omita nenhuma licitação. ` +
+  `Seja rigoroso: 70 a 100 só quando o objeto do edital é algo que a empresa realmente fornece ou executa; ` +
+  `40 a 69 quando é do mesmo ramo mas exigiria adaptação; abaixo de 30 quando é de outro ramo ` +
+  `(ex.: uma empresa de software não tem aderência a merenda, obras, medicamentos ou veículos). Na dúvida, nota baixa.`;
 
 // Match IA: nota 0–100 por edital contra o perfil da empresa (mesma IA do Radar).
 async function matchIA(apiKey: string, perfil: string, candidatos: Edital[]): Promise<Map<string, { match: number; motivo: string }>> {
