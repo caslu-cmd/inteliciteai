@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
@@ -169,6 +169,18 @@ export default function RadarPage() {
   }, [pagina, selectedUf, selectedModalidade, searchTerm]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Com empresa cadastrada, o match roda sozinho a cada carga de resultados
+  // (uma vez por carga — não insiste se a IA falhar).
+  const autoMatchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data?.opportunities?.length || !perfil.trim() || matching) return;
+    const chave = `${data.fetchedAt}|${data.numeroPagina}`;
+    if (autoMatchRef.current === chave) return;
+    autoMatchRef.current = chave;
+    runMatch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, perfil]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -453,7 +465,8 @@ export default function RadarPage() {
                   <OpportunityCard
                     key={opp.id}
                     {...opp}
-                    score={matchMap[opp.id]?.match ?? opp.score}
+                    score={opp.score}
+                    matchScore={matchMap[opp.id]?.match}
                     matchReason={matchMap[opp.id]?.motivo}
                     index={i}
                   />

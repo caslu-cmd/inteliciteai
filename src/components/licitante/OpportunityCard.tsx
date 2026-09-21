@@ -18,13 +18,23 @@ interface OpportunityCardProps {
   link?: string;
   orgaoCnpj?: string;
   matchReason?: string;
+  matchScore?: number;   // nota do Match IA (0–100) contra a empresa; ausente = não calculado
   index?: number;
+}
+
+// Faixas do Match IA, em linguagem simples.
+function faixaMatch(n: number) {
+  if (n >= 70) return { rotulo: "Alta aderência", cor: "text-emerald-600 dark:text-emerald-400" };
+  if (n >= 40) return { rotulo: "Aderência média", cor: "text-amber-600 dark:text-amber-400" };
+  return { rotulo: "Baixa aderência", cor: "text-muted-foreground" };
 }
 
 export function OpportunityCard({
   id, title, organ, location, deadline, score, risk,
-  value, modalidade, link, orgaoCnpj, matchReason, index = 0,
+  value, modalidade, link, orgaoCnpj, matchReason, matchScore, index = 0,
 }: OpportunityCardProps) {
+  const temMatch = typeof matchScore === "number";
+  const faixa = temMatch ? faixaMatch(matchScore) : null;
   const navigate = useNavigate();
 
   const goToScanner = () =>
@@ -47,11 +57,11 @@ export function OpportunityCard({
 
       <h3 className="font-semibold text-sm text-card-foreground leading-snug mb-2 line-clamp-2">{title}</h3>
 
-      {matchReason && (
+      {temMatch && matchReason && (
         <div className="mb-3 flex items-start gap-1.5 rounded-lg bg-primary/5 border border-primary/15 px-2.5 py-1.5">
           <Target className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
           <span className="text-[11px] leading-snug text-primary/90">
-            <strong>{score}% match</strong> — {matchReason}
+            <strong>{matchScore}% match</strong> — {matchReason}
           </span>
         </div>
       )}
@@ -70,12 +80,20 @@ export function OpportunityCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 mt-auto">
-        <div className="flex items-center gap-2.5">
-          <VictoryScore score={score} size={52} />
-          <span className="text-[11px] leading-tight text-muted-foreground max-w-[72px]">
-            chance de vitória
+        {/* Só mostramos nota quando é o Match IA contra a empresa da pessoa.
+            A nota genérica (prazo/valor) não é exibida: parecia "chance de vitória". */}
+        {temMatch && faixa ? (
+          <div className="flex items-center gap-2.5" title={`${matchScore}% de aderência ao perfil da sua empresa (Match IA)`}>
+            <VictoryScore score={matchScore} size={52} />
+            <span className={`text-[11px] leading-tight max-w-[84px] font-medium ${faixa.cor}`}>
+              {faixa.rotulo} à sua empresa
+            </span>
+          </div>
+        ) : (
+          <span className="text-[11px] leading-tight text-muted-foreground max-w-[120px]">
+            Match IA não calculado
           </span>
-        </div>
+        )}
         <div className="flex items-center gap-1.5">
           {link && (
             <a href={link} target="_blank" rel="noopener noreferrer">

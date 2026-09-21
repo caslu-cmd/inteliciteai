@@ -73,7 +73,11 @@ const SYSTEM =
   `Para CADA licitação recebida, devolva um item em "scores" com o MESMO id recebido, ` +
   `"match" de 0 a 100 (0 = nada a ver, 100 = encaixe perfeito) e "motivo" curto (máx. 12 palavras), em português.\n` +
   `Se o perfil trouxer códigos CNAE, interprete-os pela Classificação Nacional de Atividades Econômicas (IBGE) ` +
-  `e use as descrições de atividade fornecidas. Considere o objeto da licitação e o órgão. Não omita nenhuma licitação.`;
+  `e use as descrições de atividade fornecidas. Considere o objeto da licitação e o órgão. Não omita nenhuma licitação.\n` +
+  `Seja rigoroso na nota: 70 a 100 só quando o objeto do edital é algo que a empresa realmente fornece ou executa; ` +
+  `40 a 69 quando é do mesmo ramo mas exigiria adaptação ou parceria; abaixo de 30 quando é de outro ramo ` +
+  `(ex.: uma empresa de software não tem aderência a merenda, obras, medicamentos ou veículos). ` +
+  `Em caso de dúvida, dê a nota mais baixa. O motivo deve dizer o porquê em termos concretos.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
