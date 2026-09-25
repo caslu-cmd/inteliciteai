@@ -87,6 +87,55 @@ async function webSearchJurisprudencia(query: string, anthropicKey: string): Pro
   return "";
 }
 
+// Artigo citado pelo número ("art. 63", "artigo 164"): a busca vetorial nem sempre
+// devolve o trecho certo, então o texto EXATO do artigo sai da íntegra da Lei 14.133
+// indexada. Evita a IA citar de memória justamente o dispositivo que o usuário pediu.
+// deno-lint-ignore no-explicit-any
+async function artigosCitados(query: string, supabase: any): Promise<string> {
+  const nums = [...new Set([...query.matchAll(/\bart(?:igo)?s?\.?\s*(\d{1,3})\b/gi)].map((m) => Number(m[1])))].slice(0, 3);
+  if (!nums.length) return "";
+  const { data } = await supabase.from("legal_knowledge").select("content")
+    .ilike("title", "Lei nº 14.133%").eq("active", true).limit(1).maybeSingle();
+  if (!data?.content) return "";
+  const lei = data.content.replace(/\s+/g, " ");
+  const trechos = nums.map((n) => {
+    const ini = lei.search(new RegExp(`Art\\. ?${n}(º|\\.)? `));
+    if (ini < 0) return "";
+    const resto = lei.slice(ini + 6);
+    const prox = resto.search(new RegExp(`Art\\. ?${n + 1}(º|\\.)? `));
+    return lei.slice(ini, ini + 6 + (prox > 0 ? Math.min(prox, 6000) : 3000));
+  }).filter(Boolean);
+  return trechos.length ? `TEXTO OFICIAL DOS ARTIGOS CITADOS (Lei 14.133/2021, íntegra do Planalto):\n${trechos.join("\n\n")}` : "";
+}
+
+// Os trechos das leis indexadas na íntegra são cortados por tamanho, no meio do
+// artigo, e chegam sem o cabeçalho "Art. N". Sem ele a IA não sabe o número e
+// chuta. Aqui cada trecho ganha o rótulo "[Lei · Art. N]", achando o último
+// cabeçalho de artigo que aparece antes dele no texto integral.
+const integras = new Map<string, { title: string; content: string }>();
+// deno-lint-ignore no-explicit-any
+async function rotularChunks(chunks: { knowledge_id: string; content: string }[], supabase: any): Promise<string[]> {
+  const faltam = [...new Set(chunks.map((c) => c.knowledge_id))].filter((id) => !integras.has(id));
+  if (faltam.length) {
+    const { data } = await supabase.from("legal_knowledge").select("id, title, content").in("id", faltam);
+    for (const d of data || []) integras.set(d.id, { title: d.title, content: d.content || "" });
+  }
+  const CAB = /(?:^|\n)\s*Art\.\s*(\d{1,3})\s*(?:º|o|\.|-|\s)/g;
+  return chunks.map((c) => {
+    const doc = integras.get(c.knowledge_id);
+    if (!doc || doc.content.length < 20000) return "";           // resumo curto: já traz a referência no texto
+    const lei = doc.title.split(/\s[—-]\s/)[0].trim();
+    let pos = doc.content.indexOf(c.content);
+    if (pos < 0) pos = doc.content.indexOf(c.content.slice(0, 120));
+    if (pos < 0) return `[${lei}]`;
+    const antes = [...doc.content.slice(Math.max(0, pos - 40000), pos).matchAll(CAB)].pop();
+    const dentro = [...c.content.matchAll(CAB)].map((m) => m[1]);
+    const arts = [...new Set([...(antes ? [antes[1]] : []), ...dentro])];
+    if (!arts.length) return `[${lei}]`;
+    return `[${lei} · ${arts.length === 1 ? `Art. ${arts[0]}` : `Arts. ${arts[0]} a ${arts[arts.length - 1]}`}]`;
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -122,7 +171,8 @@ Deno.serve(async (req) => {
         min_similarity:  0.22,
       });
       if (chunks?.length > 0) {
-        legalContext = `BASE JURÍDICA INTELICITE:\n${chunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n")}`;
+        const rotulos = await rotularChunks(chunks, supabase).catch(() => chunks.map(() => ""));
+        legalContext = `BASE JURÍDICA INTELICITE:\n${chunks.map((c: { content: string }, i: number) => `[${i + 1}]${rotulos[i] ? ` ${rotulos[i]}` : ""} ${c.content}`).join("\n\n")}`;
       }
     } catch { /* continua sem contexto local */ }
   }
@@ -138,7 +188,9 @@ Deno.serve(async (req) => {
     } catch { /* continua sem web search */ }
   }
 
-  const context = [legalContext, webContext].filter(Boolean).join("\n\n---\n\n");
+  const artigosContext = await artigosCitados(query, supabase).catch(() => "");
+
+  const context = [artigosContext, legalContext, webContext].filter(Boolean).join("\n\n---\n\n");
 
   return new Response(JSON.stringify({ context, hasLocal: !!legalContext, hasWeb: !!webContext }), { headers: cors });
 });

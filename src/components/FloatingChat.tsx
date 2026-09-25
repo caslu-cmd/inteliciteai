@@ -7,7 +7,7 @@ import { streamChat } from "@/lib/streamChat";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import ReactMarkdown from "react-markdown";
+import { MensagemMarkdown } from "./MensagemMarkdown";
 
 interface Message {
   id: string;
@@ -139,9 +139,7 @@ const FloatingChat = forwardRef<FloatingChatRef>((_props, ref) => {
                       ? "bg-primary text-primary-foreground rounded-br-sm"
                       : "bg-secondary text-foreground rounded-bl-sm"
                   )}>
-                    <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    <MensagemMarkdown>{msg.content}</MensagemMarkdown>
                   </div>
                   {msg.role === "user" && (
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary">

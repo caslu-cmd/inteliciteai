@@ -72,58 +72,79 @@ Deno.serve(async (req) => {
 
   const tipo = body.tipo && body.tipo !== "auto" ? body.tipo : "auto";
 
-  // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo (search-legal).
-  let baseJuridica = "";
-  try {
-    const q = `${body.titulo || ""} ${texto.slice(0, 1000)}`.trim();
-    const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-        apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      },
-      body: JSON.stringify({ query: q, matchCount: 8, includeWebSearch: true }),
-    });
-    if (r.ok) {
-      const d = await r.json();
-      baseJuridica = (d.context || "").trim();
+  // O parecer leva de 2 a 4 minutos (Opus + JSON longo) e o gateway do Supabase
+  // devolve 504 se a função passar 150 s sem enviar nenhum byte. Por isso a
+  // resposta começa na hora e manda um espaço a cada 10 s até o JSON ficar pronto
+  // (espaço antes do JSON é válido). Erro vai no corpo, como { error }.
+  const gerar = async () => {
+    // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo (search-legal).
+    let baseJuridica = "";
+    try {
+      const q = `${body.titulo || ""} ${texto.slice(0, 1000)}`.trim();
+      const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authHeader,
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        },
+        body: JSON.stringify({ query: q, matchCount: 8, includeWebSearch: true }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        baseJuridica = (d.context || "").trim();
+      }
+    } catch { /* segue sem contexto externo */ }
+
+    // 2) Monta o prompt e chama a Claude
+    const docTrunc = texto.slice(0, 24000);
+    const userMsg = [
+      tipo !== "auto" ? `Tipo do documento: ${tipo}.` : "Identifique o tipo do documento e o regime jurídico aplicável.",
+      body.titulo ? `Título/identificação: ${body.titulo}` : "",
+      baseJuridica || "(Sem trechos indexados relevantes — use seu conhecimento da Lei 14.133/2021 e marque como não verificado o que não puder confirmar.)",
+      "DOCUMENTO A ANALISAR:\n" + docTrunc,
+    ].filter(Boolean).join("\n\n");
+
+    let data: { content?: { text?: string }[] };
+    try {
+      const res = await fetch(ANTHROPIC_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: "claude-opus-4-8",
+          max_tokens: 8000,
+          system: SYSTEM,
+          messages: [{ role: "user", content: userMsg }],
+        }),
+      });
+      if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+      data = await res.json();
+    } catch (err) {
+      throw new Error(`Falha na IA: ${String(err).slice(0, 300)}`);
     }
-  } catch { /* segue sem contexto externo */ }
 
-  // 2) Monta o prompt e chama a Claude
-  const docTrunc = texto.slice(0, 24000);
-  const userMsg = [
-    tipo !== "auto" ? `Tipo do documento: ${tipo}.` : "Identifique o tipo do documento e o regime jurídico aplicável.",
-    body.titulo ? `Título/identificação: ${body.titulo}` : "",
-    baseJuridica || "(Sem trechos indexados relevantes — use seu conhecimento da Lei 14.133/2021 e marque como não verificado o que não puder confirmar.)",
-    "DOCUMENTO A ANALISAR:\n" + docTrunc,
-  ].filter(Boolean).join("\n\n");
+    const raw = data.content?.map((c) => c.text || "").join("") || "";
+    let parecer;
+    try { parecer = extrairJSON(raw); }
+    catch { throw new Error("Não foi possível interpretar o parecer. Tente de novo."); }
 
-  let data: { content?: { text?: string }[] };
-  try {
-    const res = await fetch(ANTHROPIC_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 8000,
-        system: SYSTEM,
-        messages: [{ role: "user", content: userMsg }],
-      }),
-    });
-    if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
-    data = await res.json();
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha na IA", detail: String(err) }), { status: 502, headers: cors });
-  }
+    return { parecer, temBase: !!baseJuridica, geradoEm: new Date().toISOString() };
+  };
 
-  const raw = data.content?.map((c) => c.text || "").join("") || "";
-  let parecer;
-  try { parecer = extrairJSON(raw); }
-  catch { return new Response(JSON.stringify({ error: "Não foi possível interpretar o parecer", raw: raw.slice(0, 500) }), { status: 502, headers: cors }); }
-
-  return new Response(JSON.stringify({ parecer, temBase: !!baseJuridica, geradoEm: new Date().toISOString() }), {
-    headers: { ...cors, "Content-Type": "application/json" },
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(enc.encode(" "));
+      const pulso = setInterval(() => controller.enqueue(enc.encode(" ")), 10000);
+      try {
+        controller.enqueue(enc.encode(JSON.stringify(await gerar())));
+      } catch (err) {
+        controller.enqueue(enc.encode(JSON.stringify({ error: String((err as Error)?.message || err) })));
+      } finally {
+        clearInterval(pulso);
+        controller.close();
+      }
+    },
   });
+  return new Response(stream, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-cache" } });
 });

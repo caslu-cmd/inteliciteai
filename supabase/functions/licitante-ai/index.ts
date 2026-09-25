@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -63,6 +64,8 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const contexto = await contextoJuridico(messages, req.headers.get("Authorization")!);
+
   try {
     const res = await fetch(ANTHROPIC_API, {
       method: "POST",
@@ -74,7 +77,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: "claude-opus-4-8",
         max_tokens: 2000,
-        system: SYSTEM,
+        system: comContexto(SYSTEM, contexto),
         messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
       }),
     });

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
@@ -94,6 +95,8 @@ Deno.serve(async (req) => {
     });
   }
 
+  const contexto = await contextoJuridico(messages, authHeader);
+
   // Tenta com retry para SSE streaming
   let lastErr = "";
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -111,7 +114,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: "claude-opus-4-8",
           max_tokens: 4096,
-          system: SYSTEM,
+          system: comContexto(SYSTEM, contexto),
           stream: true,
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         }),

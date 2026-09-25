@@ -4,7 +4,7 @@ import {
   Send, Paperclip, Plus, Search, Bot, User, FileText,
   Trash2, Download, BookOpen, Loader2, MessageSquare,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { MensagemMarkdown } from "@/components/MensagemMarkdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -362,9 +362,7 @@ export default function ChatPage() {
                   "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                   msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-foreground rounded-bl-md"
                 )}>
-                  <div className="prose prose-sm max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
+                  <MensagemMarkdown>{msg.content}</MensagemMarkdown>
                 </div>
                 {msg.role === "user" && (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary">

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { MensagemMarkdown } from "@/components/MensagemMarkdown";
 import {
   MessageSquareText, Send, Bot, User, Sparkles,
   FileText, Scale, HelpCircle, BookOpen, AlertTriangle, Radio,
@@ -132,7 +133,9 @@ export default function AssistentePage() {
                   ? "bg-primary text-primary-foreground rounded-tr-md"
                   : "bg-card border border-border text-card-foreground rounded-tl-md shadow-card"
               }`}>
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                {msg.role === "assistant"
+                  ? <MensagemMarkdown>{msg.content}</MensagemMarkdown>
+                  : <p className="whitespace-pre-wrap">{msg.content}</p>}
                 <span className={`text-[10px] mt-1 block ${msg.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                   {msg.timestamp}
                 </span>
