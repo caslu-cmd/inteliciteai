@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
 import { streamVerificado } from "../_shared/stream-verificado.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
@@ -532,7 +532,7 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
       }
       // A conferência chega como evento próprio no fim do stream: a tela mostra num
       // painel, fora do texto do documento.
-      return new Response(streamVerificado(res.body!, admin, formData.municipalityContext || "", "evento"), {
+      return new Response(streamVerificado(res.body!, admin, formData.municipalityContext || ""), {
         headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" },
       });
     } catch (err) {
@@ -583,17 +583,17 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
     let conteudo = raw;
     let verificacao = null;
     try {
-      const idx = await carregarIndice(admin);
-      let cits = conferir(conteudo, idx);
-      if (tipo === "sugestao" && cits.some((c) => c.status === "nao_confere")) {
-        // Sugestão de campo é curta: refaz uma vez sem a citação reprovada.
-        const falhas = cits.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`).join("; ");
-        const r2 = await callClaude(apiKey, { ...claudeBody, messages: [...claudeBody.messages, { role: "assistant", content: conteudo },
-          { role: "user", content: `A conferência no texto oficial reprovou: ${falhas}. Reescreva o texto sem essas citações ou com o dispositivo correto. Só o texto.` }] });
-        if (r2.ok) { conteudo = (await r2.json()).content?.[0]?.text ?? conteudo; cits = conferir(conteudo, idx); }
-      }
-      verificacao = { citacoes: cits, markdown: rodapeVerificacao(cits, conferirJurisprudencia(conteudo, formData.municipalityContext || "")).replace(/^\s*---\s*/, "").trim() };
-    } catch { /* a conferência nunca derruba o documento */ }
+      // Confere, deixa a IA reescrever UMA vez e remove do texto o que ainda não conferir.
+      const r = await respostaSegura(raw, await carregarIndice(admin), formData.municipalityContext || "", async (falhas, anterior) => {
+        const r2 = await callClaude(apiKey, { ...claudeBody, stream: false, messages: [...claudeBody.messages, { role: "assistant", content: anterior },
+          { role: "user", content: PEDIDO_REESCRITA(falhas) + (tipo === "sugestao" ? " Só o texto do campo." : "") }] });
+        return r2.ok ? ((await r2.json()).content?.[0]?.text ?? "") : "";
+      });
+      conteudo = r.texto;
+      verificacao = { citacoes: r.citacoes, normas: r.normas, markdown: r.rodape.replace(/^\s*---\s*/, "").trim() };
+    } catch {
+      verificacao = { citacoes: [{ status: "nao_confere" }], markdown: "⚠️ **A conferência automática ficou indisponível.** Confira cada artigo, lei e acórdão no texto oficial antes de usar." };
+    }
 
     return new Response(JSON.stringify({ conteudo, verificacao }), {
       headers: { ...cors, "Content-Type": "application/json" },

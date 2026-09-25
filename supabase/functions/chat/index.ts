@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
-import { streamVerificado } from "../_shared/stream-verificado.ts";
+import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
@@ -97,64 +97,59 @@ Deno.serve(async (req) => {
   }
 
   const contexto = await contextoJuridico(messages, authHeader);
+  const historico = messages.map((m) => ({ role: m.role, content: m.content }));
 
-  // Tenta com retry para SSE streaming
-  let lastErr = "";
-  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
-
-    let res: Response;
-    try {
-      res = await fetch(ANTHROPIC_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-opus-4-8",
-          max_tokens: 4096,
-          system: comContexto(SYSTEM, contexto),
-          stream: true,
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-    } catch (err) {
-      lastErr = String(err);
-      continue;
+  // Chamada sem stream, com as mesmas retentativas de antes.
+  const chamar = async (msgs: { role: string; content: string }[]): Promise<string> => {
+    let lastErr = "";
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+      let res: Response;
+      try {
+        res = await fetch(ANTHROPIC_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: "claude-opus-4-8", max_tokens: 4096, system: comContexto(SYSTEM, contexto), messages: msgs }),
+        });
+      } catch (err) { lastErr = String(err); continue; }
+      if (RETRYABLE.has(res.status)) { lastErr = `Claude ${res.status}`; continue; }
+      if (!res.ok) throw new Error(res.status === 429 ? "Limite de requisições excedido. Tente novamente em alguns instantes." : "Erro no serviço de IA. Tente novamente.");
+      return (await res.json()).content?.map((c: { text?: string }) => c.text || "").join("") || "";
     }
+    throw new Error(lastErr || "Erro no serviço de IA. Tente novamente.");
+  };
 
-    if (RETRYABLE.has(res.status)) {
-      lastErr = `Claude ${res.status}`;
-      continue;
-    }
-
-    if (res.status === 429) {
-      return new Response(
-        JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!res.ok) {
-      const t = await res.text();
-      return new Response(
-        JSON.stringify({ error: "Erro no serviço de IA. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Conferência automática das citações no fim do stream (rodapé da mensagem).
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const fontes = contexto + "\n" + messages.map((m) => m.content).join("\n");
-    return new Response(streamVerificado(res.body!, admin, fontes, "texto"), {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-    });
-  }
-
-  return new Response(
-    JSON.stringify({ error: lastErr || "Erro desconhecido após tentativas" }),
-    { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  // Nada de texto antes da conferência: o usuário nunca vê citação inexistente, nem
+  // por um instante. A resposta começa na hora com comentários SSE (": ...", ignorados
+  // pela tela) para o gateway não cortar, e o texto só sai depois de conferido e limpo.
+  const enc = new TextEncoder();
+  const evento = (obj: unknown) => enc.encode(`data: ${JSON.stringify(obj)}\n\n`);
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(enc.encode(": conferindo\n\n"));
+      const pulso = setInterval(() => controller.enqueue(enc.encode(": conferindo\n\n")), 10000);
+      let texto: string;
+      try {
+        texto = await chamar(historico);
+        try {
+          const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+          const fontes = contexto + "\n" + messages.map((m) => m.content).join("\n");
+          const r = await respostaSegura(texto, await carregarIndice(admin), fontes, (falhas, anterior) =>
+            chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]));
+          texto = r.texto + (r.rodape ? "\n" + r.rodape : "");
+        } catch {
+          texto += "\n\n---\n\n⚠️ **A conferência automática ficou indisponível nesta resposta.** Não use números de artigo, lei ou acórdão sem conferir no texto oficial.";
+        }
+      } catch (err) {
+        texto = `⚠️ ${(err as Error)?.message || "Não foi possível responder agora. Tente novamente."}`;
+      }
+      clearInterval(pulso);
+      controller.enqueue(evento({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: texto } }));
+      controller.enqueue(evento({ type: "message_stop" }));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+  });
 });

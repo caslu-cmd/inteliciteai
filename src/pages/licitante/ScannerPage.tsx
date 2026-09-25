@@ -174,7 +174,7 @@ export default function ScannerPage() {
             <p className="text-sm text-muted-foreground">{filename}</p>
           </div>
           <div className="flex flex-col gap-2 text-xs text-muted-foreground text-center">
-            {["Lendo o documento PDF...", "Identificando cláusulas e exigências...", "Verificando conformidade com Lei 14.133/2021...", "Calculando score e riscos..."].map((step, i) => (
+            {["Lendo o documento PDF...", "Identificando cláusulas e exigências...", "Verificando conformidade com Lei 14.133/2021...", "Conferindo as citações no texto oficial da lei..."].map((step, i) => (
               <motion.p key={step} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 1.2 }}>
                 {step}
               </motion.p>
@@ -231,9 +231,9 @@ export default function ScannerPage() {
               <div className="flex items-center gap-4">
                 <VictoryScore score={analysis?.score ?? 0} size={76} />
                 <div>
-                  <p className="text-sm font-semibold text-card-foreground">Chance de Vitória</p>
+                  <p className="text-sm font-semibold text-card-foreground">Conformidade do edital</p>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Baseado em complexidade, exigências, prazos e valor estimado
+                    Calculada pelos riscos encontrados: cada risco alto tira 25 pontos, médio 10 e baixo 3
                   </p>
                   {analysis?.recomendacoes?.length ? (
                     <p className="text-xs text-primary mt-1.5">

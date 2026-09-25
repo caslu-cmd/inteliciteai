@@ -3,7 +3,8 @@
 // final da conferência de citações se perdiam.
 export interface VerificacaoIA {
   markdown: string;
-  citacoes?: { rotulo: string; status: "conferida" | "sem_trecho" | "nao_confere"; motivo: string }[];
+  citacoes?: { rotulo?: string; status: "conferida" | "sem_trecho" | "nao_confere"; motivo?: string }[];
+  normas?: { rotulo: string; ok: boolean; motivo: string }[];
 }
 
 export async function lerStreamIA(
@@ -20,7 +21,11 @@ export async function lerStreamIA(
     try {
       const j = JSON.parse(l.slice(6));
       if (j.type === "content_block_delta" && j.delta?.text) { acc += j.delta.text; onTexto(acc); }
-      if (j.type === "intelicite_verificacao" && j.markdown) onVerificacao?.(j);
+      if (j.type === "intelicite_verificacao") {
+        // Versão saneada: o documento perde as citações que não conferem com a lei.
+        if (typeof j.texto === "string" && j.texto) { acc = j.texto; onTexto(acc); }
+        if (j.markdown) onVerificacao?.(j);
+      }
     } catch { /* linha não-JSON */ }
   };
   while (true) {

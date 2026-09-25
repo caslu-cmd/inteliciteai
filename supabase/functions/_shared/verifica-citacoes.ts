@@ -17,6 +17,7 @@ export interface Citacao {
   trecho?: string;         // trecho literal que a IA atribuiu ao dispositivo
   status: Status;
   motivo: string;
+  ocorrencias?: string[];  // texto exato da citação na resposta (para remover se não conferir)
 }
 
 // ---------- leis indexadas ----------
@@ -79,6 +80,7 @@ export async function carregarIndice(supabase: any): Promise<Indice> {
       .sort((a: { content: string }, b: { content: string }) => (b.content?.length || 0) - (a.content?.length || 0))[0];
     if (doc?.content && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
   }
+  catalogo = catalogoNormas((data || []).map((d: { title: string; content: string }) => `${d.title}\n${d.content || ""}`));
   cache = idx;
   return idx;
 }
@@ -88,6 +90,7 @@ export function indiceDeTextos(docs: { title: string; content: string }[]): Indi
     const doc = docs.filter((d) => lei.titulo.test(d.title)).sort((a, b) => b.content.length - a.content.length)[0];
     if (doc && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
   }
+  catalogo = catalogoNormas(docs.map((d) => `${d.title}\n${d.content}`));
   return idx;
 }
 
@@ -122,8 +125,13 @@ function trechoProximo(texto: string, fim: number): string | undefined {
   return m?.[1];
 }
 
+// "§ 3º do Art. 63" -> "Art. 63, § 3º" (a mesma forma na extração e ao sanear o texto)
+export function inverterForma(texto: string): string {
+  return texto.replace(/(§§?\s*\d{1,2}\s*[º°o]?|par[áa]grafo\s+[úu]nico|inciso\s+[IVXLC]{1,7})\s+do\s+([Aa]rt(?:igo)?\.?\s*\d{1,4}\s*[º°o]?)/g, "$2, $1");
+}
+
 export function extrairCitacoes(texto: string, leiPadrao = "14133") {
-  texto = texto.replace(/(§§?\s*\d{1,2}\s*[º°o]?|par[áa]grafo\s+[úu]nico|inciso\s+[IVXLC]{1,7})\s+do\s+([Aa]rt(?:igo)?\.?\s*\d{1,4}\s*[º°o]?)/g, "$2, $1");
+  texto = inverterForma(texto);
   const out: Omit<Citacao, "status" | "motivo">[] = [];
   const faixas = new Map<number, number>();
   for (const f of texto.matchAll(/\bArts\.?\s*(\d{1,4})\s*[º°o]?\s*(?:a|e)\s*(\d{1,4})/g)) faixas.set(f.index!, Number(f[2]));
@@ -138,7 +146,7 @@ export function extrairCitacoes(texto: string, leiPadrao = "14133") {
     const inc = cauda.match(/\b([IVXLC]{1,7})\b(?![a-z])/)?.[1];
     const trecho = trechoProximo(texto, m.index! + m[0].length);
     const nome = LEIS.find((l) => l.chave === lei)?.nome || lei;
-    const base = { lei, art, artFim, inciso: inc, trecho };
+    const base = { lei, art, artFim, inciso: inc, trecho, ocorrencias: [m[0].trim()] };
     if (pars.length) for (const p of pars) out.push({ ...base, par: p, rotulo: `Art. ${art}, ${p === "unico" ? "parágrafo único" : `§ ${p}º`}${inc ? `, ${inc}` : ""} · ${nome}` });
     else out.push({ ...base, rotulo: `${artFim ? `Arts. ${art} a ${artFim}` : `Art. ${art}`}${inc ? `, ${inc}` : ""} · ${nome}` });
   }
@@ -166,7 +174,7 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
   }
   const out: Citacao[] = [];
   for (const lista of grupos.values()) {
-    const c = lista[0];
+    const c = { ...lista[0], ocorrencias: [...new Set(lista.flatMap((x) => x.ocorrencias || []))] };
     const lei = idx.get(c.lei);
     let a = lei?.get(c.art);
     if (lei && c.artFim) {
@@ -193,20 +201,86 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
 }
 
 // Acórdão/súmula só vale se o número aparecer no contexto recuperado (base ou busca ao vivo).
-export function conferirJurisprudencia(texto: string, contexto: string): { rotulo: string; ok: boolean }[] {
+export type Juris = { rotulo: string; ok: boolean; ocorrencias?: string[] };
+export function conferirJurisprudencia(texto: string, contexto: string): Juris[] {
   const re = /(Ac[óo]rd[ãa]o\s*(?:n[º°o]\s*)?[\d.]{2,6}\/\d{4}|S[úu]mula\s*(?:TCU\s*)?(?:n[º°o]\s*)?\d{1,4})/gi;
-  const ctx = normalizar(contexto);
-  const out = new Map<string, boolean>();
+  const ctx = normalizar(contexto).replace(/ /g, "");
+  const out = new Map<string, Juris>();
   for (const m of texto.matchAll(re)) {
     const num = m[0].match(/[\d.]+(?:\/\d{4})?/)![0].replace(/\./g, "");
-    out.set(m[0].replace(/\s+/g, " "), ctx.replace(/ /g, "").includes(normalizar(num).replace(/ /g, "")));
+    const rotulo = m[0].replace(/\s+/g, " ");
+    const j = out.get(rotulo) || { rotulo, ok: ctx.includes(normalizar(num).replace(/ /g, "")), ocorrencias: [] };
+    j.ocorrencias!.push(m[0]);
+    out.set(rotulo, j);
   }
-  return [...out].map(([rotulo, ok]) => ({ rotulo, ok }));
+  return [...out.values()];
+}
+
+// ---------- normas (lei, LC, decreto, decreto-lei) ----------
+// Lista de normas REAIS: as que estão indexadas e as que as próprias íntegras oficiais
+// citam com número (o Planalto referencia centenas de leis e decretos). Norma citada
+// pela IA que não está nessa lista nem nas fontes da consulta não é mostrada como fato.
+export type Norma = { rotulo: string; ok: boolean; motivo: string; ocorrencias: string[] };
+const RE_NORMA = /\b(Lei\s+Complementar|LC|Decreto-Lei|Decreto|Lei)(?:\s+Federal)?\s*(?:n[º°o.]?\s*)?(\d{1,2}\.\d{3}|\d{2,5})(?:\s*\/\s*(\d{4}|\d{2})\b|,?\s+de\s+\d{1,2}[º°o]?\s+de\s+[a-zç]+\s+de\s+(\d{4}))?/gi;
+function chaveNorma(tipo: string, num: string) {
+  const t = /^(lei\s+complementar|lc)$/i.test(tipo) ? "lc" : /^decreto-lei$/i.test(tipo) ? "dl" : /^decreto$/i.test(tipo) ? "dec" : "lei";
+  return `${t}|${Number(num.replace(/\./g, ""))}`;
+}
+function anoCompleto(a?: string) { return !a ? undefined : a.length === 2 ? (Number(a) > 30 ? 1900 : 2000) + Number(a) : Number(a); }
+export function catalogoNormas(textos: string[]): Map<string, Set<number>> {
+  const cat = new Map<string, Set<number>>();
+  for (const t of textos) {
+    for (const m of t.replace(/\s+/g, " ").matchAll(RE_NORMA)) {
+      const k = chaveNorma(m[1], m[2]);
+      const ano = anoCompleto(m[3] || m[4]);
+      const anos = cat.get(k) || new Set<number>();
+      if (ano) anos.add(ano);
+      cat.set(k, anos);
+    }
+  }
+  return cat;
+}
+let catalogo: Map<string, Set<number>> | null = null;
+export function conferirNormas(texto: string, contexto = ""): Norma[] {
+  const cat = catalogo || new Map();
+  const doContexto = catalogoNormas([contexto]);
+  const out = new Map<string, Norma>();
+  for (const m of texto.matchAll(RE_NORMA)) {
+    const num = Number(m[2].replace(/\./g, ""));
+    if (/^(lei|decreto)$/i.test(m[1]) && num < 100) continue;          // "lei 8" solto não é citação de norma
+    const k = chaveNorma(m[1], m[2]);
+    const ano = anoCompleto(m[3] || m[4]);
+    const conhecida = cat.get(k) || doContexto.get(k);
+    let ok = !!conhecida, motivo = conhecida ? "norma localizada" : "número não localizado nas fontes oficiais";
+    if (conhecida && ano && conhecida.size && !conhecida.has(ano)) { ok = false; motivo = `o ano não confere (${[...conhecida].join(", ")})`; }
+    const rotulo = m[0].replace(/\s+/g, " ").trim();
+    const n = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [] };
+    n.ocorrencias.push(m[0].trim());
+    out.set(rotulo, n);
+  }
+  return [...out.values()];
+}
+
+// ---------- remoção do que não confere ----------
+export const REMOVIDO_ART = "[citação removida: dispositivo não confere com a lei]";
+export const REMOVIDO_NORMA = "[norma removida: não localizada nas fontes oficiais]";
+export const REMOVIDO_JURIS = "[jurisprudência removida: número não localizado nas fontes]";
+// Tira do texto toda citação reprovada: o usuário nunca vê artigo ou norma inexistente como fato.
+export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
+  let t = inverterForma(texto);
+  const trocas: [string, string][] = [
+    ...cits.filter((c) => c.status === "nao_confere").flatMap((c) => (c.ocorrencias || []).map((o) => [o, REMOVIDO_ART] as [string, string])),
+    ...normas.filter((n) => !n.ok).flatMap((n) => n.ocorrencias.map((o) => [o, REMOVIDO_NORMA] as [string, string])),
+    ...juris.filter((j) => !j.ok).flatMap((j) => (j.ocorrencias || []).map((o) => [o, REMOVIDO_JURIS] as [string, string])),
+  ].sort((a, b) => b[0].length - a[0].length);
+  for (const [de, para] of trocas) if (de) t = t.split(de).join(para);
+  return t;
 }
 
 // Rodapé em markdown com o resultado da conferência.
-export function rodapeVerificacao(cits: Citacao[], juris: { rotulo: string; ok: boolean }[] = []): string {
-  if (!cits.length && !juris.length) return "";
+export function rodapeVerificacao(cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
+  const nNao = normas.filter((n) => !n.ok);
+  if (!cits.length && !juris.length && !nNao.length) return "";
   const ok = cits.filter((c) => c.status === "conferida");
   const sem = cits.filter((c) => c.status === "sem_trecho");
   const nao = cits.filter((c) => c.status === "nao_confere");
@@ -214,10 +288,62 @@ export function rodapeVerificacao(cits: Citacao[], juris: { rotulo: string; ok: 
   const linhas = ["", "---", "**🔎 Conferência automática no texto oficial indexado**"];
   if (ok.length) linhas.push(`✅ ${ok.map((c) => c.rotulo).join(" · ")}`);
   if (sem.length) linhas.push(`⚠️ Dispositivo existe, sem trecho transcrito para conferir: ${sem.map((c) => c.rotulo).join(" · ")}`);
-  if (nao.length) linhas.push(`❌ Não confere (desconsidere): ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
-  if (jNao.length) linhas.push(`❌ Jurisprudência não localizada nas fontes consultadas (desconsidere o número): ${jNao.map((j) => j.rotulo).join(" · ")}`);
+  if (nao.length) linhas.push(`❌ Removido do texto por não conferir com a lei: ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
+  if (nNao.length) linhas.push(`❌ Norma removida do texto, não localizada nas fontes oficiais: ${nNao.map((n) => `${n.rotulo} (${n.motivo})`).join(" · ")}`);
+  if (jNao.length) linhas.push(`❌ Jurisprudência removida do texto, número não localizado nas fontes consultadas: ${jNao.map((j) => j.rotulo).join(" · ")}`);
   return linhas.join("\n\n");
 }
+
+// Pipeline único das respostas em texto: confere, deixa a IA reescrever UMA vez com a
+// lista do que falhou e, no fim, remove do texto o que ainda não conferir.
+export async function respostaSegura(
+  texto: string, idx: Indice, fontes: string,
+  reescrever?: (falhas: string[], anterior: string) => Promise<string>,
+): Promise<{ texto: string; citacoes: Citacao[]; jurisprudencia: Juris[]; normas: Norma[]; rodape: string; reescrita: boolean }> {
+  const avaliar = (t: string) => {
+    const citacoes = conferir(t, idx), jurisprudencia = conferirJurisprudencia(t, fontes), normas = conferirNormas(t, fontes);
+    const falhas = [
+      ...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
+      ...normas.filter((n) => !n.ok).map((n) => `${n.rotulo}: ${n.motivo}`),
+      ...jurisprudencia.filter((j) => !j.ok).map((j) => `${j.rotulo}: número não consta nas fontes fornecidas`),
+    ];
+    return { citacoes, jurisprudencia, normas, falhas };
+  };
+  let r = avaliar(texto);
+  let reescrita = false;
+  if (r.falhas.length && reescrever) {
+    try {
+      const novo = await reescrever(r.falhas, texto);
+      if (novo?.trim()) { texto = novo; r = avaliar(texto); reescrita = true; }
+    } catch { /* fica com a primeira versão, saneada abaixo */ }
+  }
+  const limpo = sanear(texto, r.citacoes, r.jurisprudencia, r.normas);
+  return { texto: limpo, citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas, rodape: rodapeVerificacao(r.citacoes, r.jurisprudencia, r.normas), reescrita };
+}
+
+// Respostas em JSON (Parecer, análise de edital): remove de cada campo de texto a
+// citação/norma/jurisprudência que não confere. Não mexe no que é transcrição do
+// documento do usuário ("trecho", "excerpt") nem nos próprios resultados da conferência.
+const NAO_SANEAR = new Set(["trecho", "excerpt", "textoLegal", "verificacao", "citacoes", "url"]);
+export function sanearProfundo(obj: unknown, idx: Indice, fontes: string, removidas: string[] = []): unknown {
+  if (typeof obj === "string") {
+    const cits = conferir(obj, idx), juris = conferirJurisprudencia(obj, fontes), normas = conferirNormas(obj, fontes);
+    for (const c of cits) if (c.status === "nao_confere") removidas.push(`${c.rotulo} (${c.motivo})`);
+    for (const n of normas) if (!n.ok) removidas.push(`${n.rotulo} (${n.motivo})`);
+    for (const j of juris) if (!j.ok) removidas.push(`${j.rotulo} (número não localizado nas fontes)`);
+    return sanear(obj, cits, juris, normas);
+  }
+  if (Array.isArray(obj)) return obj.map((x) => sanearProfundo(x, idx, fontes, removidas));
+  if (obj && typeof obj === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = NAO_SANEAR.has(k) ? v : sanearProfundo(v, idx, fontes, removidas);
+    return out;
+  }
+  return obj;
+}
+
+export const PEDIDO_REESCRITA =(falhas: string[]) =>
+  `A conferência automática no texto oficial REPROVOU estas citações:\n- ${falhas.join("\n- ")}\n\nReescreva a resposta COMPLETA corrigindo-as: use só dispositivos e normas presentes na BASE JURÍDICA, com o trecho literal entre aspas, ou retire a citação. Não comente a correção.`;
 
 export const REGRA_TRECHO = `
 PROVA DE CADA CITAÇÃO (a plataforma confere automaticamente, e o que não conferir é marcado como inválido para o usuário):

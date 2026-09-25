@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -91,29 +91,19 @@ Deno.serve(async (req: Request) => {
   try {
     let reply = await chamar(historico);
 
-    // Conferência automática: cada citação é localizada na íntegra oficial indexada.
-    // Se alguma for reprovada, a IA reescreve UMA vez sabendo o que falhou.
+    // Conferência automática (código): confere na íntegra oficial, deixa a IA reescrever
+    // UMA vez com o que falhou e remove do texto o que ainda não conferir.
     let verificacao = null;
     try {
       const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const idx = await carregarIndice(admin);
       const fontes = contexto + "\n" + messages.map((m: { content: string }) => m.content).join("\n");
-      let citacoes = conferir(reply, idx);
-      let jurisprudencia = conferirJurisprudencia(reply, fontes);
-      const falhas = [...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
-                      ...jurisprudencia.filter((j) => !j.ok).map((j) => `${j.rotulo}: número não consta nas fontes fornecidas`)];
-      if (falhas.length) {
-        reply = await chamar([...historico, { role: "assistant", content: reply }, {
-          role: "user",
-          content: `A conferência automática no texto oficial REPROVOU estas citações:\n- ${falhas.join("\n- ")}\n\nReescreva a resposta COMPLETA corrigindo-as: use só dispositivos presentes na BASE JURÍDICA, com o trecho literal entre aspas, ou retire a citação. Não comente a correção.`,
-        }]);
-        citacoes = conferir(reply, idx);
-        jurisprudencia = conferirJurisprudencia(reply, fontes);
-      }
-      const rodape = rodapeVerificacao(citacoes, jurisprudencia);
-      if (rodape) reply += "\n" + rodape;
-      verificacao = { citacoes, jurisprudencia };
-    } catch { /* a conferência nunca derruba a resposta */ }
+      const r = await respostaSegura(reply, await carregarIndice(admin), fontes, (falhas, anterior) =>
+        chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]));
+      reply = r.texto + (r.rodape ? "\n" + r.rodape : "");
+      verificacao = { citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas };
+    } catch {
+      reply += "\n\n---\n\n⚠️ **A conferência automática ficou indisponível nesta resposta.** Não use números de artigo, lei ou acórdão sem conferir no texto oficial.";
+    }
 
     return new Response(JSON.stringify({ reply, verificacao }), {
       headers: { ...cors, "Content-Type": "application/json" },

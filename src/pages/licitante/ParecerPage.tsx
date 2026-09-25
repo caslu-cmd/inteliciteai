@@ -30,7 +30,7 @@ function SeloVerificacao({ v, textoLegal }: { v?: Verificacao; textoLegal?: stri
   const cfg = {
     conferida: { cls: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5", txt: "Conferido no texto oficial da lei" },
     sem_trecho: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Dispositivo existe, mas sem trecho transcrito para conferir" },
-    nao_confere: { cls: "text-red-400 border-red-500/30 bg-red-500/5", txt: `Fonte NÃO confere com a lei${falha ? `: ${falha.rotulo} (${falha.motivo})` : ""}. Desconsidere esta citação.` },
+    nao_confere: { cls: "text-red-400 border-red-500/30 bg-red-500/5", txt: `Citação removida: não conferia com a lei${falha ? ` (${falha.rotulo}: ${falha.motivo})` : ""}. O apontamento vale como orientação, sem fundamento legal confirmado.` },
     sem_citacao: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Sem dispositivo legal citado: trate como orientação, não como fundamento" },
   }[v.status];
   if (!cfg) return null;
@@ -53,6 +53,8 @@ interface Parecer {
   naoVerificado?: string[];
   fontes?: Fonte[];
   recomendacaoFinal?: string;
+  removidasNaConferencia?: string[];
+  conferenciaIndisponivel?: boolean;
 }
 
 const TIPOS = [
@@ -238,6 +240,17 @@ export default function ParecerPage() {
                 </div>
               ) : null}
             </div>
+
+            {/* Resultado da conferência automática (feita por código, no texto oficial) */}
+            {parecer.conferenciaIndisponivel ? (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-300">
+                ⚠️ <strong>A conferência automática ficou indisponível neste parecer.</strong> Confira cada artigo, lei e acórdão no texto oficial antes de usar.
+              </div>
+            ) : parecer.removidasNaConferencia?.length ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-xs text-red-300">
+                ❌ <strong>Removido do parecer por não conferir com o texto oficial:</strong> {parecer.removidasNaConferencia.join(" · ")}
+              </div>
+            ) : null}
 
             {/* Achados */}
             {parecer.achados?.length ? (

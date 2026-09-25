@@ -277,7 +277,7 @@ export default function MinutasPage() {
               {verificacao && preview.conteudo && (
                 <div className={`mx-5 mt-4 rounded-lg border p-3 text-xs ${verificacao.includes("❌") ? "border-red-500/30 bg-red-500/5" : "border-emerald-500/30 bg-emerald-500/5"}`}>
                   <MensagemMarkdown className="text-muted-foreground">{verificacao}</MensagemMarkdown>
-                  {verificacao.includes("❌") && <p className="mt-1 font-medium text-red-400">Corrija ou retire as citações marcadas com ❌ antes de protocolar.</p>}
+                  {verificacao.includes("❌") && <p className="mt-1 font-medium text-red-400">Citações que não conferiam com a lei foram removidas do texto (marcadas entre colchetes). Revise esses pontos antes de protocolar.</p>}
                 </div>
               )}
               <pre className="p-5 text-xs text-card-foreground whitespace-pre-wrap leading-relaxed font-mono max-h-96 overflow-y-auto">

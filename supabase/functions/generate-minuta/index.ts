@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -114,28 +114,21 @@ Gere o documento completo, pronto para uso.`;
 
   try {
     const idx = await carregarIndice(admin);
-    let conteudo = await chamar([{ role: "user", content: userPrompt }]);
-    let citacoes = conferir(conteudo, idx);
-    let jurisprudencia = conferirJurisprudencia(conteudo, contexto);
-
-    // Peça que vai ser protocolada não sai com citação reprovada: a IA recebe o que
-    // falhou e reescreve UMA vez; o código confere de novo.
-    const falhas = [...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
-                    ...jurisprudencia.filter((j) => !j.ok).map((j) => `${j.rotulo}: número não consta nas fontes fornecidas`)];
-    if (falhas.length) {
-      conteudo = await chamar([
-        { role: "user", content: userPrompt },
-        { role: "assistant", content: conteudo },
-        { role: "user", content: `A conferência automática no texto oficial REPROVOU estas citações:\n- ${falhas.join("\n- ")}\n\nReescreva o documento COMPLETO corrigindo-as: use só dispositivos presentes na BASE JURÍDICA, com o trecho literal entre aspas, ou retire a citação. Não comente a correção.` },
-      ]);
-      citacoes = conferir(conteudo, idx);
-      jurisprudencia = conferirJurisprudencia(conteudo, contexto);
-    }
+    // Peça que vai ser protocolada: confere na íntegra oficial, a IA reescreve UMA vez com
+    // o que falhou e o que ainda não conferir é removido do texto antes de entregar.
+    const primeira = await chamar([{ role: "user", content: userPrompt }]);
+    const r = await respostaSegura(primeira, idx, contexto, (falhas, anterior) => chamar([
+      { role: "user", content: userPrompt },
+      { role: "assistant", content: anterior },
+      { role: "user", content: PEDIDO_REESCRITA(falhas) },
+    ]));
+    const { texto: conteudo, citacoes, jurisprudencia, normas } = r;
 
     const ok = citacoes.filter((c) => c.status === "conferida").map((c) => c.rotulo);
+    const removidas = citacoes.some((c) => c.status === "nao_confere") || normas.some((n) => !n.ok) || jurisprudencia.some((j) => !j.ok);
     const baseLegal = (ok.length ? ok.slice(0, 4).join("; ") : "Lei 14.133/2021") +
-      (citacoes.some((c) => c.status === "nao_confere") ? " · ATENÇÃO: há citação que não confere" : "");
-    const verificacao = rodapeVerificacao(citacoes, jurisprudencia).replace(/^\s*---\s*/, "").trim();
+      (removidas ? " · ATENÇÃO: citação removida do texto, revise antes de protocolar" : "");
+    const verificacao = r.rodape.replace(/^\s*---\s*/, "").trim();
 
     const titulo = tipo === "impugnacao"
       ? `Impugnação — ${edital}`

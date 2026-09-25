@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, conferirJurisprudencia, contem, normalizar } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, normalizar, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 // Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
 // Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
@@ -139,14 +139,24 @@ Deno.serve(async (req) => {
 ${a.fundamento || ""}`, idx);
         a.verificacao = { status: resumo(cits), citacoes: cits };
         a.trechoConfere = a.trecho ? contem(docNorm, a.trecho) : null;
+        // Fundamento que não confere sai do parecer: fica só o aviso no lugar.
+        if (a.verificacao.status === "nao_confere") { a.fonte = REMOVIDO_ART; a.fundamento = REMOVIDO_ART; a.textoLegal = ""; a.url = ""; }
       }
       // deno-lint-ignore no-explicit-any
       for (const p of (parecer.prazos || []) as any[]) {
         const cits = conferir(`${p.baseLegal || ""}: "${p.textoLegal || ""}"`, idx);
         p.verificacao = { status: resumo(cits), citacoes: cits };
+        if (p.verificacao.status === "nao_confere") { p.baseLegal = REMOVIDO_ART; p.textoLegal = ""; }
       }
-      parecer.jurisprudenciaVerificada = conferirJurisprudencia(JSON.stringify(parecer), baseJuridica);
-    } catch { /* a conferência nunca derruba o parecer */ }
+      // Todo o resto do texto (sumário, problema, recomendação, fontes): remove artigo,
+      // lei ou acórdão que não confere.
+      const removidas: string[] = [];
+      // deno-lint-ignore no-explicit-any
+      parecer = sanearProfundo(parecer, idx, baseJuridica, removidas) as any;
+      parecer.removidasNaConferencia = [...new Set(removidas)];
+    } catch {
+      parecer.conferenciaIndisponivel = true;
+    }
 
     return { parecer, temBase: !!baseJuridica, geradoEm: new Date().toISOString() };
   };

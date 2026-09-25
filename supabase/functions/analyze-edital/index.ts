@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, normalizar } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, normalizar, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -14,7 +14,7 @@ const SYSTEM = `Você é um auditor especializado em editais de licitação bras
 
 Analise o edital e retorne SOMENTE um objeto JSON válido neste formato (sem texto antes ou depois):
 {
-  "score": <inteiro 0-100: chance de vitória considerando complexidade, prazo, valor e exigências>,
+  "score": 0,
   "riskLevel": <"low"|"medium"|"high">,
   "summary": {
     "objeto": "<descrição do objeto>",
@@ -144,13 +144,26 @@ Deno.serve(async (req: Request) => {
         const st = cits.some((c) => c.status === "nao_confere") ? "nao_confere"
           : cits.some((c) => c.status === "conferida") ? "conferida" : "sem_trecho";
         r.verificacao = { status: st, citacoes: cits };
-        r.ref += st === "conferida" ? " · ✅ conferido no texto oficial"
-          : st === "nao_confere" ? " · ❌ NÃO confere com a lei, desconsidere"
-          : " · ⚠️ sem trecho para conferir";
+        r.ref = st === "conferida" ? `${r.ref} · ✅ conferido no texto oficial`
+          : st === "nao_confere" ? `${REMOVIDO_ART} · ❌ removida por não conferir com a lei`
+          : `${r.ref} · ⚠️ sem trecho para conferir`;
+        if (st === "nao_confere") r.textoLegal = "";
         if (text && r.excerpt) r.excerptConfere = contem(edNorm, r.excerpt);
       }
-      saida = JSON.stringify(analise);
-    } catch { /* a conferência nunca derruba a análise */ }
+      // Nota de CONFORMIDADE do edital, calculada por código a partir dos riscos (antes a
+      // IA estimava uma "chance de vitória" sem nenhum dado por trás).
+      const peso: Record<string, number> = { high: 25, medium: 10, low: 3 };
+      analise.score = Math.max(0, 100 - (analise.riscos || []).reduce((s: number, r: { level?: string }) => s + (peso[r.level || ""] ?? 0), 0));
+      analise.scoreRegra = "100 menos 25 por risco alto, 10 por médio e 3 por baixo";
+
+      // Demais textos (títulos, recomendações, resumo): remove o que não confere.
+      const removidas: string[] = [];
+      const limpa = sanearProfundo(analise, idx, contexto, removidas) as Record<string, unknown>;
+      limpa.removidasNaConferencia = [...new Set(removidas)];
+      saida = JSON.stringify(limpa);
+    } catch {
+      saida = JSON.stringify({ ...JSON.parse(match[0]), conferenciaIndisponivel: true });
+    }
 
     return new Response(saida, {
       headers: { ...cors, "Content-Type": "application/json" },
