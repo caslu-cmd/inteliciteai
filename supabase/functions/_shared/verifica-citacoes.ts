@@ -1,0 +1,226 @@
+// Verificação determinística das citações legais que a IA produz.
+//
+// A IA pode errar número de artigo mesmo com a base no contexto (já citou o
+// "Art. 37, §1º" para vistoria, que é do Art. 63). Por isso nenhuma citação é
+// aceita pela palavra da IA: o código localiza o dispositivo na ÍNTEGRA oficial
+// indexada (legal_knowledge) e confere se o TRECHO literal que a IA transcreveu
+// está mesmo naquele artigo. Número inexistente ou trecho de outro artigo = reprovado.
+
+export type Status = "conferida" | "sem_trecho" | "nao_confere";
+export interface Citacao {
+  rotulo: string;          // "Art. 63, § 3º — Lei 14.133/2021"
+  lei: string;             // chave da lei ("14133")
+  art: number;
+  artFim?: number;         // "Arts. 40 a 41": o trecho pode estar em qualquer artigo do intervalo
+  par?: string;            // "3" | "unico"
+  inciso?: string;         // "VI"
+  trecho?: string;         // trecho literal que a IA atribuiu ao dispositivo
+  status: Status;
+  motivo: string;
+}
+
+// ---------- leis indexadas ----------
+const LEIS: { chave: string; nome: string; titulo: RegExp; menciona: RegExp }[] = [
+  { chave: "14133", nome: "Lei 14.133/2021", titulo: /14\.133/, menciona: /14\.?133|nova lei de licita/i },
+  { chave: "8666", nome: "Lei 8.666/1993", titulo: /8\.666/, menciona: /8\.?666/ },
+  { chave: "10520", nome: "Lei 10.520/2002", titulo: /10\.520/, menciona: /10\.?520/ },
+  { chave: "lc123", nome: "LC 123/2006", titulo: /Complementar nº 123/, menciona: /LC\s*n?º?\s*123|Complementar\s*n?º?\s*123|123\/2006/i },
+  { chave: "d10024", nome: "Decreto 10.024/2019", titulo: /10\.024/, menciona: /10\.?024/ },
+  { chave: "d11462", nome: "Decreto 11.462/2023", titulo: /11\.462/, menciona: /11\.?462/ },
+  { chave: "d11246", nome: "Decreto 11.246/2022", titulo: /11\.246/, menciona: /11\.?246/ },
+  { chave: "in65", nome: "IN SEGES/ME 65/2021", titulo: /IN SEGES\/ME nº 65/, menciona: /IN\s*(SEGES\/ME\s*)?n?º?\s*65/i },
+];
+
+interface Artigo { texto: string; norm: string; pars: Map<string, string>; incisos: Set<string> }
+export type Indice = Map<string, Map<number, Artigo>>;
+
+// Marcadores de inciso ("I -") e alínea ("a)") não são texto: quem transcreve um trecho
+// costuma omiti-los, e isso não é paráfrase. Todo o resto é comparado palavra por palavra.
+export function normalizar(s: string): string {
+  return s.replace(/(^|[\s:;.])[IVXLC]{1,7}\s*[-–]\s/g, "$1 ").replace(/(^|[\s:;])[a-z]\)\s/g, "$1 ")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[º°ª]/g, "o").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function indexarLei(conteudo: string): Map<number, Artigo> {
+  const txt = conteudo.replace(/\s+/g, " ");
+  // Cabeçalho de artigo: "Art. 63." / "Art. 1º" / "Art. 75-A". Referências no meio do
+  // texto vêm em minúscula ("art. 26 desta Lei") e não quebram o artigo.
+  const cab = /Art\. ?(\d{1,4})(?:º|o)?(?:-[A-Z])?\.? /g;
+  const pos: { n: number; i: number }[] = [];
+  for (const m of txt.matchAll(cab)) pos.push({ n: Number(m[1]), i: m.index! });
+  const arts = new Map<number, Artigo>();
+  pos.forEach((p, k) => {
+    const texto = txt.slice(p.i, k + 1 < pos.length ? pos[k + 1].i : txt.length);
+    const a = arts.get(p.n);
+    const junto = a ? a.texto + " " + texto : texto;   // artigo que aparece em mais de uma redação
+    const pars = new Map<string, string>();
+    const pcab = /§ ?(\d{1,2})(?:º|o)?|Parágrafo único/g;
+    const pp = [...junto.matchAll(pcab)];
+    pp.forEach((m, j) => {
+      const chave = m[1] ?? "unico";
+      const t = junto.slice(m.index!, j + 1 < pp.length ? pp[j + 1].index! : junto.length);
+      pars.set(chave, (pars.get(chave) ?? "") + " " + t);
+    });
+    const incisos = new Set([...junto.matchAll(/(?:^|[ .;:])([IVXLC]{1,7}) ?[-–]/g)].map((m) => m[1]));
+    arts.set(p.n, { texto: junto, norm: normalizar(junto), pars, incisos });
+  });
+  return arts;
+}
+
+let cache: Indice | null = null;
+// deno-lint-ignore no-explicit-any
+export async function carregarIndice(supabase: any): Promise<Indice> {
+  if (cache) return cache;
+  const { data } = await supabase.from("legal_knowledge").select("title, content").eq("active", true);
+  const idx: Indice = new Map();
+  for (const lei of LEIS) {
+    const doc = (data || []).filter((d: { title: string; content: string }) => lei.titulo.test(d.title))
+      .sort((a: { content: string }, b: { content: string }) => (b.content?.length || 0) - (a.content?.length || 0))[0];
+    if (doc?.content && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
+  }
+  cache = idx;
+  return idx;
+}
+export function indiceDeTextos(docs: { title: string; content: string }[]): Indice {
+  const idx: Indice = new Map();
+  for (const lei of LEIS) {
+    const doc = docs.filter((d) => lei.titulo.test(d.title)).sort((a, b) => b.content.length - a.content.length)[0];
+    if (doc && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
+  }
+  return idx;
+}
+
+// ---------- extração ----------
+const RE_CIT = /\b[Aa]rt(?:igo)?s?\.?\s*(\d{1,4})\s*(?:º|°|o\b)?(?:-[A-Z])?((?:\s*,?\s*(?:§§?\s*\d{1,2}\s*[º°o]?(?:\s*(?:,|e|a)\s*\d{1,2}\s*[º°o]?)*|par[áa]grafo\s+[úu]nico|(?:inc(?:iso|\.)?\s*)?\b[IVXLC]{1,7}\b(?![a-z])|al[íi]nea\s+["“]?[a-z]["”]?))*)/g;
+
+function leiDaVizinhanca(texto: string, ini: number, fim: number, padrao: string): string {
+  // Lei na MESMA linha: primeiro depois da citação (até 160 caracteres), depois antes dela.
+  const fimLinha = texto.indexOf("\n", fim);
+  const depois = texto.slice(fim, Math.min(fim + 160, fimLinha < 0 ? texto.length : fimLinha));
+  const iniLinha = texto.lastIndexOf("\n", ini) + 1;
+  const antes = texto.slice(Math.max(iniLinha, ini - 80), ini);
+  const achar = (alvo: string, doFim: boolean) => {
+    let melhor: { k: string; d: number } | null = null;
+    for (const l of LEIS) {
+      const ms = [...alvo.matchAll(new RegExp(l.menciona.source, l.menciona.flags.includes("i") ? "gi" : "g"))];
+      const m = doFim ? ms[ms.length - 1] : ms[0];
+      if (m?.index === undefined) continue;
+      const d = doFim ? alvo.length - m.index : m.index;
+      if (!melhor || d < melhor.d) melhor = { k: l.chave, d };
+    }
+    return melhor?.k;
+  };
+  // "Art. 24 do Decreto 10.024" / "Art. 30 da Lei 8.666": a lei vem logo depois
+  return achar(depois, false) ?? achar(antes, true) ?? padrao;
+}
+
+// Trecho literal atribuído à citação: texto entre aspas logo depois dela (mesma linha/frase).
+function trechoProximo(texto: string, fim: number): string | undefined {
+  const janela = texto.slice(fim, fim + 400).split(/\n\s*[•\-*]|\n\n/)[0];
+  const m = janela.match(/["“]([^"”]{25,600})["”]/);
+  return m?.[1];
+}
+
+export function extrairCitacoes(texto: string, leiPadrao = "14133") {
+  texto = texto.replace(/(§§?\s*\d{1,2}\s*[º°o]?|par[áa]grafo\s+[úu]nico|inciso\s+[IVXLC]{1,7})\s+do\s+([Aa]rt(?:igo)?\.?\s*\d{1,4}\s*[º°o]?)/g, "$2, $1");
+  const out: Omit<Citacao, "status" | "motivo">[] = [];
+  const faixas = new Map<number, number>();
+  for (const f of texto.matchAll(/\bArts\.?\s*(\d{1,4})\s*[º°o]?\s*(?:a|e)\s*(\d{1,4})/g)) faixas.set(f.index!, Number(f[2]));
+  for (const m of texto.matchAll(RE_CIT)) {
+    const art = Number(m[1]);
+    const fimFaixa = faixas.get(m.index!);
+    const artFim = fimFaixa && fimFaixa > art && fimFaixa - art <= 6 ? fimFaixa : undefined;
+    const cauda = m[2] || "";
+    const lei = leiDaVizinhanca(texto, m.index!, m.index! + m[0].length, leiPadrao);
+    const pars = [...cauda.matchAll(/(\d{1,2})\s*[º°o]?/g)].filter(() => /§/.test(cauda)).map((x) => x[1]);
+    if (/par[áa]grafo\s+[úu]nico/i.test(cauda)) pars.push("unico");
+    const inc = cauda.match(/\b([IVXLC]{1,7})\b(?![a-z])/)?.[1];
+    const trecho = trechoProximo(texto, m.index! + m[0].length);
+    const nome = LEIS.find((l) => l.chave === lei)?.nome || lei;
+    const base = { lei, art, artFim, inciso: inc, trecho };
+    if (pars.length) for (const p of pars) out.push({ ...base, par: p, rotulo: `Art. ${art}, ${p === "unico" ? "parágrafo único" : `§ ${p}º`}${inc ? `, ${inc}` : ""} · ${nome}` });
+    else out.push({ ...base, rotulo: `${artFim ? `Arts. ${art} a ${artFim}` : `Art. ${art}`}${inc ? `, ${inc}` : ""} · ${nome}` });
+  }
+  return out;
+}
+
+// ---------- conferência ----------
+export function contem(alvo: string, trecho: string): boolean {
+  const pedacos = trecho.split(/\.\.\.|…|\[\.\.\.\]|\(\.\.\.\)/).map(normalizar).filter((p) => p.split(" ").length >= 3);
+  if (!pedacos.length) return false;
+  let de = 0;
+  for (const p of pedacos) {
+    const i = alvo.indexOf(p, de);
+    if (i < 0) return false;
+    de = i + p.length;
+  }
+  return true;
+}
+
+export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citacao[] {
+  const grupos = new Map<string, Omit<Citacao, "status" | "motivo">[]>();
+  for (const c of extrairCitacoes(texto, leiPadrao)) {
+    const chave = `${c.lei}|${c.art}-${c.artFim ?? ""}|${c.par ?? ""}|${c.inciso ?? ""}`;
+    grupos.set(chave, [...(grupos.get(chave) || []), c]);
+  }
+  const out: Citacao[] = [];
+  for (const lista of grupos.values()) {
+    const c = lista[0];
+    const lei = idx.get(c.lei);
+    let a = lei?.get(c.art);
+    if (lei && c.artFim) {
+      // intervalo: junta o texto dos artigos que existem nele
+      const partes = Array.from({ length: c.artFim - c.art + 1 }, (_, k) => lei.get(c.art + k)).filter(Boolean) as Artigo[];
+      a = partes.length ? { texto: "", norm: partes.map((x) => x.norm).join(" "), pars: new Map(), incisos: new Set() } : undefined;
+    }
+    const res = (status: Status, motivo: string, trecho = c.trecho) => out.push({ ...c, trecho, status, motivo });
+    if (!lei) { res("sem_trecho", "norma fora da base indexada"); continue; }
+    if (!a) { res("nao_confere", `o Art. ${c.art} não existe nessa norma`); continue; }
+    if (c.par && !a.pars.has(c.par)) { res("nao_confere", `o Art. ${c.art} não tem ${c.par === "unico" ? "parágrafo único" : `§ ${c.par}º`}`); continue; }
+    if (c.inciso && !a.incisos.has(c.inciso)) { res("nao_confere", `o Art. ${c.art} não tem inciso ${c.inciso}`); continue; }
+    // Qualquer trecho que não esteja no artigo reprova: é o sinal de artigo trocado.
+    const comTrecho = lista.filter((x) => x.trecho);
+    const falho = comTrecho.find((x) => !contem(a.norm, x.trecho!));
+    if (falho) { res("nao_confere", `o trecho citado não está no Art. ${c.art}`, falho.trecho); continue; }
+    if (comTrecho.length) { res("conferida", "trecho confere com o texto oficial", comTrecho[0].trecho); continue; }
+    res("sem_trecho", "dispositivo existe; a resposta não transcreveu o trecho");
+  }
+  // Menção solta ("o Art. 67") já coberta por citação conferida do mesmo artigo
+  // ("Art. 67, IV" com trecho) não precisa de aviso.
+  return out.filter((c) => !(c.status === "sem_trecho" && !c.par && !c.inciso &&
+    out.some((o) => o !== c && o.lei === c.lei && o.art === c.art && o.status === "conferida")));
+}
+
+// Acórdão/súmula só vale se o número aparecer no contexto recuperado (base ou busca ao vivo).
+export function conferirJurisprudencia(texto: string, contexto: string): { rotulo: string; ok: boolean }[] {
+  const re = /(Ac[óo]rd[ãa]o\s*(?:n[º°o]\s*)?[\d.]{2,6}\/\d{4}|S[úu]mula\s*(?:TCU\s*)?(?:n[º°o]\s*)?\d{1,4})/gi;
+  const ctx = normalizar(contexto);
+  const out = new Map<string, boolean>();
+  for (const m of texto.matchAll(re)) {
+    const num = m[0].match(/[\d.]+(?:\/\d{4})?/)![0].replace(/\./g, "");
+    out.set(m[0].replace(/\s+/g, " "), ctx.replace(/ /g, "").includes(normalizar(num).replace(/ /g, "")));
+  }
+  return [...out].map(([rotulo, ok]) => ({ rotulo, ok }));
+}
+
+// Rodapé em markdown com o resultado da conferência.
+export function rodapeVerificacao(cits: Citacao[], juris: { rotulo: string; ok: boolean }[] = []): string {
+  if (!cits.length && !juris.length) return "";
+  const ok = cits.filter((c) => c.status === "conferida");
+  const sem = cits.filter((c) => c.status === "sem_trecho");
+  const nao = cits.filter((c) => c.status === "nao_confere");
+  const jNao = juris.filter((j) => !j.ok);
+  const linhas = ["", "---", "**🔎 Conferência automática no texto oficial indexado**"];
+  if (ok.length) linhas.push(`✅ ${ok.map((c) => c.rotulo).join(" · ")}`);
+  if (sem.length) linhas.push(`⚠️ Dispositivo existe, sem trecho transcrito para conferir: ${sem.map((c) => c.rotulo).join(" · ")}`);
+  if (nao.length) linhas.push(`❌ Não confere (desconsidere): ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
+  if (jNao.length) linhas.push(`❌ Jurisprudência não localizada nas fontes consultadas (desconsidere o número): ${jNao.map((j) => j.rotulo).join(" · ")}`);
+  return linhas.join("\n\n");
+}
+
+export const REGRA_TRECHO = `
+PROVA DE CADA CITAÇÃO (a plataforma confere automaticamente, e o que não conferir é marcado como inválido para o usuário):
+- Toda vez que citar um dispositivo (Art. N, §, inciso), escreva logo depois, entre aspas, um trecho LITERAL de 8 a 30 palavras copiado do texto desse dispositivo na BASE JURÍDICA. Ex.: Art. 63, § 3º — Lei 14.133/2021: "o edital de licitação sempre deverá prever a possibilidade de substituição da vistoria por declaração formal".
+- Copie o trecho exatamente como está, sem parafrasear. Se não tiver o texto do dispositivo na base, não cite o número.
+- Acórdão ou súmula só se o número aparecer no contexto fornecido.`;

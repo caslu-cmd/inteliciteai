@@ -211,10 +211,19 @@ export default function QuotationPage() {
             {simulating ? (
               <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin text-accent" />
-                <span className="text-sm">Consultando preços de referência...</span>
+                <span className="text-sm">Gerando estimativa da IA...</span>
               </div>
             ) : simulacao && (
               <div className="space-y-6">
+                {/* As faixas saem do conhecimento geral da IA, sem consulta a banco de preços. */}
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-300 flex gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Estimativa da IA, sem fonte de preço.</strong> Serve só como ordem de grandeza e <strong>não é pesquisa de preços</strong>:
+                    o Art. 5º da IN SEGES/ME nº 65/2021 exige parâmetros como Painel de Preços, contratações similares da Administração
+                    ou mídia especializada. Para valores com fonte, use a pesquisa com fontes do Notebook IA.
+                  </p>
+                </div>
                 {/* Faixas por item */}
                 {simulacao.itens && simulacao.itens.length > 0 && (
                   <div>

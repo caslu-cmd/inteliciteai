@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
+import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -66,7 +68,8 @@ Deno.serve(async (req: Request) => {
 
   const contexto = await contextoJuridico(messages, req.headers.get("Authorization")!);
 
-  try {
+  const historico = messages.map((m: any) => ({ role: m.role, content: m.content }));
+  const chamar = async (msgs: { role: string; content: string }[]) => {
     const res = await fetch(ANTHROPIC_API, {
       method: "POST",
       headers: {
@@ -78,19 +81,41 @@ Deno.serve(async (req: Request) => {
         model: "claude-opus-4-8",
         max_tokens: 2000,
         system: comContexto(SYSTEM, contexto),
-        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
+        messages: msgs,
       }),
     });
+    if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
+    return (await res.json()).content?.[0]?.text ?? "Sem resposta.";
+  };
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Claude ${res.status}: ${text}`);
-    }
+  try {
+    let reply = await chamar(historico);
 
-    const data = await res.json();
-    const reply = data.content?.[0]?.text ?? "Sem resposta.";
+    // Conferência automática: cada citação é localizada na íntegra oficial indexada.
+    // Se alguma for reprovada, a IA reescreve UMA vez sabendo o que falhou.
+    let verificacao = null;
+    try {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const idx = await carregarIndice(admin);
+      const fontes = contexto + "\n" + messages.map((m: { content: string }) => m.content).join("\n");
+      let citacoes = conferir(reply, idx);
+      let jurisprudencia = conferirJurisprudencia(reply, fontes);
+      const falhas = [...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
+                      ...jurisprudencia.filter((j) => !j.ok).map((j) => `${j.rotulo}: número não consta nas fontes fornecidas`)];
+      if (falhas.length) {
+        reply = await chamar([...historico, { role: "assistant", content: reply }, {
+          role: "user",
+          content: `A conferência automática no texto oficial REPROVOU estas citações:\n- ${falhas.join("\n- ")}\n\nReescreva a resposta COMPLETA corrigindo-as: use só dispositivos presentes na BASE JURÍDICA, com o trecho literal entre aspas, ou retire a citação. Não comente a correção.`,
+        }]);
+        citacoes = conferir(reply, idx);
+        jurisprudencia = conferirJurisprudencia(reply, fontes);
+      }
+      const rodape = rodapeVerificacao(citacoes, jurisprudencia);
+      if (rodape) reply += "\n" + rodape;
+      verificacao = { citacoes, jurisprudencia };
+    } catch { /* a conferência nunca derruba a resposta */ }
 
-    return new Response(JSON.stringify({ reply }), {
+    return new Response(JSON.stringify({ reply, verificacao }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {

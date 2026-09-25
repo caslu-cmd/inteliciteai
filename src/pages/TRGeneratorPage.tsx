@@ -1,3 +1,5 @@
+import { lerStreamIA, type VerificacaoIA } from "@/lib/lerStreamIA";
+import { PainelVerificacao } from "@/components/PainelVerificacao";
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -502,6 +504,7 @@ export default function TRGeneratorPage() {
   const [section, setSection] = useState(1);
   const [form, setForm] = useState<TRForm>(FORM0);
   const [aiContent, setAiContent] = useState("");
+  const [verificacao, setVerificacao] = useState<VerificacaoIA | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState<string | null>(null);
@@ -568,24 +571,9 @@ export default function TRGeneratorPage() {
         body: JSON.stringify({ tipo: "tr", formData: { ...form, municipalityContext }, stream: true }),
       });
       if (!res.ok) throw new Error("Falha");
-      const reader = res.body?.getReader();
-      const dec = new TextDecoder();
-      let acc = "";
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          for (const line of dec.decode(value, { stream: true }).split("\n")) {
-            if (line.startsWith("data: ")) {
-              try {
-                const j = JSON.parse(line.slice(6));
-                if (j.type === "content_block_delta" && j.delta?.text) { acc += j.delta.text; setAiContent(acc); }
-              } catch {}
-            }
-          }
-        }
-        toast.success("TR gerado com sucesso!");
-      }
+      setVerificacao(null);
+      await lerStreamIA(res, { onTexto: setAiContent, onVerificacao: setVerificacao });
+      toast.success("TR gerado com sucesso!");
     } catch { toast.error("Erro ao gerar o TR. Tente novamente."); }
     finally { setGenerating(false); }
   }, [form, pct]);
@@ -850,6 +838,7 @@ export default function TRGeneratorPage() {
                   {aiContent && (
                     <div className="prose prose-sm max-w-none dark:prose-invert [&>h1]:text-sm [&>h2]:text-xs [&>p]:text-xs [&>p]:leading-relaxed [&>ul]:text-xs [&>ol]:text-xs">
                       <ReactMarkdown>{aiContent}</ReactMarkdown>
+                  <PainelVerificacao v={verificacao} />
                     </div>
                   )}
                 </div>
@@ -863,6 +852,7 @@ export default function TRGeneratorPage() {
                   [&>ol]:text-xs [&>ol]:space-y-0.5
                   [&>blockquote]:border-l-2 [&>blockquote]:border-amber-500 [&>blockquote]:pl-3 [&>blockquote]:text-xs [&>blockquote]:text-muted-foreground">
                   <ReactMarkdown>{aiContent}</ReactMarkdown>
+                  <PainelVerificacao v={verificacao} />
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full py-8 text-center gap-3">

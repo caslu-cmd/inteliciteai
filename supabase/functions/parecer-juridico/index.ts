@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { contextoPorAssunto } from "../_shared/contexto-juridico.ts";
+import { carregarIndice, conferir, conferirJurisprudencia, contem, normalizar } from "../_shared/verifica-citacoes.ts";
 
 // Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
 // Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
@@ -20,6 +22,8 @@ REGRA NÚMERO UM — NADA É INVENTADO. Cada afirmação precisa ter fonte ao la
 - Lei: cite lei, artigo, inciso e parágrafo. Use a BASE JURÍDICA fornecida (texto oficial indexado do Planalto) como fonte. Se o dispositivo não estiver na base e você não tiver certeza absoluta, escreva "[texto legal não verificado nesta sessão]" no campo fundamento.
 - Jurisprudência (TCU/STJ/STF/AGU/SEGES): só cite acórdão/súmula/orientação que apareça na BASE JURÍDICA (ela traz a busca ao vivo). NUNCA cite número de memória. Se lembra da tese mas não há fonte no contexto, escreva no problema "há entendimento nesse sentido, mas não localizei a decisão para citar" e classifique como risco, nunca como ilegalidade.
 
+CONFERÊNCIA AUTOMÁTICA: depois de você responder, a plataforma localiza cada artigo/parágrafo/inciso citado na íntegra oficial e confere se o "textoLegal" está nele, e se o "trecho" está no documento analisado. O que não conferir é mostrado ao usuário como NÃO CONFERE. Copie os trechos exatamente.
+
 PROIBIDO: inventar número de artigo/acórdão/súmula/decreto/IN/prazo; dizer "a lei exige" sem fonte ao lado; presumir o conteúdo de anexos/planilhas/minutas não entregues (liste-os em naoAnalisado); calcular prazo sem as datas constantes do documento.
 
 CLASSIFICAÇÃO de cada achado:
@@ -35,8 +39,8 @@ Responda SOMENTE com um JSON válido (sem texto fora do JSON, sem markdown):
  "identificacao": {"documento":"tipo (edital/proposta/habilitação/contrato/minuta/aditivo/ata)", "orgao":"", "objeto":"", "regime":"regime legal aplicável, ex.: Lei 14.133/2021", "datasChave":["rótulo: data"], "naoAnalisado":["anexos/itens referenciados mas não entregues"]},
  "sumarioExecutivo": "até ~8 linhas: os 3-5 achados que mais importam e a recomendação central",
  "veredito": "participar|participar_com_ressalvas|impugnar|recorrer|assinar_com_ressalvas|nao_recomendado|conforme",
- "achados": [{"item":"item/cláusula do documento", "trecho":"trecho literal entre aspas (ou vazio se for observação geral)", "categoria":"ilegalidade|risco|impugnacao|recurso|observacao", "gravidade":"alta|media|baixa", "problema":"o que está errado e por quê", "fundamento":"lei/artigo ou '[não verificado nesta sessão]'", "fonte":"ex.: Lei 14.133/2021 art. 40", "url":"URL oficial SOMENTE se aparecer na BASE JURÍDICA; senão vazio", "acao":"o que fazer (impugnar/recorrer/sanar/ajustar/etc.)"}],
- "prazos": [{"evento":"", "dataLimite":"calculada ou 'depende de data não informada'", "baseLegal":"", "premissa":"dias úteis/feriados"}],
+ "achados": [{"item":"item/cláusula do documento", "trecho":"trecho literal entre aspas (ou vazio se for observação geral)", "categoria":"ilegalidade|risco|impugnacao|recurso|observacao", "gravidade":"alta|media|baixa", "problema":"o que está errado e por quê", "fundamento":"lei/artigo ou '[não verificado nesta sessão]'", "fonte":"ex.: Lei 14.133/2021 art. 69, § 4º", "textoLegal":"trecho LITERAL de 8 a 30 palavras do dispositivo citado, copiado da BASE JURÍDICA sem alterar nada (a plataforma confere automaticamente); vazio se o dispositivo não estiver na base", "url":"URL oficial SOMENTE se aparecer na BASE JURÍDICA; senão vazio", "acao":"o que fazer (impugnar/recorrer/sanar/ajustar/etc.)"}],
+ "prazos": [{"evento":"", "dataLimite":"calculada ou 'depende de data não informada'", "baseLegal":"", "textoLegal":"trecho LITERAL do dispositivo do prazo, copiado da BASE JURÍDICA; vazio se não estiver na base", "premissa":"dias úteis/feriados"}],
  "naoVerificado": ["o que não foi possível confirmar (norma não acessada, anexo ausente, jurisprudência não localizada)"],
  "fontes": [{"rotulo":"ex.: Lei 14.133/2021 art. 69", "url":"URL só se estiver na BASE JURÍDICA; senão vazio. NUNCA invente URL."}],
  "recomendacaoFinal": "orientação prática final"
@@ -77,52 +81,16 @@ Deno.serve(async (req) => {
   // resposta começa na hora e manda um espaço a cada 10 s até o JSON ficar pronto
   // (espaço antes do JSON é válido). Erro vai no corpo, como { error }.
   const gerar = async () => {
-    // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo (search-legal).
-    // Uma busca só, com o documento inteiro, se perdia entre assuntos misturados e
-    // deixava de fora artigos que estão na base (vistoria, prazo de impugnação,
-    // capital mínimo). Agora cada cláusula vira uma busca, em paralelo, e os
-    // trechos repetidos são descartados. A jurisprudência ao vivo vem numa busca à parte.
-    const buscar = async (query: string, matchCount: number, includeWebSearch: boolean) => {
-      try {
-        const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: authHeader,
-            apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-          },
-          body: JSON.stringify({ query, matchCount, includeWebSearch }),
-          signal: AbortSignal.timeout(60000),
-        });
-        return r.ok ? ((await r.json()).context || "").trim() : "";
-      } catch { return ""; }
-    };
+    // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo: uma busca
+    // por cláusula, em paralelo (ver contextoPorAssunto). A primeira consulta, com o
+    // título e o início do documento, é a que traz a jurisprudência ao vivo.
     const clausulas = texto.split(/\n(?=\s*\d+(?:\.\d+)*[.)\s-])|\n\s*\n/)
       .map((c) => c.replace(/\s+/g, " ").trim())
       .filter((c) => c.length >= 40)
-      .slice(0, 10);
+      .slice(0, 9);
     const consultas = clausulas.length ? clausulas.map((c) => c.slice(0, 600)) : [texto.slice(0, 1000)];
-    const contextos = await Promise.all([
-      ...consultas.map((q) => buscar(q, 3, false)),
-      buscar(`${body.titulo || ""} ${consultas.slice(0, 3).join(" ")}`.slice(0, 600), 2, true),
-    ]);
-    const vistos = new Set<string>();
-    const trechos: string[] = [];
-    const juris: string[] = [];
-    for (const ctx of contextos) {
-      for (const parte of ctx.split(/\n\n---\n\n/)) {
-        if (parte.startsWith("JURISPRUDÊNCIA")) { if (!juris.includes(parte)) juris.push(parte); continue; }
-        for (const t of parte.replace(/^BASE JURÍDICA INTELICITE:\n/, "").split(/\n\n(?=\[\d+\])/)) {
-          const corpo = t.replace(/^\[\d+\]\s*/, "").trim();
-          const chave = corpo.slice(0, 200);
-          if (corpo && !vistos.has(chave)) { vistos.add(chave); trechos.push(corpo); }
-        }
-      }
-    }
-    const baseJuridica = [
-      trechos.length ? `BASE JURÍDICA INTELICITE:\n${trechos.slice(0, 24).map((t, i) => `[${i + 1}] ${t}`).join("\n\n")}` : "",
-      ...juris,
-    ].filter(Boolean).join("\n\n---\n\n");
+    const baseJuridica = await contextoPorAssunto(
+      [`${body.titulo || ""} ${consultas.slice(0, 3).join(" ")}`.slice(0, 600), ...consultas], authHeader, 3);
 
     // 2) Monta o prompt e chama a Claude
     const docTrunc = texto.slice(0, 24000);
@@ -155,6 +123,30 @@ Deno.serve(async (req) => {
     let parecer;
     try { parecer = extrairJSON(raw); }
     catch { throw new Error("Não foi possível interpretar o parecer. Tente de novo."); }
+
+    // 3) Conferência automática (código, não IA): cada citação localizada na íntegra
+    // oficial, com o textoLegal conferido dentro do dispositivo; cada trecho do
+    // documento conferido no texto enviado. O resultado vai junto de cada achado.
+    // deno-lint-ignore no-explicit-any
+    const resumo = (cits: any[]) => cits.some((c) => c.status === "nao_confere") ? "nao_confere"
+      : cits.some((c) => c.status === "conferida") ? "conferida" : cits.length ? "sem_trecho" : "sem_citacao";
+    try {
+      const idx = await carregarIndice(supabase);
+      const docNorm = normalizar(texto);
+      // deno-lint-ignore no-explicit-any
+      for (const a of (parecer.achados || []) as any[]) {
+        const cits = conferir(`${a.fonte || ""}: "${a.textoLegal || ""}"
+${a.fundamento || ""}`, idx);
+        a.verificacao = { status: resumo(cits), citacoes: cits };
+        a.trechoConfere = a.trecho ? contem(docNorm, a.trecho) : null;
+      }
+      // deno-lint-ignore no-explicit-any
+      for (const p of (parecer.prazos || []) as any[]) {
+        const cits = conferir(`${p.baseLegal || ""}: "${p.textoLegal || ""}"`, idx);
+        p.verificacao = { status: resumo(cits), citacoes: cits };
+      }
+      parecer.jurisprudenciaVerificada = conferirJurisprudencia(JSON.stringify(parecer), baseJuridica);
+    } catch { /* a conferência nunca derruba o parecer */ }
 
     return { parecer, temBase: !!baseJuridica, geradoEm: new Date().toISOString() };
   };

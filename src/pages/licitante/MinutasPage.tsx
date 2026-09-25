@@ -1,3 +1,4 @@
+import { MensagemMarkdown } from "@/components/MensagemMarkdown";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LicitanteLayout } from "@/components/licitante/LicitanteLayout";
@@ -54,6 +55,8 @@ export default function MinutasPage() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Minuta | null>(null);
+  // Conferência automática das citações da minuta recém-gerada (não é salva no texto).
+  const [verificacao, setVerificacao] = useState<string | null>(null);
 
   const loadMinutas = async () => {
     setLoadingList(true);
@@ -114,6 +117,7 @@ export default function MinutasPage() {
       if (saveErr) throw new Error(saveErr.message);
 
       setPreview(saved as Minuta);
+      setVerificacao(json.verificacao || null);
       setShowForm(false);
       setEdital(""); setOrgao(""); setClausula(""); setMotivo("");
       loadMinutas();
@@ -270,6 +274,12 @@ export default function MinutasPage() {
                   </button>
                 </div>
               </div>
+              {verificacao && preview.conteudo && (
+                <div className={`mx-5 mt-4 rounded-lg border p-3 text-xs ${verificacao.includes("❌") ? "border-red-500/30 bg-red-500/5" : "border-emerald-500/30 bg-emerald-500/5"}`}>
+                  <MensagemMarkdown className="text-muted-foreground">{verificacao}</MensagemMarkdown>
+                  {verificacao.includes("❌") && <p className="mt-1 font-medium text-red-400">Corrija ou retire as citações marcadas com ❌ antes de protocolar.</p>}
+                </div>
+              )}
               <pre className="p-5 text-xs text-card-foreground whitespace-pre-wrap leading-relaxed font-mono max-h-96 overflow-y-auto">
                 {preview.conteudo}
               </pre>
@@ -343,7 +353,7 @@ export default function MinutasPage() {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar"
-                        onClick={() => setPreview(isPreview ? null : minuta)}>
+                        onClick={() => { setVerificacao(null); setPreview(isPreview ? null : minuta); }}>
                         {isPreview ? <ChevronUp className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Copiar"

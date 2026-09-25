@@ -1,4 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
+import { carregarIndice, conferir, contem, normalizar } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -27,7 +30,7 @@ Analise o edital e retorne SOMENTE um objeto JSON válido neste formato (sem tex
     { "categoria": "<Jurídica|Fiscal|Técnica|Econômico-Financeira>", "status": "<apto|risco|nao_atende>", "itens": ["<exigência>"] }
   ],
   "riscos": [
-    { "level": "<low|medium|high>", "title": "<título>", "ref": "<Art. X — Lei 14.133/2021>", "excerpt": "<trecho literal>" }
+    { "level": "<low|medium|high>", "title": "<título>", "ref": "<Art. X — Lei 14.133/2021, só se estiver na BASE JURÍDICA; senão vazio>", "textoLegal": "<trecho LITERAL de 8 a 30 palavras do dispositivo, copiado da BASE JURÍDICA>", "excerpt": "<trecho literal do EDITAL>" }
   ],
   "recomendacoes": ["<ação recomendada>"]
 }
@@ -65,6 +68,21 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Base jurídica para os riscos (antes a análise citava artigos de memória). Com texto,
+  // a busca usa o próprio edital; com PDF, os temas que a análise sempre verifica.
+  const temas = [
+    "capital mínimo ou patrimônio líquido mínimo exigido na qualificação econômico-financeira",
+    "vistoria prévia do local substituída por declaração formal",
+    "qualificação técnica documentos exigíveis atestados de capacidade técnica",
+    "prazo para impugnar o edital de licitação",
+    "indicação de marca ou modelo na descrição do objeto",
+    "certificação por organização independente acreditada",
+  ];
+  const clausulas = text
+    ? text.split(/\n(?=\s*\d+(?:\.\d+)*[.)\s-])|\n\s*\n/).map((c: string) => c.replace(/\s+/g, " ").trim()).filter((c: string) => c.length >= 40).slice(0, 6)
+    : [];
+  const contexto = await contextoPorAssunto([...temas, ...clausulas], req.headers.get("Authorization")!, 3);
+
   const userContent: any[] = pdfBase64
     ? [
         { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }, title: filename || "Edital" },
@@ -90,7 +108,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           model: "claude-opus-4-8",
           max_tokens: 2500,
-          system: SYSTEM,
+          system: comContexto(SYSTEM, contexto),
           messages: [{ role: "user", content: userContent }],
         }),
       });
@@ -112,7 +130,29 @@ Deno.serve(async (req: Request) => {
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("Resposta sem JSON válido");
 
-    return new Response(match[0], {
+    // Conferência automática de cada risco: o dispositivo citado tem de existir na
+    // íntegra oficial e o textoLegal tem de estar nele; com texto enviado, o trecho do
+    // edital também é conferido. O resultado aparece no próprio rótulo da referência.
+    let saida = match[0];
+    try {
+      const analise = JSON.parse(match[0]);
+      const idx = await carregarIndice(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
+      const edNorm = text ? normalizar(text) : "";
+      for (const r of analise.riscos || []) {
+        if (!r.ref) { r.ref = "Sem dispositivo citado (orientação, não fundamento legal)"; continue; }
+        const cits = conferir(`${r.ref}: "${r.textoLegal || ""}"`, idx);
+        const st = cits.some((c) => c.status === "nao_confere") ? "nao_confere"
+          : cits.some((c) => c.status === "conferida") ? "conferida" : "sem_trecho";
+        r.verificacao = { status: st, citacoes: cits };
+        r.ref += st === "conferida" ? " · ✅ conferido no texto oficial"
+          : st === "nao_confere" ? " · ❌ NÃO confere com a lei, desconsidere"
+          : " · ⚠️ sem trecho para conferir";
+        if (text && r.excerpt) r.excerptConfere = contem(edNorm, r.excerpt);
+      }
+      saida = JSON.stringify(analise);
+    } catch { /* a conferência nunca derruba a análise */ }
+
+    return new Response(saida, {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {

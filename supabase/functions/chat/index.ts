@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
+import { streamVerificado } from "../_shared/stream-verificado.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
@@ -144,7 +145,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(res.body, {
+    // Conferência automática das citações no fim do stream (rodapé da mensagem).
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const fontes = contexto + "\n" + messages.map((m) => m.content).join("\n");
+    return new Response(streamVerificado(res.body!, admin, fontes, "texto"), {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   }

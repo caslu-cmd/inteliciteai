@@ -1,4 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
+import { streamVerificado } from "../_shared/stream-verificado.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const RETRY_DELAYS = [1000, 2000, 4000];
@@ -495,6 +498,17 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
     });
   }
 
+  // ETP/TR/DFD terminam com a fundamentação legal transcrita, que o código confere
+  // na íntegra oficial (é o que pega artigo trocado, não só artigo inexistente).
+  const ehDocumento = tipo === "etp" || tipo === "tr" || tipo === "dfd";
+  if (ehDocumento) {
+    systemPrompt += `\n\nFUNDAMENTAÇÃO LEGAL (obrigatória, ao final do documento): uma seção "FUNDAMENTAÇÃO LEGAL" listando cada dispositivo citado no documento, um por linha, no formato: Art. N, § X, inciso Y — Lei nº: "trecho literal de 8 a 30 palavras copiado do texto do dispositivo". Use o texto da base jurídica do contexto; se não tiver o texto, não cite o número. A plataforma confere cada linha automaticamente no texto oficial.`;
+  }
+  if (tipo === "sugestao") {
+    systemPrompt += `\n\nSe citar dispositivo legal, cite apenas os que você tem certeza, com número exato; a plataforma confere cada citação no texto oficial e descarta a sugestão com citação inexistente.`;
+  }
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
   const contextPrefix = formData.municipalityContext
     ? `CONTEXTO ESPECÍFICO DO ÓRGÃO (regulamentos locais e base jurídica relevante):\n${formData.municipalityContext}\n\nUse este contexto para personalizar o documento, seguindo os regulamentos do órgão quando aplicável e citando as fontes fornecidas.\n\n---\n\n`
     : "";
@@ -516,7 +530,9 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
           status: 502, headers: { ...cors, "Content-Type": "application/json" },
         });
       }
-      return new Response(res.body, {
+      // A conferência chega como evento próprio no fim do stream: a tela mostra num
+      // painel, fora do texto do documento.
+      return new Response(streamVerificado(res.body!, admin, formData.municipalityContext || "", "evento"), {
         headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" },
       });
     } catch (err) {
@@ -535,10 +551,51 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
     if (tipo === "cotacao" || tipo === "notebookPrecos" || tipo === "previsao-anual") {
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Resposta sem JSON válido");
-      return new Response(match[0], { headers: { ...cors, "Content-Type": "application/json" } });
+      let saida = match[0];
+      try {
+        const j = JSON.parse(match[0]);
+        if (tipo === "cotacao") {
+          // Nenhum banco de preços é consultado: a faixa é conhecimento geral da IA.
+          for (const it of j.itens || []) it.referencia = "Estimativa da IA, sem fonte de preço (não vale como pesquisa de preços)";
+          j.semFonte = true;
+        }
+        if (tipo === "notebookPrecos") {
+          // Só passa valor que aparece de verdade nas fontes do usuário.
+          const fontesTxt = (formData.fontes || []).map((s: any) => String(s.content)).join("\n");
+          const aparece = (v: string) => {
+            const n = Number(String(v).replace(",", "."));
+            if (!isFinite(n) || n <= 0) return false;
+            const [int, dec] = n.toFixed(2).split(".");
+            const milhar = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            return [`${milhar},${dec}`, `${int},${dec}`, `${int}.${dec}`, dec === "00" ? `${milhar},00` : ""].filter(Boolean)
+              .some((f) => fontesTxt.includes(f));
+          };
+          const antes = (j.referencias || []).length;
+          j.referencias = (j.referencias || []).filter((r: any) => aparece(r.valorUnitario));
+          j.descartadasSemFonte = antes - j.referencias.length;
+        }
+        saida = JSON.stringify(j);
+      } catch { /* mantém a resposta original */ }
+      return new Response(saida, { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ conteudo: raw }), {
+    // Texto (ETP/TR/DFD sem stream e sugestão de campo): conferência das citações.
+    let conteudo = raw;
+    let verificacao = null;
+    try {
+      const idx = await carregarIndice(admin);
+      let cits = conferir(conteudo, idx);
+      if (tipo === "sugestao" && cits.some((c) => c.status === "nao_confere")) {
+        // Sugestão de campo é curta: refaz uma vez sem a citação reprovada.
+        const falhas = cits.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`).join("; ");
+        const r2 = await callClaude(apiKey, { ...claudeBody, messages: [...claudeBody.messages, { role: "assistant", content: conteudo },
+          { role: "user", content: `A conferência no texto oficial reprovou: ${falhas}. Reescreva o texto sem essas citações ou com o dispositivo correto. Só o texto.` }] });
+        if (r2.ok) { conteudo = (await r2.json()).content?.[0]?.text ?? conteudo; cits = conferir(conteudo, idx); }
+      }
+      verificacao = { citacoes: cits, markdown: rodapeVerificacao(cits, conferirJurisprudencia(conteudo, formData.municipalityContext || "")).replace(/^\s*---\s*/, "").trim() };
+    } catch { /* a conferência nunca derruba o documento */ }
+
+    return new Response(JSON.stringify({ conteudo, verificacao }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {

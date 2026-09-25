@@ -1,4 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
+import { carregarIndice, conferir, conferirJurisprudencia, rodapeVerificacao } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -34,7 +37,7 @@ Estrutura obrigatória:
 1. ILMO(A). SR(A). PREGOEIRO(A)/PRESIDENTE DA COMISSÃO
 2. Identificação e referência ao edital
 3. Dúvida ou inconsistência identificada (seja específico)
-4. Base legal para o pedido (Art. 164, §1º, Lei 14.133/2021)
+4. Base legal para o pedido (Art. 164, caput, Lei 14.133/2021)
 5. Questionamentos específicos (liste as dúvidas claramente)
 6. Pedido formal de resposta dentro do prazo legal
 7. Local e data: [____________________]
@@ -44,7 +47,7 @@ Use linguagem clara e respeitosa. Deixe colchetes [  ] onde dados devem ser pree
 
 CITAÇÃO DE FONTES OBRIGATÓRIA:
 Ao final inclua:
-> 📌 **Fundamentos:** Art. 164, §1º — Lei 14.133/2021 | [outros artigos aplicáveis]
+> 📌 **Fundamentos:** Art. 164 — Lei 14.133/2021 | [outros artigos aplicáveis]
 Cite apenas dispositivos reais.`;
 
 Deno.serve(async (req: Request) => {
@@ -89,36 +92,56 @@ Motivo/Fundamentação adicional: ${motivo || "conforme a legislação vigente"}
 
 Gere o documento completo, pronto para uso.`;
 
-  try {
+  // Base jurídica recuperada para a cláusula questionada (antes a peça era redigida de memória).
+  const auth = req.headers.get("Authorization")!;
+  const contexto = await contextoPorAssunto([
+    clausula,
+    motivo || "",
+    tipo === "impugnacao" ? "impugnação do edital prazo Art. 164" : "pedido de esclarecimento sobre os termos do edital Art. 164",
+  ], auth, 5);
+  const system = comContexto(systemPrompt, contexto);
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  const chamar = async (messages: { role: string; content: string }[]) => {
     const res = await fetch(ANTHROPIC_API, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 3000,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-opus-4-8", max_tokens: 3000, system, messages }),
     });
-
     if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`);
+    return (await res.json()).content?.[0]?.text ?? "";
+  };
 
-    const data = await res.json();
-    const conteudo = data.content?.[0]?.text ?? "";
+  try {
+    const idx = await carregarIndice(admin);
+    let conteudo = await chamar([{ role: "user", content: userPrompt }]);
+    let citacoes = conferir(conteudo, idx);
+    let jurisprudencia = conferirJurisprudencia(conteudo, contexto);
 
-    // Extract base legal from the content
-    const baseLegalMatch = conteudo.match(/Art\.\s*\d+[^\n]*/g);
-    const baseLegal = baseLegalMatch ? baseLegalMatch.slice(0, 3).join("; ") : "Lei 14.133/2021";
+    // Peça que vai ser protocolada não sai com citação reprovada: a IA recebe o que
+    // falhou e reescreve UMA vez; o código confere de novo.
+    const falhas = [...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
+                    ...jurisprudencia.filter((j) => !j.ok).map((j) => `${j.rotulo}: número não consta nas fontes fornecidas`)];
+    if (falhas.length) {
+      conteudo = await chamar([
+        { role: "user", content: userPrompt },
+        { role: "assistant", content: conteudo },
+        { role: "user", content: `A conferência automática no texto oficial REPROVOU estas citações:\n- ${falhas.join("\n- ")}\n\nReescreva o documento COMPLETO corrigindo-as: use só dispositivos presentes na BASE JURÍDICA, com o trecho literal entre aspas, ou retire a citação. Não comente a correção.` },
+      ]);
+      citacoes = conferir(conteudo, idx);
+      jurisprudencia = conferirJurisprudencia(conteudo, contexto);
+    }
+
+    const ok = citacoes.filter((c) => c.status === "conferida").map((c) => c.rotulo);
+    const baseLegal = (ok.length ? ok.slice(0, 4).join("; ") : "Lei 14.133/2021") +
+      (citacoes.some((c) => c.status === "nao_confere") ? " · ATENÇÃO: há citação que não confere" : "");
+    const verificacao = rodapeVerificacao(citacoes, jurisprudencia).replace(/^\s*---\s*/, "").trim();
 
     const titulo = tipo === "impugnacao"
       ? `Impugnação — ${edital}`
       : `Pedido de Esclarecimento — ${edital}`;
 
-    return new Response(JSON.stringify({ titulo, conteudo, baseLegal }), {
+    return new Response(JSON.stringify({ titulo, conteudo, baseLegal, verificacao, citacoes, jurisprudencia }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {

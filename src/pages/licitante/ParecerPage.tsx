@@ -15,8 +15,33 @@ import {
 interface Achado {
   item?: string; trecho?: string; categoria?: string; gravidade?: string;
   problema?: string; fundamento?: string; fonte?: string; url?: string; acao?: string;
+  textoLegal?: string; verificacao?: Verificacao; trechoConfere?: boolean | null;
 }
-interface Prazo { evento?: string; dataLimite?: string; baseLegal?: string; premissa?: string; }
+// Conferência automática feita no servidor, por código (não pela IA): cada citação
+// é localizada na íntegra oficial indexada e o trecho transcrito é conferido nela.
+interface Verificacao {
+  status: "conferida" | "sem_trecho" | "nao_confere" | "sem_citacao";
+  citacoes?: { rotulo: string; status: string; motivo: string }[];
+}
+
+function SeloVerificacao({ v, textoLegal }: { v?: Verificacao; textoLegal?: string }) {
+  if (!v) return null;
+  const falha = v.citacoes?.find((c) => c.status === "nao_confere");
+  const cfg = {
+    conferida: { cls: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5", txt: "Conferido no texto oficial da lei" },
+    sem_trecho: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Dispositivo existe, mas sem trecho transcrito para conferir" },
+    nao_confere: { cls: "text-red-400 border-red-500/30 bg-red-500/5", txt: `Fonte NÃO confere com a lei${falha ? `: ${falha.rotulo} (${falha.motivo})` : ""}. Desconsidere esta citação.` },
+    sem_citacao: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Sem dispositivo legal citado: trate como orientação, não como fundamento" },
+  }[v.status];
+  if (!cfg) return null;
+  return (
+    <div className={`mt-1.5 text-[11px] border rounded-md px-2 py-1 ${cfg.cls}`}>
+      <p className="font-medium">{v.status === "conferida" ? "✅" : v.status === "nao_confere" ? "❌" : "⚠️"} {cfg.txt}</p>
+      {v.status === "conferida" && textoLegal && <p className="italic opacity-90 mt-0.5">"{textoLegal}"</p>}
+    </div>
+  );
+}
+interface Prazo { evento?: string; dataLimite?: string; baseLegal?: string; premissa?: string; textoLegal?: string; verificacao?: Verificacao; }
 interface Fonte { rotulo: string; url?: string; }
 interface Identificacao { documento?: string; orgao?: string; objeto?: string; regime?: string; datasChave?: string[]; naoAnalisado?: string[]; }
 interface Parecer {
@@ -240,6 +265,9 @@ export default function ParecerPage() {
                         {a.trecho && (
                           <p className="text-xs italic text-muted-foreground border-l-2 border-border pl-2 my-1.5">"{a.trecho}"</p>
                         )}
+                        {a.trechoConfere === false && (
+                          <p className="text-[11px] text-red-400 mb-1">❌ Este trecho não foi encontrado no documento enviado. Confira antes de usar.</p>
+                        )}
                         {a.problema && <p className="text-sm text-card-foreground leading-relaxed">{a.problema}</p>}
                         {a.acao && <p className="text-xs text-foreground mt-1.5"><strong>Ação:</strong> {a.acao}</p>}
                         {(a.fonte || a.fundamento) && (
@@ -251,6 +279,7 @@ export default function ParecerPage() {
                             <p className="text-[11px] text-primary/80 mt-1 inline-flex items-center gap-1"><Paperclip className="h-3 w-3" /> {a.fonte || a.fundamento}</p>
                           )
                         )}
+                        <SeloVerificacao v={a.verificacao} textoLegal={a.textoLegal} />
                       </div>
                     );
                   })}
@@ -266,10 +295,13 @@ export default function ParecerPage() {
                 </p>
                 <div className="space-y-2">
                   {parecer.prazos.map((p, i) => (
-                    <div key={i} className="text-xs flex flex-col sm:flex-row sm:items-baseline gap-x-3 border-b border-border last:border-0 pb-2 last:pb-0">
-                      <span className="font-medium text-card-foreground sm:w-48 flex-shrink-0">{p.evento}</span>
-                      <span className="text-foreground">{p.dataLimite}</span>
-                      <span className="text-muted-foreground">{[p.baseLegal, p.premissa].filter(Boolean).join(" · ")}</span>
+                    <div key={i} className="text-xs border-b border-border last:border-0 pb-2 last:pb-0">
+                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-3">
+                        <span className="font-medium text-card-foreground sm:w-48 flex-shrink-0">{p.evento}</span>
+                        <span className="text-foreground">{p.dataLimite}</span>
+                        <span className="text-muted-foreground">{[p.baseLegal, p.premissa].filter(Boolean).join(" · ")}</span>
+                      </div>
+                      {p.verificacao && p.verificacao.status !== "sem_citacao" && <SeloVerificacao v={p.verificacao} textoLegal={p.textoLegal} />}
                     </div>
                   ))}
                 </div>
