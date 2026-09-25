@@ -588,7 +588,7 @@ Com base nesses dados históricos, gere a previsão estruturada conforme o forma
         const r2 = await callClaude(apiKey, { ...claudeBody, stream: false, messages: [...claudeBody.messages, { role: "assistant", content: anterior },
           { role: "user", content: PEDIDO_REESCRITA(falhas) + (tipo === "sugestao" ? " Só o texto do campo." : "") }] });
         return r2.ok ? ((await r2.json()).content?.[0]?.text ?? "") : "";
-      });
+      }, admin);
       conteudo = r.texto;
       verificacao = { citacoes: r.citacoes, normas: r.normas, markdown: r.rodape.replace(/^\s*---\s*/, "").trim() };
     } catch {

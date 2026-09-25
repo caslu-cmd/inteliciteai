@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
           const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
           const fontes = contexto + "\n" + messages.map((m) => m.content).join("\n");
           const r = await respostaSegura(texto, await carregarIndice(admin), fontes, (falhas, anterior) =>
-            chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]));
+            chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]), admin);
           texto = r.texto + (r.rodape ? "\n" + r.rodape : "");
         } catch {
           texto += "\n\n---\n\n⚠️ **A conferência automática ficou indisponível nesta resposta.** Não use números de artigo, lei ou acórdão sem conferir no texto oficial.";

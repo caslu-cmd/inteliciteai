@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
       const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const fontes = contexto + "\n" + messages.map((m: { content: string }) => m.content).join("\n");
       const r = await respostaSegura(reply, await carregarIndice(admin), fontes, (falhas, anterior) =>
-        chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]));
+        chamar([...historico, { role: "assistant", content: anterior }, { role: "user", content: PEDIDO_REESCRITA(falhas) }]), admin);
       reply = r.texto + (r.rodape ? "\n" + r.rodape : "");
       verificacao = { citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas };
     } catch {

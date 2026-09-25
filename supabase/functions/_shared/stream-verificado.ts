@@ -17,7 +17,7 @@ export function streamVerificado(corpo: ReadableStream<Uint8Array>, supabase: an
     injetado = true;
     let ev: Record<string, unknown>;
     try {
-      const r = await respostaSegura(texto, await carregarIndice(supabase), contexto);
+      const r = await respostaSegura(texto, await carregarIndice(supabase), contexto, undefined, supabase);
       ev = { type: "intelicite_verificacao", markdown: r.rodape.replace(/^\s*---\s*/, ""), citacoes: r.citacoes, normas: r.normas,
              jurisprudencia: r.jurisprudencia, ...(r.texto !== texto ? { texto: r.texto } : {}) };
     } catch {

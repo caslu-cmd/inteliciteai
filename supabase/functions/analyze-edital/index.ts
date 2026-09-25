@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, normalizar, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -136,7 +136,9 @@ Deno.serve(async (req: Request) => {
     let saida = match[0];
     try {
       const analise = JSON.parse(match[0]);
-      const idx = await carregarIndice(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const idx = await carregarIndice(admin);
+      await prepararComPlanalto(match[0], idx, admin).catch(() => {});   // normas fora da base
       const edNorm = text ? normalizar(text) : "";
       for (const r of analise.riscos || []) {
         if (!r.ref) { r.ref = "Sem dispositivo citado (orientação, não fundamento legal)"; continue; }

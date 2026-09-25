@@ -6,6 +6,8 @@
 // indexada (legal_knowledge) e confere se o TRECHO literal que a IA transcreveu
 // está mesmo naquele artigo. Número inexistente ou trecho de outro artigo = reprovado.
 
+import { buscarConstituicao, buscarNoPlanalto, gravarNaBase, nomeNorma, type TipoNorma } from "./planalto.ts";
+
 export type Status = "conferida" | "sem_trecho" | "nao_confere";
 export interface Citacao {
   rotulo: string;          // "Art. 63, § 3º — Lei 14.133/2021"
@@ -81,6 +83,13 @@ export async function carregarIndice(supabase: any): Promise<Indice> {
     if (doc?.content && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
   }
   catalogo = catalogoNormas((data || []).map((d: { title: string; content: string }) => `${d.title}\n${d.content || ""}`));
+  // Normas que a conferência já trouxe do Planalto em consultas anteriores: artigos indexados.
+  for (const d of (data || []) as { title: string; content: string }[]) {
+    if (!/íntegra do Planalto/.test(d.title) || !d.content) continue;
+    if (/^Constitui[çc][ãa]o Federal/.test(d.title)) { if (!idx.has("cf")) idx.set("cf", indexarLei(d.content)); continue; }
+    const m = [...d.title.matchAll(RE_NORMA)][0];
+    if (m) { const k = chaveNorma(m[1], m[2]); if (!FIXAS[k] && !idx.has(k)) idx.set(k, indexarLei(d.content)); }
+  }
   cache = idx;
   return idx;
 }
@@ -95,16 +104,24 @@ export function indiceDeTextos(docs: { title: string; content: string }[]): Indi
 }
 
 // ---------- extração ----------
-const RE_CIT = /\b[Aa]rt(?:igo)?s?\.?\s*(\d{1,4})\s*(?:º|°|o\b)?(?:-[A-Z])?((?:\s*,?\s*(?:§§?\s*\d{1,2}\s*[º°o]?(?:\s*(?:,|e|a)\s*\d{1,2}\s*[º°o]?)*|par[áa]grafo\s+[úu]nico|(?:inc(?:iso|\.)?\s*)?\b[IVXLC]{1,7}\b(?![a-z])|al[íi]nea\s+["“]?[a-z]["”]?))*)/g;
+const RE_CIT = /\b[Aa]rt(?:igo)?s?\.?\s*(\d{1,4})\s*(?:º|°|o\b)?(?:-[A-Z])?((?:\s*(?:,|\be\b)?\s*(?:caput\b|§§?\s*\d{1,2}\s*[º°o]?(?:\s*(?:,|e|a)\s*\d{1,2}\s*[º°o]?)*|par[áa]grafo\s+[úu]nico|(?:inc(?:iso|\.)?\s*)?\b[IVXLC]{1,7}\b(?![a-z])|al[íi]nea\s+["“]?[a-z]["”]?))*)/g;
 
 function leiDaVizinhanca(texto: string, ini: number, fim: number, padrao: string): string {
   // Lei na MESMA linha: primeiro depois da citação (até 160 caracteres), depois antes dela.
   const fimLinha = texto.indexOf("\n", fim);
-  const depois = texto.slice(fim, Math.min(fim + 160, fimLinha < 0 ? texto.length : fimLinha));
+  // A lei "depois" da citação nunca é procurada DENTRO do trecho entre aspas: a transcrição
+  // pode mencionar outra lei ("... art. 40 da Lei nº 13.303 ...") e não é ela a citada.
+  let depois = texto.slice(fim, Math.min(fim + 160, fimLinha < 0 ? texto.length : fimLinha));
+  const aspas = depois.search(/["“]/);
+  if (aspas >= 0) depois = depois.slice(0, aspas);
   const iniLinha = texto.lastIndexOf("\n", ini) + 1;
   const antes = texto.slice(Math.max(iniLinha, ini - 80), ini);
-  const achar = (alvo: string, doFim: boolean) => {
+  const achar = (alvo: string, doFim: boolean): { k: string; d: number } | undefined => {
     let melhor: { k: string; d: number } | null = null;
+    // Constituição Federal ("art. 173, § 1º, da Constituição Federal", "CF/88")
+    const cfs = [...alvo.matchAll(RE_CF)];
+    const cf = doFim ? cfs[cfs.length - 1] : cfs[0];
+    if (cf?.index !== undefined) melhor = { k: "cf", d: doFim ? alvo.length - cf.index : cf.index };
     for (const l of LEIS) {
       const ms = [...alvo.matchAll(new RegExp(l.menciona.source, l.menciona.flags.includes("i") ? "gi" : "g"))];
       const m = doFim ? ms[ms.length - 1] : ms[0];
@@ -112,11 +129,25 @@ function leiDaVizinhanca(texto: string, ini: number, fim: number, padrao: string
       const d = doFim ? alvo.length - m.index : m.index;
       if (!melhor || d < melhor.d) melhor = { k: l.chave, d };
     }
-    return melhor?.k;
+    // Qualquer outra lei/LC/decreto citado ("Art. 3º da Lei 13.303/2016"): chave genérica,
+    // que o Planalto resolve na hora.
+    const gs = [...alvo.matchAll(RE_NORMA)];
+    const g = doFim ? gs[gs.length - 1] : gs[0];
+    if (g?.index !== undefined) {
+      const d = (doFim ? alvo.length - g.index : g.index) + 0.5;
+      if (!melhor || d < melhor.d) melhor = { k: chaveNorma(g[1], g[2]), d };
+    }
+    return melhor ? { k: FIXAS[melhor.k] ?? melhor.k, d: melhor.d } : undefined;
   };
-  // "Art. 24 do Decreto 10.024" / "Art. 30 da Lei 8.666": a lei vem logo depois
-  return achar(depois, false) ?? achar(antes, true) ?? padrao;
+  // Vale a lei mencionada MAIS PERTO: "Art. 24 do Decreto 10.024" (logo depois) ou
+  // "Decreto nº 10.024/2019, Art. 1º, § 2º" (logo antes). Empate: a de depois.
+  const dp = achar(depois, false), an = achar(antes, true);
+  if (dp && an) return dp.d <= an.d ? dp.k : an.k;
+  return dp?.k ?? an?.k ?? padrao;
 }
+
+// Constituição Federal: não é "Lei nº", tem padrão próprio de menção.
+const RE_CF = /Constitui[çc][ãa]o(?:\s+Federal|\s+da\s+Rep[úu]blica)?|\bCF(?:\/88|\/1988)?\b|\bCRFB(?:\/88)?\b/gi;
 
 // Trecho literal atribuído à citação: texto entre aspas logo depois dela (mesma linha/frase).
 function trechoProximo(texto: string, fim: number): string | undefined {
@@ -135,7 +166,11 @@ export function extrairCitacoes(texto: string, leiPadrao = "14133") {
   const out: Omit<Citacao, "status" | "motivo">[] = [];
   const faixas = new Map<number, number>();
   for (const f of texto.matchAll(/\bArts\.?\s*(\d{1,4})\s*[º°o]?\s*(?:a|e)\s*(\d{1,4})/g)) faixas.set(f.index!, Number(f[2]));
+  // Menção a artigo DENTRO de um trecho transcrito ("... art. 40 da Lei nº 13.303 ...") é parte
+  // do texto oficial, não citação da IA: não é conferida à parte.
+  const transcricoes = [...texto.matchAll(/["“][^"”]{25,1200}["”]/g)].map((q) => [q.index!, q.index! + q[0].length]);
   for (const m of texto.matchAll(RE_CIT)) {
+    if (transcricoes.some(([i, f]) => m.index! > i && m.index! < f)) continue;
     const art = Number(m[1]);
     const fimFaixa = faixas.get(m.index!);
     const artFim = fimFaixa && fimFaixa > art && fimFaixa - art <= 6 ? fimFaixa : undefined;
@@ -145,7 +180,7 @@ export function extrairCitacoes(texto: string, leiPadrao = "14133") {
     if (/par[áa]grafo\s+[úu]nico/i.test(cauda)) pars.push("unico");
     const inc = cauda.match(/\b([IVXLC]{1,7})\b(?![a-z])/)?.[1];
     const trecho = trechoProximo(texto, m.index! + m[0].length);
-    const nome = LEIS.find((l) => l.chave === lei)?.nome || lei;
+    const nome = LEIS.find((l) => l.chave === lei)?.nome || nomeDaChave(lei);
     const base = { lei, art, artFim, inciso: inc, trecho, ocorrencias: [m[0].trim()] };
     if (pars.length) for (const p of pars) out.push({ ...base, par: p, rotulo: `Art. ${art}, ${p === "unico" ? "parágrafo único" : `§ ${p}º`}${inc ? `, ${inc}` : ""} · ${nome}` });
     else out.push({ ...base, rotulo: `${artFim ? `Arts. ${art} a ${artFim}` : `Art. ${art}`}${inc ? `, ${inc}` : ""} · ${nome}` });
@@ -183,7 +218,7 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
       a = partes.length ? { texto: "", norm: partes.map((x) => x.norm).join(" "), pars: new Map(), incisos: new Set() } : undefined;
     }
     const res = (status: Status, motivo: string, trecho = c.trecho) => out.push({ ...c, trecho, status, motivo });
-    if (!lei) { res("sem_trecho", "norma fora da base indexada"); continue; }
+    if (!lei) { res("sem_trecho", "o texto oficial desta norma não pôde ser obtido agora para conferir o artigo"); continue; }
     if (!a) { res("nao_confere", `o Art. ${c.art} não existe nessa norma`); continue; }
     if (c.par && !a.pars.has(c.par)) { res("nao_confere", `o Art. ${c.art} não tem ${c.par === "unico" ? "parágrafo único" : `§ ${c.par}º`}`); continue; }
     if (c.inciso && !a.incisos.has(c.inciso)) { res("nao_confere", `o Art. ${c.art} não tem inciso ${c.inciso}`); continue; }
@@ -251,7 +286,11 @@ export function conferirNormas(texto: string, contexto = ""): Norma[] {
     const k = chaveNorma(m[1], m[2]);
     const ano = anoCompleto(m[3] || m[4]);
     const conhecida = cat.get(k) || doContexto.get(k);
-    let ok = !!conhecida, motivo = conhecida ? "norma localizada" : "número não localizado nas fontes oficiais";
+    const noPlanalto = planalto.get(`${k}|${ano ?? ""}`) ?? planalto.get(`${k}|`);
+    let ok = !!conhecida, motivo = conhecida ? "norma localizada"
+      : noPlanalto === "inexistente" ? `não existe no Planalto${ano ? ` com esse número e ano` : ""}`
+      : noPlanalto === "indisponivel" ? "não foi possível confirmar no Planalto agora"
+      : "número não localizado nas fontes oficiais";
     if (conhecida && ano && conhecida.size && !conhecida.has(ano)) { ok = false; motivo = `o ano não confere (${[...conhecida].join(", ")})`; }
     const rotulo = m[0].replace(/\s+/g, " ").trim();
     const n = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [] };
@@ -259,6 +298,85 @@ export function conferirNormas(texto: string, contexto = ""): Norma[] {
     out.set(rotulo, n);
   }
   return [...out.values()];
+}
+
+// ---------- Planalto ao vivo ----------
+// As 8 normas indexadas têm chave própria; a chave genérica delas aponta para a mesma.
+const FIXAS: Record<string, string> = {
+  "lei|14133": "14133", "lei|8666": "8666", "lei|10520": "10520", "lc|123": "lc123",
+  "dec|10024": "d10024", "dec|11462": "d11462", "dec|11246": "d11246",
+};
+function nomeDaChave(k: string): string {
+  if (k === "cf") return "Constituição Federal";
+  const [t, n] = k.split("|");
+  return t && n ? nomeNorma(t as TipoNorma, Number(n), anosDoCatalogo(k)[0]) : k;
+}
+function anosDoCatalogo(k: string): number[] { return [...(catalogo?.get(k) ?? [])]; }
+// "chave|ano" -> resultado da consulta ao Planalto nesta instância
+const planalto = new Map<string, "encontrada" | "inexistente" | "indisponivel">();
+
+// Ano provável de uma norma citada sem ano, pela vizinhança numérica das normas já conhecidas
+// do mesmo tipo (a numeração de leis e decretos cresce com o tempo).
+function anosProvaveis(k: string): (number | undefined)[] {
+  const conhecidos = anosDoCatalogo(k);
+  if (conhecidos.length) return conhecidos;
+  const [t, n] = k.split("|"); const num = Number(n);
+  const pares = [...(catalogo ?? new Map()).entries()]
+    .filter(([c, anos]) => c.startsWith(t + "|") && anos.size)
+    .map(([c, anos]) => [Number(c.split("|")[1]), Math.min(...anos)] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  const abaixo = pares.filter((p) => p[0] <= num).pop(), acima = pares.find((p) => p[0] >= num);
+  let g: number | undefined;
+  if (abaixo && acima && acima[0] !== abaixo[0]) g = Math.round(abaixo[1] + (acima[1] - abaixo[1]) * (num - abaixo[0]) / (acima[0] - abaixo[0]));
+  else g = (abaixo ?? acima)?.[1];
+  return g ? [g, g - 1, g + 1, g - 2, g + 2, undefined] : [undefined];
+}
+
+// Antes de conferir: toda norma citada que não está na base é buscada no Planalto. Encontrada,
+// seus artigos entram no índice (o artigo citado passa a ser conferido) e a íntegra é gravada
+// na base; inexistente, fica registrada para ser removida do texto.
+// deno-lint-ignore no-explicit-any
+export async function prepararComPlanalto(texto: string, idx: Indice, supabase?: any, limite = 6): Promise<void> {
+  const pedidos = new Map<string, { tipo: TipoNorma; num: number; ano?: number }>();
+  for (const m of texto.replace(/\s+/g, " ").matchAll(RE_NORMA)) {
+    const num = Number(m[2].replace(/\./g, ""));
+    if (/^(lei|decreto)$/i.test(m[1]) && num < 100) continue;
+    const k = chaveNorma(m[1], m[2]);
+    if (FIXAS[k]) continue;
+    const ano = anoCompleto(m[3] || m[4]);
+    const anosConhecidos = anosDoCatalogo(k);
+    const precisaTexto = !idx.has(k);                               // para conferir artigo desta norma
+    const precisaExistencia = !anosConhecidos.length || (ano !== undefined && !anosConhecidos.includes(ano));
+    if (!precisaTexto && !precisaExistencia) continue;
+    if (planalto.has(`${k}|${ano ?? ""}`)) continue;
+    pedidos.set(`${k}|${ano ?? ""}`, { tipo: k.split("|")[0] as TipoNorma, num, ano });
+  }
+  // Constituição citada: íntegra do Planalto, só a parte permanente (o ADCT repete a numeração
+  // de artigos e misturaria "Art. 1º" da CF com "Art. 1º" do ADCT).
+  // A CF tem 1,8 MB e o Planalto leva ~18 s: na primeira vez fica gravada na base e daí em
+  // diante carrega do banco (carregarIndice).
+  const cf = !idx.has("cf") && new RegExp(RE_CF.source, "i").test(texto)
+    ? buscarConstituicao().then(async (t) => {
+      if (!t) return;
+      idx.set("cf", indexarLei(t));
+      if (supabase) {
+        const { data: existe } = await supabase.from("legal_knowledge").select("id").eq("reference", "Constituição Federal").maybeSingle();
+        if (!existe) await supabase.from("legal_knowledge").insert({ title: "Constituição Federal (íntegra do Planalto, importada na conferência automática)", source_type: "lei", reference: "Constituição Federal", year: 1988, content: t, active: true });
+      }
+    }).catch(() => {})
+    : null;
+  if (cf) await cf;
+  await Promise.all([...pedidos.entries()].slice(0, limite).map(async ([chave, p]) => {
+    const k = `${p.tipo}|${p.num}`;
+    const r = await buscarNoPlanalto(p.tipo, p.num, p.ano ? [p.ano] : anosProvaveis(k)).catch(() => ({ situacao: "indisponivel" as const }));
+    planalto.set(chave, r.situacao);
+    if (r.situacao !== "encontrada") return;
+    idx.set(k, indexarLei(r.texto));
+    const anos = catalogo?.get(k) ?? new Set<number>();
+    if (r.ano) anos.add(r.ano);
+    catalogo?.set(k, anos);
+    if (supabase) await gravarNaBase(supabase, p.tipo, p.num, r.ano, r.texto).catch(() => {});
+  }));
 }
 
 // ---------- remoção do que não confere ----------
@@ -299,8 +417,11 @@ export function rodapeVerificacao(cits: Citacao[], juris: Juris[] = [], normas: 
 export async function respostaSegura(
   texto: string, idx: Indice, fontes: string,
   reescrever?: (falhas: string[], anterior: string) => Promise<string>,
+  // deno-lint-ignore no-explicit-any
+  supabase?: any,
 ): Promise<{ texto: string; citacoes: Citacao[]; jurisprudencia: Juris[]; normas: Norma[]; rodape: string; reescrita: boolean }> {
-  const avaliar = (t: string) => {
+  const avaliar = async (t: string) => {
+    await prepararComPlanalto(t, idx, supabase).catch(() => {});   // norma fora da base: Planalto ao vivo
     const citacoes = conferir(t, idx), jurisprudencia = conferirJurisprudencia(t, fontes), normas = conferirNormas(t, fontes);
     const falhas = [
       ...citacoes.filter((c) => c.status === "nao_confere").map((c) => `${c.rotulo}: ${c.motivo}`),
@@ -309,12 +430,12 @@ export async function respostaSegura(
     ];
     return { citacoes, jurisprudencia, normas, falhas };
   };
-  let r = avaliar(texto);
+  let r = await avaliar(texto);
   let reescrita = false;
   if (r.falhas.length && reescrever) {
     try {
       const novo = await reescrever(r.falhas, texto);
-      if (novo?.trim()) { texto = novo; r = avaliar(texto); reescrita = true; }
+      if (novo?.trim()) { texto = novo; r = await avaliar(texto); reescrita = true; }
     } catch { /* fica com a primeira versão, saneada abaixo */ }
   }
   const limpo = sanear(texto, r.citacoes, r.jurisprudencia, r.normas);

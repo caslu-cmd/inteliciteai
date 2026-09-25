@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, normalizar, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 // Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
 // Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
       : cits.some((c) => c.status === "conferida") ? "conferida" : cits.length ? "sem_trecho" : "sem_citacao";
     try {
       const idx = await carregarIndice(supabase);
+      await prepararComPlanalto(JSON.stringify(parecer), idx, supabase).catch(() => {});   // normas fora da base
       const docNorm = normalizar(texto);
       // deno-lint-ignore no-explicit-any
       for (const a of (parecer.achados || []) as any[]) {

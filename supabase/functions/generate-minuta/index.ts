@@ -121,7 +121,7 @@ Gere o documento completo, pronto para uso.`;
       { role: "user", content: userPrompt },
       { role: "assistant", content: anterior },
       { role: "user", content: PEDIDO_REESCRITA(falhas) },
-    ]));
+    ]), admin);
     const { texto: conteudo, citacoes, jurisprudencia, normas } = r;
 
     const ok = citacoes.filter((c) => c.status === "conferida").map((c) => c.rotulo);
