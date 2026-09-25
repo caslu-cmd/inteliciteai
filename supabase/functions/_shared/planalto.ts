@@ -98,6 +98,22 @@ export async function buscarNoPlanalto(tipo: TipoNorma, num: number, anos: (numb
   return so404 ? { situacao: "inexistente" } : { situacao: "indisponivel" };
 }
 
+// ---------- reserva: Senado Federal (dados abertos de legislação) ----------
+// Quando o Planalto não responde, o Senado confirma se a norma EXISTE (número, data,
+// ementa). Não traz o texto: o artigo citado fica como "não conferido", mas a norma real
+// não é apagada por causa de uma queda do Planalto.
+const SIGLA_SENADO: Record<TipoNorma, string> = { lei: "LEI", lc: "LCP", dec: "DEC", dl: "DEL" };
+export async function confirmarNoSenado(tipo: TipoNorma, num: number, ano?: number): Promise<"existe" | "inexistente" | "indisponivel"> {
+  try {
+    const u = `https://legis.senado.leg.br/dadosabertos/legislacao/lista?tipo=${SIGLA_SENADO[tipo]}&numero=${num}${ano ? `&ano=${ano}` : ""}`;
+    const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0 Intelicite/1.0" }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return "indisponivel";
+    const xml = await r.text();
+    if (!/<ListaDocumento/.test(xml)) return "indisponivel";
+    return new RegExp(`<numero>0*${num}</numero>`).test(xml) ? "existe" : "inexistente";
+  } catch { return "indisponivel"; }
+}
+
 // ---------- gravação na base (a próxima consulta já encontra a norma indexada) ----------
 function fatiar(text: string, size = 800, overlap = 120): string[] {
   const out: string[] = [];
