@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, fontesOficiais, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 // Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
 // Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
@@ -39,10 +39,10 @@ Responda SOMENTE com um JSON válido (sem texto fora do JSON, sem markdown):
  "identificacao": {"documento":"tipo (edital/proposta/habilitação/contrato/minuta/aditivo/ata)", "orgao":"", "objeto":"", "regime":"regime legal aplicável, ex.: Lei 14.133/2021", "datasChave":["rótulo: data"], "naoAnalisado":["anexos/itens referenciados mas não entregues"]},
  "sumarioExecutivo": "até ~8 linhas: os 3-5 achados que mais importam e a recomendação central",
  "veredito": "participar|participar_com_ressalvas|impugnar|recorrer|assinar_com_ressalvas|nao_recomendado|conforme",
- "achados": [{"item":"item/cláusula do documento", "trecho":"trecho literal entre aspas (ou vazio se for observação geral)", "categoria":"ilegalidade|risco|impugnacao|recurso|observacao", "gravidade":"alta|media|baixa", "problema":"o que está errado e por quê", "fundamento":"lei/artigo ou '[não verificado nesta sessão]'", "fonte":"ex.: Lei 14.133/2021 art. 69, § 4º", "textoLegal":"trecho LITERAL de 8 a 30 palavras do dispositivo citado, copiado da BASE JURÍDICA sem alterar nada (a plataforma confere automaticamente); vazio se o dispositivo não estiver na base", "url":"URL oficial SOMENTE se aparecer na BASE JURÍDICA; senão vazio", "acao":"o que fazer (impugnar/recorrer/sanar/ajustar/etc.)"}],
+ "achados": [{"item":"item/cláusula do documento", "trecho":"trecho literal entre aspas (ou vazio se for observação geral)", "categoria":"ilegalidade|risco|impugnacao|recurso|observacao", "gravidade":"alta|media|baixa", "problema":"o que está errado e por quê", "fundamento":"lei/artigo ou '[não verificado nesta sessão]'", "fonte":"ex.: Lei 14.133/2021 art. 69, § 4º", "textoLegal":"trecho LITERAL de 8 a 30 palavras do dispositivo citado, copiado da BASE JURÍDICA sem alterar nada (a plataforma confere automaticamente); vazio se o dispositivo não estiver na base", "url":"deixe vazio (a plataforma preenche o link oficial conferido)", "acao":"o que fazer (impugnar/recorrer/sanar/ajustar/etc.)"}],
  "prazos": [{"evento":"", "dataLimite":"calculada ou 'depende de data não informada'", "baseLegal":"", "textoLegal":"trecho LITERAL do dispositivo do prazo, copiado da BASE JURÍDICA; vazio se não estiver na base", "premissa":"dias úteis/feriados"}],
  "naoVerificado": ["o que não foi possível confirmar (norma não acessada, anexo ausente, jurisprudência não localizada)"],
- "fontes": [{"rotulo":"ex.: Lei 14.133/2021 art. 69", "url":"URL só se estiver na BASE JURÍDICA; senão vazio. NUNCA invente URL."}],
+ "fontes": [],
  "recomendacaoFinal": "orientação prática final"
 }`;
 
@@ -140,6 +140,8 @@ Deno.serve(async (req) => {
 ${a.fundamento || ""}`, idx);
         a.verificacao = { status: resumo(cits), citacoes: cits };
         a.trechoConfere = a.trecho ? contem(docNorm, a.trecho) : null;
+        // link de verificação: sempre o montado pelo código (nunca o que a IA escreveu)
+        a.url = cits.find((c) => c.link && c.status !== "nao_confere")?.link ?? "";
         // Fundamento que não confere sai do parecer: fica só o aviso no lugar.
         if (a.verificacao.status === "nao_confere") { a.fonte = REMOVIDO_ART; a.fundamento = REMOVIDO_ART; a.textoLegal = ""; a.url = ""; }
       }
@@ -155,6 +157,11 @@ ${a.fundamento || ""}`, idx);
       // deno-lint-ignore no-explicit-any
       parecer = sanearProfundo(parecer, idx, baseJuridica, removidas) as any;
       parecer.removidasNaConferencia = [...new Set(removidas)];
+      // Fontes do parecer: a lista oficial conferida pelo código, com link (substitui a da IA)
+      // deno-lint-ignore no-explicit-any
+      const todas = [...(parecer.achados || []), ...(parecer.prazos || [])].flatMap((x: any) => x.verificacao?.citacoes || []);
+      const vistos = new Set<string>();
+      parecer.fontes = fontesOficiais(todas).filter((f) => !vistos.has(f.rotulo) && vistos.add(f.rotulo)).map((f) => ({ rotulo: `${f.rotulo} · ${f.nota}`, url: f.url || "" }));
     } catch {
       parecer.conferenciaIndisponivel = true;
     }

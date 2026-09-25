@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { carregarIndice, normasParaAquecer, prepararComPlanalto } from "../_shared/verifica-citacoes.ts";
-import { nomeNorma } from "../_shared/planalto.ts";
+import { buscarNoPlanalto, nomeNorma } from "../_shared/planalto.ts";
 
 // Pré-carga noturna da base jurídica: traz do Planalto as normas que as íntegras oficiais
 // já indexadas citam (Lei das S.A., LRF, LINDB, ...) e a Constituição, poucas por execução.
@@ -21,6 +21,17 @@ Deno.serve(async (req) => {
     const idx = await carregarIndice(supabase);
     // Constituição: a mesma rotina da conferência grava na base quando falta
     if (!idx.has("cf")) await prepararComPlanalto("Constituição Federal", idx, supabase);
+
+    // Endereço oficial das normas importadas que ficaram sem link (o link de verificação sai dele)
+    const { data: semUrl } = await supabase.from("legal_knowledge").select("id, reference")
+      .is("url", null).like("title", "%íntegra do Planalto%").limit(3);
+    for (const r of semUrl || []) {
+      const m = r.reference.match(/([\d.]+)\/(\d{4})/);
+      if (!m) continue;
+      const tipo = /^Lei Complementar/.test(r.reference) ? "lc" : /^Decreto-Lei/.test(r.reference) ? "dl" : /^Decreto/.test(r.reference) ? "dec" : "lei";
+      const achado = await buscarNoPlanalto(tipo, Number(m[1].replace(/\./g, "")), [Number(m[2])]);
+      if (achado.situacao === "encontrada") await supabase.from("legal_knowledge").update({ url: achado.url }).eq("id", r.id);
+    }
 
     // Fila com cursor: a norma que o Planalto não achar não trava as demais.
     const fila = normasParaAquecer(idx);

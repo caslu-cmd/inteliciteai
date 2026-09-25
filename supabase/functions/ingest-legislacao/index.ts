@@ -133,11 +133,11 @@ async function processarLei(supabase: SB, apiKey: string, lei: Lei, offset: numb
       if (existente.content === texto && total > 0 && (count ?? 0) >= total) {
         return { chave: lei.chave, ok: true, reference: lei.reference, total, processadosAte: total, concluido: true, inalterado: true };
       }
-      await supabase.from("legal_knowledge").update({ title: lei.title, source_type: lei.source_type, year: lei.year, content: texto, active: true }).eq("id", knowledgeId);
+      await supabase.from("legal_knowledge").update({ title: lei.title, source_type: lei.source_type, year: lei.year, content: texto, active: true, url: lei.url }).eq("id", knowledgeId);
       await supabase.from("legal_knowledge_chunks").delete().eq("knowledge_id", knowledgeId);
     } else {
       const { data: novo, error: insErr } = await supabase.from("legal_knowledge")
-        .insert({ title: lei.title, source_type: lei.source_type, reference: lei.reference, year: lei.year, content: texto, active: true })
+        .insert({ title: lei.title, source_type: lei.source_type, reference: lei.reference, year: lei.year, content: texto, active: true, url: lei.url })
         .select("id").single();
       if (insErr || !novo) throw new Error(insErr?.message || "falha ao inserir");
       knowledgeId = novo.id;

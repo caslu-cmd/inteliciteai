@@ -20,7 +20,22 @@ export interface Citacao {
   status: Status;
   motivo: string;
   ocorrencias?: string[];  // texto exato da citação na resposta (para remover se não conferir)
+  link?: string;           // endereço oficial montado pelo código (Planalto com âncora no dispositivo)
 }
+
+// ---------- links oficiais de verificação ----------
+// Montados pelo código a partir do endereço oficial da norma; a IA não escreve links.
+// Planalto tem âncora por dispositivo: #art63, #art63§2, #art63iii, #art164p (parágrafo único).
+const urlsNorma = new Map<string, string>();
+export const URL_CF = "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm";
+export function linkCitacao(c: { lei: string; art: number; par?: string; inciso?: string }): string | undefined {
+  const base = urlsNorma.get(c.lei);
+  if (!base) return undefined;
+  if (!/planalto\.gov\.br/.test(base)) return base;                 // Portal de Compras: sem âncora por artigo
+  const ancora = `art${c.art}${c.par ? (c.par === "unico" ? "p" : `%C2%A7${c.par}`) : ""}${!c.par && c.inciso ? c.inciso.toLowerCase() : ""}`;
+  return `${base}#${ancora}`;
+}
+export const linkNorma = (chave: string) => urlsNorma.get(chave);
 
 // ---------- leis indexadas ----------
 const LEIS: { chave: string; nome: string; titulo: RegExp; menciona: RegExp }[] = [
@@ -76,22 +91,24 @@ let cache: Indice | null = null;
 // deno-lint-ignore no-explicit-any
 export async function carregarIndice(supabase: any): Promise<Indice> {
   if (cache) return cache;
-  const { data } = await supabase.from("legal_knowledge").select("id, title, content").eq("active", true);
+  const { data } = await supabase.from("legal_knowledge").select("id, title, content, url").eq("active", true);
   const idx: Indice = new Map();
   // atos infralegais do Portal de Compras: existência, vigência e (com texto importado) artigos
-  const { data: at } = await supabase.from("atos_compras").select("tipo, numero, ano, titulo, vigente, knowledge_id");
+  const { data: at } = await supabase.from("atos_compras").select("tipo, numero, ano, titulo, vigente, knowledge_id, url");
   if (at) {
     atos = at;
     const porId = new Map((data || []).map((d: { id: string; content: string }) => [d.id, d.content]));
     for (const a of at as Ato[]) {
       const txt = a.knowledge_id ? porId.get(a.knowledge_id) as string | undefined : undefined;
       if (txt && a.vigente) idx.set(chaveAto(a.tipo, a.numero, a.ano), indexarLei(txt));
+      if (a.url) urlsNorma.set(chaveAto(a.tipo, a.numero, a.ano), a.url);
     }
   }
   for (const lei of LEIS) {
     const doc = (data || []).filter((d: { title: string; content: string }) => lei.titulo.test(d.title))
       .sort((a: { content: string }, b: { content: string }) => (b.content?.length || 0) - (a.content?.length || 0))[0];
     if (doc?.content && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
+    if (doc?.url) urlsNorma.set(lei.chave, doc.url);
   }
   catalogo = catalogoNormas((data || []).map((d: { title: string; content: string }) => `${d.title}\n${d.content || ""}`));
   // Núcleo = a base curada (sem o que a conferência importou do Planalto/Portal de Compras):
@@ -100,19 +117,24 @@ export async function carregarIndice(supabase: any): Promise<Indice> {
   catalogoNucleo = catalogoNormas((data || []).filter((d: { title: string }) => !/íntegra do (Planalto|Portal de Compras)/.test(d.title))
     .map((d: { title: string; content: string }) => `${d.title}\n${d.content || ""}`));
   // Normas que a conferência já trouxe do Planalto em consultas anteriores: artigos indexados.
-  for (const d of (data || []) as { title: string; content: string }[]) {
+  for (const d of (data || []) as { title: string; content: string; url?: string }[]) {
     if (!/íntegra do Planalto/.test(d.title) || !d.content) continue;
-    if (/^Constitui[çc][ãa]o Federal/.test(d.title)) { if (!idx.has("cf")) idx.set("cf", indexarLei(d.content)); continue; }
+    if (/^Constitui[çc][ãa]o Federal/.test(d.title)) { if (!idx.has("cf")) idx.set("cf", indexarLei(d.content)); urlsNorma.set("cf", d.url || URL_CF); continue; }
     const m = [...d.title.matchAll(RE_NORMA)][0];
-    if (m) { const k = chaveNorma(m[1], m[2]); if (!FIXAS[k] && !idx.has(k)) idx.set(k, indexarLei(d.content)); }
+    if (m) {
+      const k = chaveNorma(m[1], m[2]);
+      if (!FIXAS[k] && !idx.has(k)) idx.set(k, indexarLei(d.content));
+      if (d.url && !FIXAS[k]) urlsNorma.set(k, d.url);
+    }
   }
   cache = idx;
   return idx;
 }
-export function indiceDeTextos(docs: { title: string; content: string }[]): Indice {
+export function indiceDeTextos(docs: { title: string; content: string; url?: string }[]): Indice {
   const idx: Indice = new Map();
   for (const lei of LEIS) {
     const doc = docs.filter((d) => lei.titulo.test(d.title)).sort((a, b) => b.content.length - a.content.length)[0];
+    if (doc?.url) urlsNorma.set(lei.chave, doc.url);
     if (doc && doc.content.length > 5000) idx.set(lei.chave, indexarLei(doc.content));
   }
   catalogo = catalogoNormas(docs.map((d) => `${d.title}\n${d.content}`));
@@ -130,8 +152,14 @@ function leiDaVizinhanca(texto: string, ini: number, fim: number, padrao: string
   let depois = texto.slice(fim, Math.min(fim + 160, fimLinha < 0 ? texto.length : fimLinha));
   const aspas = depois.search(/["“]/);
   if (aspas >= 0) depois = depois.slice(0, aspas);
+  // Nem atravessa o fim da frase: a lei citada na frase seguinte não é a deste artigo
+  // ("Impugnação: Art. 164. ... Lei 13.303/2016" não é o Art. 164 da Lei 13.303).
+  const fimFrase = depois.search(/[.;!?]\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ\[(])/);
+  if (fimFrase >= 0) depois = depois.slice(0, fimFrase);
   const iniLinha = texto.lastIndexOf("\n", ini) + 1;
-  const antes = texto.slice(Math.max(iniLinha, ini - 80), ini);
+  let antes = texto.slice(Math.max(iniLinha, ini - 80), ini);
+  const cortes = [...antes.matchAll(/[.;!?]\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ\[(])/g)];
+  if (cortes.length) { const u = cortes[cortes.length - 1]; antes = antes.slice(u.index! + u[0].length); }
   const achar = (alvo: string, doFim: boolean): { k: string; d: number } | undefined => {
     let melhor: { k: string; d: number } | null = null;
     // Constituição Federal ("art. 173, § 1º, da Constituição Federal", "CF/88")
@@ -246,7 +274,8 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
       const partes = Array.from({ length: c.artFim - c.art + 1 }, (_, k) => lei.get(c.art + k)).filter(Boolean) as Artigo[];
       a = partes.length ? { texto: "", norm: partes.map((x) => x.norm).join(" "), pars: new Map(), incisos: new Set() } : undefined;
     }
-    const res = (status: Status, motivo: string, trecho = c.trecho) => out.push({ ...c, trecho, status, motivo });
+    const res = (status: Status, motivo: string, trecho = c.trecho) =>
+      out.push({ ...c, trecho, status, motivo, link: status === "nao_confere" ? undefined : linkCitacao(c) });
     if (!lei) { res("sem_trecho", "o texto oficial desta norma não pôde ser obtido agora para conferir o artigo"); continue; }
     if (!a) { res("nao_confere", `o Art. ${c.art} não existe nessa norma`); continue; }
     if (c.par && !a.pars.has(c.par)) { res("nao_confere", `o Art. ${c.art} não tem ${c.par === "unico" ? "parágrafo único" : `§ ${c.par}º`}`); continue; }
@@ -265,12 +294,12 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
 }
 
 // Acórdão/súmula só vale se o número aparecer no contexto recuperado (base ou busca ao vivo).
-export type Juris = { rotulo: string; ok: boolean; motivo?: string; ocorrencias?: string[] };
+export type Juris = { rotulo: string; ok: boolean; motivo?: string; ocorrencias?: string[]; link?: string };
 
 // Súmulas do TCU: conferidas na API pública de jurisprudência do TCU (número, vigência e
 // enunciado oficial). STF e STJ bloqueiam consulta automática: súmula deles só vale se
 // estiver nas fontes consultadas.
-type InfoSumula = { existe: boolean; vigente?: boolean; enunciado?: string } | "indisponivel";
+type InfoSumula = { existe: boolean; vigente?: boolean; enunciado?: string; key?: string } | "indisponivel";
 const sumulasTCU = new Map<number, InfoSumula>();
 const RE_SUMULA = /S[úu]mula\s*(?:Vinculante\s*)?(?:do\s+|da\s+)?(TCU|STF|STJ|TST|TSE)?\s*(?:n[º°o.]?\s*)?(\d{1,4})(?:\s*,?\s*(?:do|da)\s+(TCU|STF|STJ|TST|TSE|Tribunal de Contas da Uni[ãa]o|Supremo|Superior Tribunal))?/gi;
 const tribunal = (m: RegExpMatchArray) => {
@@ -292,7 +321,7 @@ async function buscarSumulaTCU1(num: number): Promise<InfoSumula> {
     const doc = (d.documentos || []).find((x: { NUMERO?: string }) => String(x.NUMERO || "").replace(/<[^>]+>/g, "").trim() === String(num));
     if (!doc) return { existe: false };
     const limpa = (s: string) => String(s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    return { existe: true, vigente: String(doc.VIGENTE) !== "false", enunciado: limpa(doc.ENUNCIADO || doc.CABECALHO) };
+    return { existe: true, vigente: String(doc.VIGENTE) !== "false", enunciado: limpa(doc.ENUNCIADO || doc.CABECALHO), key: doc.KEY };
   } catch { return "indisponivel"; }
 }
 
@@ -307,7 +336,7 @@ export async function prepararSumulas(texto: string): Promise<void> {
 // abertos do TCU, que cobre de ago/2023 em diante). Acórdão de TCE/TCM/tribunal judicial
 // não é conferido aqui (fica a regra das fontes consultadas).
 const RE_ACORDAO = /Ac[óo]rd[ãa]o(?:\s+de\s+Rela[çc][ãa]o)?\s*(?:n[º°o.]?\s*)?(\d[\d.]{0,6})\/(\d{4})((?:\s*[-–—,]?\s*(?:TCU|do\s+TCU|da\s+|do\s+)?\s*[-–—]?\s*(?:Plen[áa]rio|1[ªa]\s*C[âa]mara|Primeira\s+C[âa]mara|2[ªa]\s*C[âa]mara|Segunda\s+C[âa]mara|TCE[-\s/]?[A-Z]{2}|TCM[-\s/]?[A-Z]{0,2}|TCU|STJ|STF|TRF\d?))*)/gi;
-const acordaosTCU = new Map<string, string[] | null>();         // "numero/ano" -> colegiados; null = não está no espelho
+const acordaosTCU = new Map<string, { colegiado: string; url: string | null }[] | null>();         // "numero/ano" -> colegiados; null = não está no espelho
 let coberturaTCU: { anoMin: number; completo: boolean } | null = null;
 const colegiadoDe = (s: string) => /plen/i.test(s) ? "Plenário" : /(1[ªa]|primeira)/i.test(s) ? "Primeira Câmara" : /(2[ªa]|segunda)/i.test(s) ? "Segunda Câmara" : "";
 const outroTribunal = (s: string) => /TCE|TCM|STJ|STF|TRF/i.test(s);
@@ -324,11 +353,11 @@ export async function prepararAcordaos(texto: string, supabase?: any): Promise<v
     const { data: cur } = await supabase.from("internal_config").select("value").eq("key", "tcu_acordaos_cursor").maybeSingle();
     coberturaTCU = { anoMin: min?.ano ?? 9999, completo: !!(cur?.value && JSON.parse(cur.value).concluido) };
   }
-  const { data } = await supabase.from("tcu_acordaos").select("numero, ano, colegiado")
+  const { data } = await supabase.from("tcu_acordaos").select("numero, ano, colegiado, url")
     .in("numero", [...new Set(pedidos.map((p) => p.numero))]).in("ano", [...new Set(pedidos.map((p) => p.ano))]);
   for (const p of pedidos) {
     const achados = (data || []).filter((d: { numero: number; ano: number }) => d.numero === p.numero && d.ano === p.ano)
-      .map((d: { colegiado: string }) => d.colegiado);
+      .map((d: { colegiado: string; url: string | null }) => ({ colegiado: d.colegiado, url: d.url }));
     acordaosTCU.set(`${p.numero}/${p.ano}`, achados.length ? achados : null);
   }
 }
@@ -337,8 +366,8 @@ export function conferirJurisprudencia(texto: string, contexto: string): Juris[]
   const ctx = normalizar(contexto).replace(/ /g, "");
   const noContexto = (num: string) => ctx.includes(normalizar(num).replace(/ /g, ""));
   const out = new Map<string, Juris>();
-  const add = (rotulo: string, ocorr: string, ok: boolean, motivo?: string) => {
-    const j = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [] };
+  const add = (rotulo: string, ocorr: string, ok: boolean, motivo?: string, link?: string) => {
+    const j = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [], link: ok ? link : undefined };
     if (!ok && j.ok) { j.ok = false; j.motivo = motivo; }
     j.ocorrencias!.push(ocorr);
     out.set(rotulo, j);
@@ -354,8 +383,10 @@ export function conferirJurisprudencia(texto: string, contexto: string): Juris[]
     // Só conclui "não existe" / "colegiado errado" em ano que o espelho cobre por completo.
     const coberto = coberturaTCU && coberturaTCU.completo && ano > coberturaTCU.anoMin;
     if (espelho) {
-      if (col && !espelho.includes(col) && coberto) add(rotulo, m[0], false, `o Acórdão ${numero}/${ano} do TCU é do(a) ${espelho.join(" / ")}, não do(a) ${col}`);
-      else add(rotulo, m[0], true);
+      const cols = espelho.map((e) => e.colegiado);
+      const certo = espelho.find((e) => !col || e.colegiado === col) ?? espelho[0];
+      if (col && !cols.includes(col) && coberto) add(rotulo, m[0], false, `o Acórdão ${numero}/${ano} do TCU é do(a) ${cols.join(" / ")}, não do(a) ${col}`);
+      else add(rotulo, m[0], true, undefined, certo.url ?? undefined);
       continue;
     }
     if (espelho === null && coberto && !fontes) { add(rotulo, m[0], false, `não existe Acórdão ${numero}/${ano} no TCU`); continue; }
@@ -378,7 +409,7 @@ export function conferirJurisprudencia(texto: string, contexto: string): Juris[]
     if (trecho && info.enunciado && !contem(normalizar(info.enunciado), trecho)) {
       add(rotulo, m[0], false, `o texto citado não é o enunciado da Súmula TCU nº ${num}`); continue;
     }
-    add(rotulo, m[0], true);
+    add(rotulo, m[0], true, undefined, info.key ? `https://pesquisa.apps.tcu.gov.br/documento/sumula/*/KEY%253A${info.key}/%2520` : undefined);
   }
   return [...out.values()];
 }
@@ -389,13 +420,13 @@ export function conferirJurisprudencia(texto: string, contexto: string): Juris[]
 // pela IA que não está nessa lista nem nas fontes da consulta não é mostrada como fato.
 // ok=false: removida do texto. aviso=true: fica no texto, marcada como não conferida.
 // anotacao: fica no texto com a marca (ex.: "[revogada]").
-export type Norma = { rotulo: string; ok: boolean; motivo: string; ocorrencias: string[]; aviso?: boolean; anotacao?: string };
+export type Norma = { rotulo: string; ok: boolean; motivo: string; ocorrencias: string[]; aviso?: boolean; anotacao?: string; link?: string };
 
 // ---------- atos infralegais de compras (IN, portaria, ON, resolução) ----------
 // Catálogo oficial do Portal de Compras (tabela atos_compras, com vigência). Escopo: atos
 // dos órgãos de compras do governo federal. Ato desse escopo que não está no catálogo é
 // removido; revogado fica marcado; ato de outro órgão fica como "não conferido".
-type Ato = { tipo: string; numero: number; ano: number | null; titulo: string; vigente: boolean; knowledge_id: string | null };
+type Ato = { tipo: string; numero: number; ano: number | null; titulo: string; vigente: boolean; knowledge_id: string | null; url?: string | null };
 let atos: Ato[] | null = null;
 const RE_ATO = /(\b[Ii]nstru[çc][ãa]o\s+[Nn]ormativa|\bIN\b|\b[Pp]ortaria|\b[Oo]rienta[çc][ãa]o\s+[Nn]ormativa|\bON\b|\b[Rr]esolu[çc][ãa]o)(?:\s+[Cc]onjunta)?\s*((?:SEGES|SLTI|SGD|MGI|MPDG|MARE|MP|ME|AGU|CGU|RFB|INSS|ANVISA|ANP|ANEEL|BACEN|CVM|[A-Z]{2,8})(?:\s*\/\s*(?:SEGES|SLTI|MGI|MPDG|MARE|MP|ME|GM|[A-Z]{2,6}))*)?\s*n?[º°o.]?\s*(\d{1,2}\.\d{3}|\d{1,5})(?:\s*\/\s*(\d{4})\b|,?\s+de\s+\d{1,2}[º°o]?\s+de\s+[a-zç]+\s+de\s+(\d{4}))?/g;
 const ORGAOS_COMPRAS = /^(SEGES|SLTI|SGD|MGI|MPDG|MARE|MP|ME)(\/|$)/;
@@ -416,8 +447,9 @@ function conferirAtos(texto: string): Norma[] {
     const rotulo = m[0].replace(/\s+/g, " ").trim();
     const doCatalogo = (atos || []).filter((a) => a.tipo === tipo && a.numero === numero && (!ano || a.ano === ano));
     let n: Norma;
-    if (doCatalogo.some((a) => a.vigente)) n = { rotulo, ok: true, motivo: "ato vigente no catálogo oficial do Portal de Compras", ocorrencias: [] };
-    else if (doCatalogo.length) n = { rotulo, ok: true, motivo: "ato REVOGADO segundo o Portal de Compras", ocorrencias: [], anotacao: "[revogada]" };
+    const oficial = (doCatalogo.find((a) => a.vigente) ?? doCatalogo[0])?.url ?? undefined;
+    if (doCatalogo.some((a) => a.vigente)) n = { rotulo, ok: true, motivo: "ato vigente no catálogo oficial do Portal de Compras", ocorrencias: [], link: oficial };
+    else if (doCatalogo.length) n = { rotulo, ok: true, motivo: "ato REVOGADO segundo o Portal de Compras", ocorrencias: [], anotacao: "[revogada]", link: oficial };
     else if (atos && ORGAOS_COMPRAS.test(orgao)) n = { rotulo, ok: false, motivo: "não existe no catálogo oficial do Portal de Compras", ocorrencias: [] };
     else n = { rotulo, ok: true, aviso: true, motivo: orgao ? `ato de outro órgão (${orgao}): não conferido` : "órgão não informado: não conferido", ocorrencias: [] };
     const atual = out.get(rotulo) || n;
@@ -467,7 +499,7 @@ function conferirLeis(texto: string, contexto = ""): Norma[] {
       : "número não localizado nas fontes oficiais";
     if (conhecida && ano && conhecida.size && !conhecida.has(ano)) { ok = false; motivo = `o ano não confere (${[...conhecida].join(", ")})`; }
     const rotulo = m[0].replace(/\s+/g, " ").trim();
-    const n = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [] };
+    const n = out.get(rotulo) || { rotulo, ok, motivo, ocorrencias: [], link: ok ? linkNorma(FIXAS[k] ?? k) : undefined };
     n.ocorrencias.push(m[0].trim());
     out.set(rotulo, n);
   }
@@ -536,9 +568,10 @@ export async function prepararComPlanalto(texto: string, idx: Indice, supabase?:
     ? buscarConstituicao().then(async (t) => {
       if (!t) return;
       idx.set("cf", indexarLei(t));
+      urlsNorma.set("cf", URL_CF);
       if (supabase) {
         const { data: existe } = await supabase.from("legal_knowledge").select("id").eq("reference", "Constituição Federal").maybeSingle();
-        if (!existe) await supabase.from("legal_knowledge").insert({ title: "Constituição Federal (íntegra do Planalto, importada na conferência automática)", source_type: "lei", reference: "Constituição Federal", year: 1988, content: t, active: true });
+        if (!existe) await supabase.from("legal_knowledge").insert({ title: "Constituição Federal (íntegra do Planalto, importada na conferência automática)", source_type: "lei", reference: "Constituição Federal", year: 1988, content: t, active: true, url: URL_CF });
       }
     }).catch(() => {})
     : null;
@@ -560,10 +593,11 @@ export async function prepararComPlanalto(texto: string, idx: Indice, supabase?:
     }
     if (r.situacao !== "encontrada") return;
     idx.set(k, indexarLei(r.texto));
+    urlsNorma.set(k, r.url);
     const anos = catalogo?.get(k) ?? new Set<number>();
     if (r.ano) anos.add(r.ano);
     catalogo?.set(k, anos);
-    if (supabase) await gravarNaBase(supabase, p.tipo, p.num, r.ano, r.texto).catch(() => {});
+    if (supabase) await gravarNaBase(supabase, p.tipo, p.num, r.ano, r.texto, r.url).catch(() => {});
   }));
   await sumulas;
 }
@@ -586,7 +620,10 @@ export const REMOVIDO_NORMA = "[norma removida: não localizada nas fontes ofici
 export const REMOVIDO_JURIS = "[jurisprudência removida: número não localizado nas fontes]";
 // Tira do texto toda citação reprovada: o usuário nunca vê artigo ou norma inexistente como fato.
 export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
-  let t = inverterForma(texto);
+  // Link escrito pela IA sai do texto: o único link que vale é o oficial montado pelo código.
+  let t = inverterForma(texto)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1")
+    .replace(/\s*[—–-]?\s*<?https?:\/\/[^\s)>\]]+>?/g, "");
   const trocas: [string, string][] = [
     ...cits.filter((c) => c.status === "nao_confere").flatMap((c) => (c.ocorrencias || []).map((o) => [o, REMOVIDO_ART] as [string, string])),
     ...normas.filter((n) => !n.ok).flatMap((n) => n.ocorrencias.map((o) => [o, REMOVIDO_NORMA] as [string, string])),
@@ -601,22 +638,37 @@ export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], norm
 }
 
 // Rodapé em markdown com o resultado da conferência.
+// Fontes oficiais, com link montado pelo código. Cada item diz o que foi conferido.
+export function fontesOficiais(cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): { rotulo: string; url?: string; nota: string }[] {
+  const out: { rotulo: string; url?: string; nota: string }[] = [];
+  for (const c of cits.filter((x) => x.status !== "nao_confere")) {
+    out.push({ rotulo: c.rotulo, url: c.link, nota: c.status === "conferida" ? "trecho conferido no texto oficial" : "dispositivo existe; trecho não transcrito" });
+  }
+  for (const j of juris.filter((x) => x.ok)) out.push({ rotulo: j.rotulo, url: j.link, nota: /s[úu]mula/i.test(j.rotulo) ? "súmula existente e vigente" : "acórdão existente" });
+  // norma citada sem artigo: só entra se nenhuma citação de artigo dela já trouxe o link
+  const bases = new Set(out.map((o) => (o.url || "").split("#")[0]).filter(Boolean));
+  for (const n of normas.filter((x) => x.ok && !x.aviso)) {
+    if (n.link && bases.has(n.link)) continue;
+    out.push({ rotulo: n.rotulo, url: n.link, nota: n.anotacao ? "ato revogado" : "norma existente" });
+    if (n.link) bases.add(n.link);
+  }
+  return out;
+}
+
 export function rodapeVerificacao(cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
   const nNao = normas.filter((n) => !n.ok);
   const nRev = normas.filter((n) => n.ok && n.anotacao);
   const nAviso = normas.filter((n) => n.ok && n.aviso);
-  if (!cits.length && !juris.length && !nNao.length && !nRev.length && !nAviso.length) return "";
-  const ok = cits.filter((c) => c.status === "conferida");
-  const sem = cits.filter((c) => c.status === "sem_trecho");
+  const fontes = fontesOficiais(cits, juris, normas);
   const nao = cits.filter((c) => c.status === "nao_confere");
   const jNao = juris.filter((j) => !j.ok);
-  const linhas = ["", "---", "**🔎 Conferência automática no texto oficial indexado**"];
-  if (ok.length) linhas.push(`✅ ${ok.map((c) => c.rotulo).join(" · ")}`);
-  if (sem.length) linhas.push(`⚠️ Dispositivo existe, sem trecho transcrito para conferir: ${sem.map((c) => c.rotulo).join(" · ")}`);
-  if (nao.length) linhas.push(`❌ Removido do texto por não conferir com a lei: ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
-  if (nNao.length) linhas.push(`❌ Norma removida do texto, não localizada nas fontes oficiais: ${nNao.map((n) => `${n.rotulo} (${n.motivo})`).join(" · ")}`);
+  if (!fontes.length && !nao.length && !jNao.length && !nNao.length && !nAviso.length) return "";
+  const linhas = ["", "---", "**📌 Fontes oficiais (conferidas automaticamente)**"];
+  if (fontes.length) linhas.push(fontes.map((f) => `- ${f.url ? `[${f.rotulo}](${f.url})` : f.rotulo} · ${f.nota}`).join("\n"));
   if (nRev.length) linhas.push(`⚠️ Ato revogado (marcado no texto): ${nRev.map((n) => n.rotulo).join(" · ")}`);
   if (nAviso.length) linhas.push(`⚠️ Não conferido automaticamente: ${nAviso.map((n) => `${n.rotulo} (${n.motivo})`).join(" · ")}`);
+  if (nao.length) linhas.push(`❌ Removido do texto por não conferir com a lei: ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
+  if (nNao.length) linhas.push(`❌ Norma removida do texto, não localizada nas fontes oficiais: ${nNao.map((n) => `${n.rotulo} (${n.motivo})`).join(" · ")}`);
   if (jNao.length) linhas.push(`❌ Jurisprudência removida do texto: ${jNao.map((j) => `${j.rotulo} (${j.motivo || "número não localizado nas fontes consultadas"})`).join(" · ")}`);
   return linhas.join("\n\n");
 }

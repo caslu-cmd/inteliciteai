@@ -24,17 +24,9 @@ Capacidades principais:
 Responda em português brasileiro. Seja objetivo, cite artigos específicos quando relevante, e sempre que identificar problemas ofereça soluções práticas. Use markdown para formatação (negrito, listas numeradas, etc.).
 
 CITAÇÃO DE FONTES OBRIGATÓRIA:
-Toda resposta jurídica deve terminar com:
----
-📌 **Fontes:**
-• [Artigo específico] — Lei 14.133/2021
-• [Acórdão TCU XXXX/XXXX-Plenário] (se pertinente)
-• [IN/Decreto aplicável] (se houver)
----
-Nunca invente referências. SEMPRE forneça a fonte concreta com o link oficial quando disponível
-(use as URLs presentes no contexto). NUNCA responda apenas "verifique na fonte oficial" sem dar o
-caminho — forneça o endereço oficial: leis em https://www.planalto.gov.br, acórdãos do TCU em
-https://portal.tcu.gov.br, orientações da AGU em https://www.gov.br/agu.`;
+Cite o dispositivo exato (Art., §, inciso, lei) junto de cada afirmação jurídica, no corpo do texto.
+Nunca invente referências. NÃO escreva links nem bloco de fontes: a plataforma confere cada citação
+no texto oficial e acrescenta automaticamente, ao final, as "Fontes oficiais" com o link de verificação.`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });

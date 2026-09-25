@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
         if (texto.length < 300) continue;
         const reference = `${a.tipo} ${a.orgao ? a.orgao + " " : ""}${a.numero}/${a.ano}`;
         const registro = {
-          title: `${a.titulo} (íntegra do Portal de Compras)`, reference, year: a.ano, content: texto, active: true,
+          title: `${a.titulo} (íntegra do Portal de Compras)`, reference, year: a.ano, content: texto, active: true, url: a.url,
           source_type: a.tipo === "IN" ? "instrucao_normativa" : "outro",
         };
         // já na base (ex.: IN 58/2022 e IN 65/2021 vêm da importação de legislação): só liga

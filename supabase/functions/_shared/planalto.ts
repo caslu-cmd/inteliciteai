@@ -133,13 +133,13 @@ function fatiar(text: string, size = 800, overlap = 120): string[] {
 }
 
 // deno-lint-ignore no-explicit-any
-export async function gravarNaBase(supabase: any, tipo: TipoNorma, num: number, ano: number | undefined, texto: string) {
+export async function gravarNaBase(supabase: any, tipo: TipoNorma, num: number, ano: number | undefined, texto: string, url?: string) {
   const reference = nomeNorma(tipo, num, ano);
   const { data: existe } = await supabase.from("legal_knowledge").select("id").eq("reference", reference).maybeSingle();
   if (existe) return;
   const { data: novo } = await supabase.from("legal_knowledge").insert({
     title: `${reference} (íntegra do Planalto, importada na conferência automática)`,
-    source_type: tipo === "dec" || tipo === "dl" ? "outro" : "lei", reference, year: ano ?? null, content: texto, active: true,
+    source_type: tipo === "dec" || tipo === "dl" ? "outro" : "lei", reference, year: ano ?? null, content: texto, active: true, url: url ?? null,
   }).select("id").single();
   const openai = Deno.env.get("OPENAI_API_KEY");
   if (!novo?.id || !openai) return;
