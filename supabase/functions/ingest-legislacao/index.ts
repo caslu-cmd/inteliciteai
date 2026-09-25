@@ -34,7 +34,8 @@ const LEIS: Lei[] = [
   { chave: "d11462", title: "Decreto nº 11.462/2023 — Regulamenta o PNCP", source_type: "outro", reference: "Decreto 11.462/2023", year: 2023, url: "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/decreto/d11462.htm" },
   { chave: "d11246", title: "Decreto nº 11.246/2022 — Agente de contratação e comissão de contratação", source_type: "outro", reference: "Decreto 11.246/2022", year: 2022, url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2022/decreto/d11246.htm" },
   { chave: "inseges65", title: "IN SEGES/ME nº 65/2021 — Pesquisa de preços (íntegra)", source_type: "instrucao_normativa", reference: "IN SEGES/ME 65/2021 (íntegra)", year: 2021, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-65-de-7-de-julho-de-2021" },
-  { chave: "inseges58", title: "IN SEGES/ME nº 58/2022 — Plano de Contratações Anual (PCA)", source_type: "instrucao_normativa", reference: "IN SEGES/ME 58/2022", year: 2022, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-58-de-8-de-agosto-de-2022" },
+  // Rótulo e endereço corrigidos em 25/09/2026: a IN 58/2022 trata do ETP (não do PCA) e o endereço antigo dava 404.
+  { chave: "inseges58", title: "IN SEGES/ME nº 58/2022 — Estudos Técnicos Preliminares (ETP)", source_type: "instrucao_normativa", reference: "IN SEGES/ME 58/2022", year: 2022, url: "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-no-58-de-8-de-agosto-de-2022" },
 ];
 
 const ENTIDADES: Record<string, string> = {

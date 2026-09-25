@@ -31,6 +31,7 @@ const LEIS: { chave: string; nome: string; titulo: RegExp; menciona: RegExp }[] 
   { chave: "d10024", nome: "Decreto 10.024/2019", titulo: /10\.024/, menciona: /10\.?024/ },
   { chave: "d11462", nome: "Decreto 11.462/2023", titulo: /11\.462/, menciona: /11\.?462/ },
   { chave: "d11246", nome: "Decreto 11.246/2022", titulo: /11\.246/, menciona: /11\.?246/ },
+  { chave: "in58", nome: "IN SEGES/ME 58/2022", titulo: /IN SEGES\/ME nº 58/, menciona: /IN\s*(SEGES(\/ME)?\s*)?n?º?\s*58\b/i },
   { chave: "in65", nome: "IN SEGES/ME 65/2021", titulo: /IN SEGES\/ME nº 65/, menciona: /IN\s*(SEGES\/ME\s*)?n?º?\s*65/i },
 ];
 
