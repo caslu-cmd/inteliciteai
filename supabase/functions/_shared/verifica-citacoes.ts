@@ -745,6 +745,23 @@ export async function respostaSegura(
   return { texto: limpo, citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas, rodape, reescrita };
 }
 
+// Texto oficial exato do dispositivo citado, para o revisor: o parágrafo, se citado; com
+// inciso, o começo do caput (o que dá sentido à lista) + o próprio inciso. Sem isso um
+// artigo longo (Art. 75) era cortado antes do inciso e o revisor julgava sem vê-lo.
+function textoDispositivo(c: Citacao, idx: Indice): string | undefined {
+  const art = idx.get(c.lei)?.get(c.art);
+  if (!art) return undefined;
+  const base = c.par ? art.pars.get(c.par) : art.texto;
+  if (!base) return undefined;
+  if (!c.inciso) return base.slice(0, 2500);
+  const cabs = [...base.matchAll(/(?:^|[ .;:])([IVXLC]{1,7}) ?[-–] /g)];
+  const k = cabs.findIndex((m) => m[1] === c.inciso);
+  if (k < 0) return base.slice(0, 2500);
+  const ini = cabs[k].index!, fim = k + 1 < cabs.length ? cabs[k + 1].index! : base.length;
+  const caput = base.slice(0, Math.min(cabs[0].index!, 600));
+  return `${caput} [...] ${base.slice(ini, Math.min(fim, ini + 1800)).trim()}`;
+}
+
 // Itens para o revisor: cada citação que existe e cujo texto oficial está na base, com a
 // frase da resposta onde ela aparece. Súmula do TCU entra com o enunciado oficial.
 type AlvoRevisao = { pertinencia?: Veredito | "nao_revisado"; pertinenciaMotivo?: string };
@@ -761,11 +778,10 @@ function itensParaRevisao(texto: string, cits: Citacao[], juris: Juris[], idx: I
   const itens: (ItemRevisao & { ref: AlvoRevisao })[] = [];
   for (const c of cits) {
     if (c.status === "nao_confere" || itens.length >= 10) continue;
-    const art = idx.get(c.lei)?.get(c.art);
-    const oficial = art ? (c.par ? art.pars.get(c.par) : art.texto) : undefined;
+    const oficial = textoDispositivo(c, idx);
     const afirmacao = frase(c.ocorrencias?.[0]);
     if (!oficial || !afirmacao) continue;
-    itens.push({ id: `c${itens.length}`, citacao: c.rotulo, afirmacao, textoOficial: oficial.slice(0, 2500), ref: c });
+    itens.push({ id: `c${itens.length}`, citacao: c.rotulo, afirmacao, textoOficial: oficial, ref: c });
   }
   for (const j of juris) {
     const num = Number(j.rotulo.match(/\d+/)?.[0]);
@@ -789,9 +805,8 @@ export async function revisarEntradas(
   entradas.forEach((en, e) => {
     for (const c of en.cits) {
       if (c.status === "nao_confere" || !en.afirmacao.trim() || itens.length >= 16) continue;
-      const art = idx.get(c.lei)?.get(c.art);
-      const oficial = art ? (c.par ? art.pars.get(c.par) : art.texto) : undefined;
-      if (oficial) itens.push({ id: `e${e}c${itens.length}`, citacao: c.rotulo, afirmacao: en.afirmacao.slice(0, 900), textoOficial: oficial.slice(0, 2500), e, c });
+      const oficial = textoDispositivo(c, idx);
+      if (oficial) itens.push({ id: `e${e}c${itens.length}`, citacao: c.rotulo, afirmacao: en.afirmacao.slice(0, 900), textoOficial: oficial, e, c });
     }
   });
   if (!itens.length) return entradas.map(() => undefined);
