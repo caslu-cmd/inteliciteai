@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoJuridico } from "../_shared/contexto-juridico.ts";
 import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
+import { jsonComPulso } from "../_shared/pulso.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -80,7 +81,7 @@ Deno.serve(async (req: Request) => {
     return (await res.json()).content?.[0]?.text ?? "Sem resposta.";
   };
 
-  try {
+  return jsonComPulso(async () => {
     let reply = await chamar(historico);
 
     // Conferência automática (código): confere na íntegra oficial, deixa a IA reescrever
@@ -97,12 +98,6 @@ Deno.serve(async (req: Request) => {
       reply += "\n\n---\n\n⚠️ **A conferência automática ficou indisponível nesta resposta.** Não use números de artigo, lei ou acórdão sem conferir no texto oficial.";
     }
 
-    return new Response(JSON.stringify({ reply, verificacao }), {
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha no assistente IA", detail: String(err) }), {
-      status: 502, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
+    return { reply, verificacao };
+  }, cors);
 });

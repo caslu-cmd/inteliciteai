@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, fontesOficiais, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, conferir, contem, fontesOficiais, normalizar, prepararComPlanalto, REMOVIDO_ART, REMOVIDO_PERTINENCIA, revisarEntradas, sanearProfundo } from "../_shared/verifica-citacoes.ts";
 
 // Parecer Jurídico IA — metodologia da skill "Análise jurídica de licitações".
 // Postura de advogado(a) sênior: nada inventado, trecho literal, classificação
@@ -151,6 +151,25 @@ ${a.fundamento || ""}`, idx);
         p.verificacao = { status: resumo(cits), citacoes: cits };
         if (p.verificacao.status === "nao_confere") { p.baseLegal = REMOVIDO_ART; p.textoLegal = ""; }
       }
+      // Pertinência: o dispositivo (que existe) sustenta o problema apontado? Uma chamada só
+      // ao revisor para todos os achados; o que não sustentar perde o fundamento.
+      // deno-lint-ignore no-explicit-any
+      const achados = (parecer.achados || []) as any[];
+      const rev = await revisarEntradas(achados.map((a) => ({
+        afirmacao: [a.problema, a.fundamento].filter(Boolean).join("\n"), cits: a.verificacao.citacoes,
+      })), idx);
+      if (rev === null) parecer.pertinenciaIndisponivel = true;
+      achados.forEach((a, i) => {
+        const v = rev?.[i];
+        if (!v) return;
+        a.verificacao.pertinencia = v.veredito;
+        a.verificacao.pertinenciaMotivo = v.motivo;
+        if (v.veredito === "nao_sustenta") {
+          a.verificacao.status = "nao_sustenta";
+          for (const c of a.verificacao.citacoes) if (c.pertinencia === "nao_sustenta") { c.status = "nao_confere"; c.removidoPor = "pertinencia"; }
+          a.fonte = REMOVIDO_PERTINENCIA; a.fundamento = REMOVIDO_PERTINENCIA; a.textoLegal = ""; a.url = "";
+        }
+      });
       // Todo o resto do texto (sumário, problema, recomendação, fontes): remove artigo,
       // lei ou acórdão que não confere.
       const removidas: string[] = [];

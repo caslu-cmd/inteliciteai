@@ -93,9 +93,27 @@ async function webSearchJurisprudencia(query: string, anthropicKey: string): Pro
 // Artigo citado pelo número ("art. 63", "artigo 164"): a busca vetorial nem sempre
 // devolve o trecho certo, então o texto EXATO do artigo sai da íntegra da Lei 14.133
 // indexada. Evita a IA citar de memória justamente o dispositivo que o usuário pediu.
+// Assunto -> artigo da Lei 14.133 que o trata (cada par conferido na íntegra oficial em
+// 25/09/2026). A busca por semelhança às vezes não traz o artigo central do assunto
+// (ex.: impugnação sem o Art. 164) e a IA acaba fundamentando em norma que não trata dele.
+const ARTIGO_DO_ASSUNTO: [RegExp, number][] = [
+  [/impugna/i, 164], [/esclarecimento/i, 164], [/recurso|recorrer/i, 165], [/vistoria/i, 63],
+  [/patrim[ôo]nio l[íi]quido|capital (social )?m[íi]nimo|econ[ôo]mico-financeir|[íi]ndices? cont[áa]be/i, 69],
+  [/qualifica[çc][ãa]o t[ée]cnica|atestado|capacidade t[ée]cnica/i, 67], [/regularidade fiscal|trabalhista|CND|certid[ãa]o negativa/i, 68],
+  [/habilita[çc][ãa]o jur[íi]dica/i, 66], [/inexig/i, 74], [/dispensa/i, 75], [/modalidade/i, 28],
+  [/estudo t[ée]cnico preliminar|\bETP\b|fase preparat[óo]ria/i, 18], [/pesquisa de pre[çc]o|valor estimado|or[çc]amento estimado/i, 23],
+  [/prazo (m[íi]nimo )?(de|para) (apresenta[çc][ãa]o de )?propostas?|publicidade do edital/i, 55], [/inexequ|exequibilidade/i, 59],
+  [/garantia contratual|seguro-garantia|cau[çc][ãa]o/i, 96], [/reequil[íi]brio|equil[íi]brio econ[ôo]mico|aditivo|altera[çc][ãa]o (do|de) contrato/i, 124],
+  [/san[çc][ãa]o|san[çc][õo]es|penalidade|multa|inidoneidade|impedimento de licitar/i, 156], [/ordem cronol[óo]gica|atraso (no|de) pagamento/i, 141],
+  [/margem de prefer[êe]ncia/i, 26], [/\bME\b|\bEPP\b|microempresa|pequeno porte|\bMEI\b/i, 4], [/ades[ãa]o|carona|n[ãa]o participante/i, 86],
+  [/credenciamento/i, 79], [/crit[ée]rio de julgamento|menor pre[çc]o|maior desconto|t[ée]cnica e pre[çc]o/i, 33],
+];
+
 // deno-lint-ignore no-explicit-any
 async function artigosCitados(query: string, supabase: any): Promise<string> {
-  const nums = [...new Set([...query.matchAll(/\bart(?:igo)?s?\.?\s*(\d{1,3})\b/gi)].map((m) => Number(m[1])))].slice(0, 3);
+  const explicitos = [...query.matchAll(/\bart(?:igo)?s?\.?\s*(\d{1,3})\b/gi)].map((m) => Number(m[1]));
+  const doAssunto = ARTIGO_DO_ASSUNTO.filter(([re]) => re.test(query)).map(([, n]) => n);
+  const nums = [...new Set([...explicitos.slice(0, 3), ...doAssunto])].slice(0, 4);
   if (!nums.length) return "";
   const { data } = await supabase.from("legal_knowledge").select("content")
     .ilike("title", "Lei nº 14.133%").eq("active", true).limit(1).maybeSingle();
@@ -108,7 +126,7 @@ async function artigosCitados(query: string, supabase: any): Promise<string> {
     const prox = resto.search(new RegExp(`Art\\. ?${n + 1}(º|\\.)? `));
     return lei.slice(ini, ini + 6 + (prox > 0 ? Math.min(prox, 6000) : 3000));
   }).filter(Boolean);
-  return trechos.length ? `TEXTO OFICIAL DOS ARTIGOS CITADOS (Lei 14.133/2021, íntegra do Planalto):\n${trechos.join("\n\n")}` : "";
+  return trechos.length ? `TEXTO OFICIAL DOS ARTIGOS CITADOS OU CENTRAIS NO ASSUNTO (Lei 14.133/2021, íntegra do Planalto):\n${trechos.join("\n\n")}` : "";
 }
 
 // Os trechos das leis indexadas na íntegra são cortados por tamanho, no meio do

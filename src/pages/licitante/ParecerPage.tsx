@@ -20,8 +20,11 @@ interface Achado {
 // Conferência automática feita no servidor, por código (não pela IA): cada citação
 // é localizada na íntegra oficial indexada e o trecho transcrito é conferido nela.
 interface Verificacao {
-  status: "conferida" | "sem_trecho" | "nao_confere" | "sem_citacao";
+  status: "conferida" | "sem_trecho" | "nao_confere" | "sem_citacao" | "nao_sustenta";
   citacoes?: { rotulo: string; status: string; motivo: string }[];
+  // 2ª conferência: o texto oficial sustenta o problema apontado?
+  pertinencia?: "sustenta" | "parcial" | "nao_sustenta" | "nao_revisado";
+  pertinenciaMotivo?: string;
 }
 
 function SeloVerificacao({ v, textoLegal }: { v?: Verificacao; textoLegal?: string }) {
@@ -32,12 +35,16 @@ function SeloVerificacao({ v, textoLegal }: { v?: Verificacao; textoLegal?: stri
     sem_trecho: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Dispositivo existe, mas sem trecho transcrito para conferir" },
     nao_confere: { cls: "text-red-400 border-red-500/30 bg-red-500/5", txt: `Citação removida: não conferia com a lei${falha ? ` (${falha.rotulo}: ${falha.motivo})` : ""}. O apontamento vale como orientação, sem fundamento legal confirmado.` },
     sem_citacao: { cls: "text-amber-400 border-amber-500/30 bg-amber-500/5", txt: "Sem dispositivo legal citado: trate como orientação, não como fundamento" },
+    nao_sustenta: { cls: "text-red-400 border-red-500/30 bg-red-500/5", txt: `Fundamento removido: o dispositivo existe, mas o texto oficial não sustenta este apontamento${v.pertinenciaMotivo ? ` (${v.pertinenciaMotivo})` : ""}. Vale como orientação, sem fundamento legal confirmado.` },
   }[v.status];
   if (!cfg) return null;
+  const erro = v.status === "nao_confere" || v.status === "nao_sustenta";
   return (
     <div className={`mt-1.5 text-[11px] border rounded-md px-2 py-1 ${cfg.cls}`}>
-      <p className="font-medium">{v.status === "conferida" ? "✅" : v.status === "nao_confere" ? "❌" : "⚠️"} {cfg.txt}</p>
+      <p className="font-medium">{v.status === "conferida" ? "✅" : erro ? "❌" : "⚠️"} {cfg.txt}</p>
       {v.status === "conferida" && textoLegal && <p className="italic opacity-90 mt-0.5">"{textoLegal}"</p>}
+      {!erro && v.pertinencia === "sustenta" && <p className="opacity-90 mt-0.5">✅ O texto oficial sustenta este apontamento.</p>}
+      {!erro && v.pertinencia === "parcial" && <p className="text-amber-400 mt-0.5">⚠️ O texto oficial sustenta só em parte: {v.pertinenciaMotivo}</p>}
     </div>
   );
 }
@@ -55,6 +62,7 @@ interface Parecer {
   recomendacaoFinal?: string;
   removidasNaConferencia?: string[];
   conferenciaIndisponivel?: boolean;
+  pertinenciaIndisponivel?: boolean;
 }
 
 const TIPOS = [
@@ -251,6 +259,11 @@ export default function ParecerPage() {
                 ❌ <strong>Removido do parecer por não conferir com o texto oficial:</strong> {parecer.removidasNaConferencia.join(" · ")}
               </div>
             ) : null}
+            {!parecer.conferenciaIndisponivel && parecer.pertinenciaIndisponivel && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-300">
+                ⚠️ <strong>A revisão de pertinência ficou indisponível neste parecer.</strong> Os artigos existem e os trechos conferem, mas não foi checado se cada um sustenta o apontamento feito.
+              </div>
+            )}
 
             {/* Achados */}
             {parecer.achados?.length ? (

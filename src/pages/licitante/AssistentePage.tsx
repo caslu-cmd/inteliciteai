@@ -74,7 +74,7 @@ export default function AssistentePage() {
       );
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
+      if (!res.ok || json.error) throw new Error(json.error || `Erro ${res.status}`);
 
       setMessages((prev) => [...prev, { role: "assistant", content: json.reply, timestamp: ts() }]);
     } catch (err: any) {

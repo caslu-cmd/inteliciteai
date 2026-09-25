@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
 import { carregarIndice, PEDIDO_REESCRITA, respostaSegura } from "../_shared/verifica-citacoes.ts";
+import { jsonComPulso } from "../_shared/pulso.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -112,7 +113,7 @@ Gere o documento completo, pronto para uso.`;
     return (await res.json()).content?.[0]?.text ?? "";
   };
 
-  try {
+  return jsonComPulso(async () => {
     const idx = await carregarIndice(admin);
     // Peça que vai ser protocolada: confere na íntegra oficial, a IA reescreve UMA vez com
     // o que falhou e o que ainda não conferir é removido do texto antes de entregar.
@@ -134,12 +135,6 @@ Gere o documento completo, pronto para uso.`;
       ? `Impugnação — ${edital}`
       : `Pedido de Esclarecimento — ${edital}`;
 
-    return new Response(JSON.stringify({ titulo, conteudo, baseLegal, verificacao, citacoes, jurisprudencia }), {
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "Falha ao gerar documento", detail: String(err) }), {
-      status: 502, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
+    return { titulo, conteudo, baseLegal, verificacao, citacoes, jurisprudencia };
+  }, cors);
 });

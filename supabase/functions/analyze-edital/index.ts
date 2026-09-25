@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { comContexto, contextoPorAssunto } from "../_shared/contexto-juridico.ts";
-import { carregarIndice, conferir, contem, normalizar, prepararComPlanalto, REMOVIDO_ART, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { carregarIndice, type Citacao, conferir, contem, normalizar, prepararComPlanalto, REMOVIDO_ART, REMOVIDO_PERTINENCIA, revisarEntradas, sanearProfundo } from "../_shared/verifica-citacoes.ts";
+import { revisarPertinencia } from "../_shared/revisor.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
@@ -152,6 +153,27 @@ Deno.serve(async (req: Request) => {
         if (st === "nao_confere") r.textoLegal = "";
         if (text && r.excerpt) r.excerptConfere = contem(edNorm, r.excerpt);
       }
+      // Pertinência: o dispositivo (que existe) sustenta o risco apontado? Uma chamada só.
+      const comRef = (analise.riscos || []).filter((r: { verificacao?: unknown }) => r.verificacao);
+      const rev = await revisarEntradas(comRef.map((r: { title?: string; excerpt?: string; verificacao: { citacoes: Citacao[] } }) => ({
+        afirmacao: `${r.title || ""}${r.excerpt ? `\nTrecho do edital: ${r.excerpt}` : ""}`, cits: r.verificacao.citacoes,
+      })), idx, (itens) => revisarPertinencia(itens, 50000));
+      if (rev === null) {
+        analise.pertinenciaIndisponivel = true;
+        for (const r of comRef) if (r.verificacao.status !== "nao_confere") r.ref += " · ⚠️ não foi revisado se o artigo sustenta este risco";
+      }
+      // deno-lint-ignore no-explicit-any
+      comRef.forEach((r: any, i: number) => {
+        const v = rev?.[i];
+        if (!v) return;
+        r.verificacao.pertinencia = v.veredito;
+        r.verificacao.pertinenciaMotivo = v.motivo;
+        if (v.veredito === "nao_sustenta") {
+          r.verificacao.status = "nao_sustenta";
+          r.ref = `${REMOVIDO_PERTINENCIA} · ❌ ${v.motivo}`;
+          r.textoLegal = "";
+        } else if (v.veredito === "parcial") r.ref += ` · ⚠️ sustenta só em parte: ${v.motivo}`;
+      });
       // Nota de CONFORMIDADE do edital, calculada por código a partir dos riscos (antes a
       // IA estimava uma "chance de vitória" sem nenhum dado por trás).
       const peso: Record<string, number> = { high: 25, medium: 10, low: 3 };

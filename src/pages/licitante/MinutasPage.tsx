@@ -92,7 +92,7 @@ export default function MinutasPage() {
         }
       );
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
+      if (!res.ok || json.error) throw new Error(json.error || `Erro ${res.status}`);
 
       const userId = session?.user?.id;
       if (!userId) throw new Error("Usuário não autenticado");

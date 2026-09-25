@@ -7,6 +7,7 @@
 // está mesmo naquele artigo. Número inexistente ou trecho de outro artigo = reprovado.
 
 import { buscarConstituicao, buscarNoPlanalto, confirmarNoSenado, gravarNaBase, nomeNorma, type TipoNorma } from "./planalto.ts";
+import { type ItemRevisao, type Revisao, revisarPertinencia, type Veredito } from "./revisor.ts";
 
 export type Status = "conferida" | "sem_trecho" | "nao_confere";
 export interface Citacao {
@@ -21,6 +22,9 @@ export interface Citacao {
   motivo: string;
   ocorrencias?: string[];  // texto exato da citação na resposta (para remover se não conferir)
   link?: string;           // endereço oficial montado pelo código (Planalto com âncora no dispositivo)
+  pertinencia?: Veredito | "nao_revisado";   // o texto oficial sustenta a afirmação feita com ele?
+  pertinenciaMotivo?: string;
+  removidoPor?: "pertinencia";
 }
 
 // ---------- links oficiais de verificação ----------
@@ -74,7 +78,9 @@ function indexarLei(conteudo: string): Map<number, Artigo> {
     const a = arts.get(p.n);
     const junto = a ? a.texto + " " + texto : texto;   // artigo que aparece em mais de uma redação
     const pars = new Map<string, string>();
-    const pcab = /§ ?(\d{1,2})(?:º|o)?|Parágrafo único/g;
+    // Cabeçalho de parágrafo vem seguido de maiúscula ("§ 3º Para os fins...") ou "(VETADO)";
+    // a menção no meio do texto ("no § 2º deste artigo") não abre parágrafo novo.
+    const pcab = /§ ?(\d{1,2}) ?(?:º|°|o)?(?:-[A-Z])?\.? (?=[A-ZÀ-Ý(])|Parágrafo único/g;
     const pp = [...junto.matchAll(pcab)];
     pp.forEach((m, j) => {
       const chave = m[1] ?? "unico";
@@ -294,7 +300,10 @@ export function conferir(texto: string, idx: Indice, leiPadrao = "14133"): Citac
 }
 
 // Acórdão/súmula só vale se o número aparecer no contexto recuperado (base ou busca ao vivo).
-export type Juris = { rotulo: string; ok: boolean; motivo?: string; ocorrencias?: string[]; link?: string };
+export type Juris = {
+  rotulo: string; ok: boolean; motivo?: string; ocorrencias?: string[]; link?: string;
+  pertinencia?: Veredito | "nao_revisado"; pertinenciaMotivo?: string; removidoPor?: "pertinencia";
+};
 
 // Súmulas do TCU: conferidas na API pública de jurisprudência do TCU (número, vigência e
 // enunciado oficial). STF e STJ bloqueiam consulta automática: súmula deles só vale se
@@ -618,6 +627,7 @@ export function normasParaAquecer(idx: Indice): { tipo: TipoNorma; num: number; 
 export const REMOVIDO_ART = "[citação removida: dispositivo não confere com a lei]";
 export const REMOVIDO_NORMA = "[norma removida: não localizada nas fontes oficiais]";
 export const REMOVIDO_JURIS = "[jurisprudência removida: número não localizado nas fontes]";
+export const REMOVIDO_PERTINENCIA = "[fundamento removido: o texto oficial citado não sustenta esta afirmação]";
 // Tira do texto toda citação reprovada: o usuário nunca vê artigo ou norma inexistente como fato.
 export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
   // Link escrito pela IA sai do texto: o único link que vale é o oficial montado pelo código.
@@ -625,9 +635,9 @@ export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], norm
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1")
     .replace(/\s*[—–-]?\s*<?https?:\/\/[^\s)>\]]+>?/g, "");
   const trocas: [string, string][] = [
-    ...cits.filter((c) => c.status === "nao_confere").flatMap((c) => (c.ocorrencias || []).map((o) => [o, REMOVIDO_ART] as [string, string])),
+    ...cits.filter((c) => c.status === "nao_confere").flatMap((c) => (c.ocorrencias || []).map((o) => [o, c.removidoPor ? REMOVIDO_PERTINENCIA : REMOVIDO_ART] as [string, string])),
     ...normas.filter((n) => !n.ok).flatMap((n) => n.ocorrencias.map((o) => [o, REMOVIDO_NORMA] as [string, string])),
-    ...juris.filter((j) => !j.ok).flatMap((j) => (j.ocorrencias || []).map((o) => [o, REMOVIDO_JURIS] as [string, string])),
+    ...juris.filter((j) => !j.ok).flatMap((j) => (j.ocorrencias || []).map((o) => [o, j.removidoPor ? REMOVIDO_PERTINENCIA : REMOVIDO_JURIS] as [string, string])),
   ].sort((a, b) => b[0].length - a[0].length);
   for (const [de, para] of trocas) if (de) t = t.split(de).join(para);
   // ato revogado: fica no texto, com a marca logo depois (uma vez só)
@@ -642,9 +652,9 @@ export function sanear(texto: string, cits: Citacao[], juris: Juris[] = [], norm
 export function fontesOficiais(cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): { rotulo: string; url?: string; nota: string }[] {
   const out: { rotulo: string; url?: string; nota: string }[] = [];
   for (const c of cits.filter((x) => x.status !== "nao_confere")) {
-    out.push({ rotulo: c.rotulo, url: c.link, nota: c.status === "conferida" ? "trecho conferido no texto oficial" : "dispositivo existe; trecho não transcrito" });
+    out.push({ rotulo: c.rotulo, url: c.link, nota: (c.status === "conferida" ? "trecho conferido no texto oficial" : "dispositivo existe; trecho não transcrito") + notaPertinencia(c) });
   }
-  for (const j of juris.filter((x) => x.ok)) out.push({ rotulo: j.rotulo, url: j.link, nota: /s[úu]mula/i.test(j.rotulo) ? "súmula existente e vigente" : "acórdão existente" });
+  for (const j of juris.filter((x) => x.ok)) out.push({ rotulo: j.rotulo, url: j.link, nota: (/s[úu]mula/i.test(j.rotulo) ? "súmula existente e vigente" : "acórdão existente") + notaPertinencia(j) });
   // norma citada sem artigo: só entra se nenhuma citação de artigo dela já trouxe o link
   const bases = new Set(out.map((o) => (o.url || "").split("#")[0]).filter(Boolean));
   for (const n of normas.filter((x) => x.ok && !x.aviso)) {
@@ -655,14 +665,18 @@ export function fontesOficiais(cits: Citacao[], juris: Juris[] = [], normas: Nor
   return out;
 }
 
+const notaPertinencia = (x: { pertinencia?: string; pertinenciaMotivo?: string }) =>
+  x.pertinencia === "sustenta" ? "; sustenta a afirmação" : x.pertinencia === "parcial" ? `; ⚠️ sustenta só em parte: ${x.pertinenciaMotivo}` : "";
+
 export function rodapeVerificacao(cits: Citacao[], juris: Juris[] = [], normas: Norma[] = []): string {
   const nNao = normas.filter((n) => !n.ok);
   const nRev = normas.filter((n) => n.ok && n.anotacao);
   const nAviso = normas.filter((n) => n.ok && n.aviso);
   const fontes = fontesOficiais(cits, juris, normas);
-  const nao = cits.filter((c) => c.status === "nao_confere");
-  const jNao = juris.filter((j) => !j.ok);
-  if (!fontes.length && !nao.length && !jNao.length && !nNao.length && !nAviso.length) return "";
+  const nao = cits.filter((c) => c.status === "nao_confere" && !c.removidoPor);
+  const jNao = juris.filter((j) => !j.ok && !j.removidoPor);
+  const semSustentar = [...cits.filter((c) => c.removidoPor), ...juris.filter((j) => j.removidoPor)];
+  if (!fontes.length && !nao.length && !jNao.length && !nNao.length && !nAviso.length && !semSustentar.length) return "";
   const linhas = ["", "---", "**📌 Fontes oficiais (conferidas automaticamente)**"];
   if (fontes.length) linhas.push(fontes.map((f) => `- ${f.url ? `[${f.rotulo}](${f.url})` : f.rotulo} · ${f.nota}`).join("\n"));
   if (nRev.length) linhas.push(`⚠️ Ato revogado (marcado no texto): ${nRev.map((n) => n.rotulo).join(" · ")}`);
@@ -670,6 +684,7 @@ export function rodapeVerificacao(cits: Citacao[], juris: Juris[] = [], normas: 
   if (nao.length) linhas.push(`❌ Removido do texto por não conferir com a lei: ${nao.map((c) => `${c.rotulo} (${c.motivo})`).join(" · ")}`);
   if (nNao.length) linhas.push(`❌ Norma removida do texto, não localizada nas fontes oficiais: ${nNao.map((n) => `${n.rotulo} (${n.motivo})`).join(" · ")}`);
   if (jNao.length) linhas.push(`❌ Jurisprudência removida do texto: ${jNao.map((j) => `${j.rotulo} (${j.motivo || "número não localizado nas fontes consultadas"})`).join(" · ")}`);
+  if (semSustentar.length) linhas.push(`❌ Fundamento removido: existe, mas o texto oficial não sustenta o que foi afirmado: ${semSustentar.map((x) => `${x.rotulo} (${x.pertinenciaMotivo})`).join(" · ")}`);
   return linhas.join("\n\n");
 }
 
@@ -680,6 +695,8 @@ export async function respostaSegura(
   reescrever?: (falhas: string[], anterior: string) => Promise<string>,
   // deno-lint-ignore no-explicit-any
   supabase?: any,
+  // revisor de pertinência (padrão: a 2ª chamada à IA; nos testes, uma função simulada)
+  revisar: ((itens: ItemRevisao[]) => Promise<Revisao[] | null>) | null = revisarPertinencia,
 ): Promise<{ texto: string; citacoes: Citacao[]; jurisprudencia: Juris[]; normas: Norma[]; rodape: string; reescrita: boolean }> {
   const avaliar = async (t: string) => {
     await prepararComPlanalto(t, idx, supabase).catch(() => {});   // norma fora da base: Planalto ao vivo
@@ -691,16 +708,105 @@ export async function respostaSegura(
     ];
     return { citacoes, jurisprudencia, normas, falhas };
   };
+  // Pertinência: o texto oficial de cada dispositivo citado sustenta a afirmação feita com ele?
+  const revisarTexto = async (t: string, r0: Awaited<ReturnType<typeof avaliar>>) => {
+    if (!revisar) return { naoSustenta: [] as string[] };
+    const itens = itensParaRevisao(t, r0.citacoes, r0.jurisprudencia, idx);
+    const rev = itens.length ? await revisar(itens) : [];
+    if (rev === null) { revisaoIndisponivel = true; return { naoSustenta: [] as string[] }; }
+    const porId = new Map(rev.map((x) => [x.id, x]));
+    const naoSustenta: string[] = [];
+    for (const it of itens) {
+      const v = porId.get(it.id);
+      const alvo = it.ref;
+      alvo.pertinencia = v?.veredito ?? "nao_revisado";
+      alvo.pertinenciaMotivo = v?.motivo;
+      if (v?.veredito === "nao_sustenta") naoSustenta.push(`${it.citacao}: o texto oficial não sustenta a afirmação "${it.afirmacao.slice(0, 160)}" (${v.motivo})`);
+    }
+    return { naoSustenta };
+  };
+  let revisaoIndisponivel = false;
+
   let r = await avaliar(texto);
+  let p = await revisarTexto(texto, r);
   let reescrita = false;
-  if (r.falhas.length && reescrever) {
+  if ((r.falhas.length || p.naoSustenta.length) && reescrever) {
     try {
-      const novo = await reescrever(r.falhas, texto);
-      if (novo?.trim()) { texto = novo; r = await avaliar(texto); reescrita = true; }
+      const novo = await reescrever([...r.falhas, ...p.naoSustenta], texto);
+      if (novo?.trim()) { texto = novo; r = await avaliar(texto); p = await revisarTexto(texto, r); reescrita = true; }
     } catch { /* fica com a primeira versão, saneada abaixo */ }
   }
+  // O que ainda não é sustentado pelo texto oficial sai do texto, como citação reprovada.
+  for (const c of r.citacoes) if (c.pertinencia === "nao_sustenta") { c.status = "nao_confere"; c.removidoPor = "pertinencia"; c.motivo = `o texto oficial não sustenta a afirmação: ${c.pertinenciaMotivo}`; }
+  for (const j of r.jurisprudencia) if (j.pertinencia === "nao_sustenta") { j.ok = false; j.removidoPor = "pertinencia"; j.motivo = `o enunciado não sustenta a afirmação: ${j.pertinenciaMotivo}`; }
   const limpo = sanear(texto, r.citacoes, r.jurisprudencia, r.normas);
-  return { texto: limpo, citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas, rodape: rodapeVerificacao(r.citacoes, r.jurisprudencia, r.normas), reescrita };
+  let rodape = rodapeVerificacao(r.citacoes, r.jurisprudencia, r.normas);
+  if (revisaoIndisponivel && rodape) rodape += "\n\n⚠️ A revisão de pertinência (se o texto oficial sustenta cada afirmação) ficou indisponível nesta resposta.";
+  return { texto: limpo, citacoes: r.citacoes, jurisprudencia: r.jurisprudencia, normas: r.normas, rodape, reescrita };
+}
+
+// Itens para o revisor: cada citação que existe e cujo texto oficial está na base, com a
+// frase da resposta onde ela aparece. Súmula do TCU entra com o enunciado oficial.
+type AlvoRevisao = { pertinencia?: Veredito | "nao_revisado"; pertinenciaMotivo?: string };
+function itensParaRevisao(texto: string, cits: Citacao[], juris: Juris[], idx: Indice) {
+  const t = inverterForma(texto);
+  const frase = (oc?: string) => {
+    const i = oc ? t.indexOf(oc) : -1;
+    if (i < 0) return "";
+    const ini = Math.max(0, ...[". ", "\n", "; "].map((s) => t.lastIndexOf(s, i) + s.length).filter((x) => x > 0), i - 400);
+    const fimCands = [". ", "\n"].map((s) => t.indexOf(s, i + oc!.length)).filter((x) => x > 0);
+    const fim = Math.min(t.length, fimCands.length ? Math.min(...fimCands) + 1 : t.length, i + oc!.length + 500);
+    return t.slice(ini, fim).trim();
+  };
+  const itens: (ItemRevisao & { ref: AlvoRevisao })[] = [];
+  for (const c of cits) {
+    if (c.status === "nao_confere" || itens.length >= 10) continue;
+    const art = idx.get(c.lei)?.get(c.art);
+    const oficial = art ? (c.par ? art.pars.get(c.par) : art.texto) : undefined;
+    const afirmacao = frase(c.ocorrencias?.[0]);
+    if (!oficial || !afirmacao) continue;
+    itens.push({ id: `c${itens.length}`, citacao: c.rotulo, afirmacao, textoOficial: oficial.slice(0, 2500), ref: c });
+  }
+  for (const j of juris) {
+    const num = Number(j.rotulo.match(/\d+/)?.[0]);
+    const info = /s[úu]mula/i.test(j.rotulo) ? sumulasTCU.get(num) : undefined;
+    const afirmacao = frase(j.ocorrencias?.[0]);
+    if (!j.ok || !info || info === "indisponivel" || !info.enunciado || !afirmacao || itens.length >= 10) continue;
+    itens.push({ id: `j${itens.length}`, citacao: j.rotulo, afirmacao, textoOficial: info.enunciado, ref: j });
+  }
+  return itens;
+}
+
+// Pertinência nas respostas em JSON (achado do Parecer, risco da análise de edital): cada
+// entrada traz a afirmação e as citações já conferidas; tudo vai numa chamada só ao revisor.
+// Devolve, por entrada, o pior veredito (nao_sustenta > parcial > sustenta), ou null se o
+// revisor ficou indisponível (quem chama marca "não revisado", nunca aprovado).
+export async function revisarEntradas(
+  entradas: { afirmacao: string; cits: Citacao[] }[], idx: Indice,
+  revisar: ((itens: ItemRevisao[]) => Promise<Revisao[] | null>) = revisarPertinencia,
+): Promise<({ veredito: Veredito; motivo: string } | undefined)[] | null> {
+  const itens: (ItemRevisao & { e: number; c: Citacao })[] = [];
+  entradas.forEach((en, e) => {
+    for (const c of en.cits) {
+      if (c.status === "nao_confere" || !en.afirmacao.trim() || itens.length >= 16) continue;
+      const art = idx.get(c.lei)?.get(c.art);
+      const oficial = art ? (c.par ? art.pars.get(c.par) : art.texto) : undefined;
+      if (oficial) itens.push({ id: `e${e}c${itens.length}`, citacao: c.rotulo, afirmacao: en.afirmacao.slice(0, 900), textoOficial: oficial.slice(0, 2500), e, c });
+    }
+  });
+  if (!itens.length) return entradas.map(() => undefined);
+  const rev = await revisar(itens.map(({ id, citacao, afirmacao, textoOficial }) => ({ id, citacao, afirmacao, textoOficial })));
+  if (rev === null) return null;
+  const porId = new Map(rev.map((x) => [x.id, x]));
+  const ordem: Record<Veredito, number> = { sustenta: 0, parcial: 1, nao_sustenta: 2 };
+  const out: ({ veredito: Veredito; motivo: string } | undefined)[] = entradas.map(() => undefined);
+  for (const it of itens) {
+    const v = porId.get(it.id);
+    it.c.pertinencia = v?.veredito ?? "nao_revisado";
+    it.c.pertinenciaMotivo = v?.motivo;
+    if (v && (!out[it.e] || ordem[v.veredito] > ordem[out[it.e]!.veredito])) out[it.e] = { veredito: v.veredito, motivo: v.motivo };
+  }
+  return out;
 }
 
 // Respostas em JSON (Parecer, análise de edital): remove de cada campo de texto a
