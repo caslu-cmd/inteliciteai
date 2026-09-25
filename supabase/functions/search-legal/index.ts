@@ -22,7 +22,10 @@ async function embedQuery(text: string, apiKey: string): Promise<number[]> {
 // Busca jurisprudência via Brave Search (provedor principal, tem plano grátis),
 // restrita aos portais oficiais do TCU/AGU e a resultados do último ano.
 async function webSearchBrave(query: string, braveKey: string): Promise<string> {
-  const jurQuery = `site:portal.tcu.gov.br OR site:agu.gov.br "${query}" licitação Lei 14133`;
+  // Consulta curta e SEM aspas: com o texto inteiro entre aspas (frase exata de
+  // centenas de caracteres) a Brave nunca achava nada.
+  const termos = query.replace(/\s+/g, " ").trim().slice(0, 160);
+  const jurQuery = `site:portal.tcu.gov.br OR site:agu.gov.br ${termos} licitação Lei 14133`;
   const res = await fetch(
     `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(jurQuery)}&count=5&freshness=py`,
     { headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": braveKey } },

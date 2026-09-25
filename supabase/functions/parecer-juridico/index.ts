@@ -78,23 +78,51 @@ Deno.serve(async (req) => {
   // (espaço antes do JSON é válido). Erro vai no corpo, como { error }.
   const gerar = async () => {
     // 1) Contexto jurídico = base indexada + jurisprudência TCU/AGU ao vivo (search-legal).
-    let baseJuridica = "";
-    try {
-      const q = `${body.titulo || ""} ${texto.slice(0, 1000)}`.trim();
-      const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader,
-          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        },
-        body: JSON.stringify({ query: q, matchCount: 8, includeWebSearch: true }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        baseJuridica = (d.context || "").trim();
+    // Uma busca só, com o documento inteiro, se perdia entre assuntos misturados e
+    // deixava de fora artigos que estão na base (vistoria, prazo de impugnação,
+    // capital mínimo). Agora cada cláusula vira uma busca, em paralelo, e os
+    // trechos repetidos são descartados. A jurisprudência ao vivo vem numa busca à parte.
+    const buscar = async (query: string, matchCount: number, includeWebSearch: boolean) => {
+      try {
+        const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/search-legal`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authHeader,
+            apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          },
+          body: JSON.stringify({ query, matchCount, includeWebSearch }),
+          signal: AbortSignal.timeout(60000),
+        });
+        return r.ok ? ((await r.json()).context || "").trim() : "";
+      } catch { return ""; }
+    };
+    const clausulas = texto.split(/\n(?=\s*\d+(?:\.\d+)*[.)\s-])|\n\s*\n/)
+      .map((c) => c.replace(/\s+/g, " ").trim())
+      .filter((c) => c.length >= 40)
+      .slice(0, 10);
+    const consultas = clausulas.length ? clausulas.map((c) => c.slice(0, 600)) : [texto.slice(0, 1000)];
+    const contextos = await Promise.all([
+      ...consultas.map((q) => buscar(q, 3, false)),
+      buscar(`${body.titulo || ""} ${consultas.slice(0, 3).join(" ")}`.slice(0, 600), 2, true),
+    ]);
+    const vistos = new Set<string>();
+    const trechos: string[] = [];
+    const juris: string[] = [];
+    for (const ctx of contextos) {
+      for (const parte of ctx.split(/\n\n---\n\n/)) {
+        if (parte.startsWith("JURISPRUDÊNCIA")) { if (!juris.includes(parte)) juris.push(parte); continue; }
+        for (const t of parte.replace(/^BASE JURÍDICA INTELICITE:\n/, "").split(/\n\n(?=\[\d+\])/)) {
+          const corpo = t.replace(/^\[\d+\]\s*/, "").trim();
+          const chave = corpo.slice(0, 200);
+          if (corpo && !vistos.has(chave)) { vistos.add(chave); trechos.push(corpo); }
+        }
       }
-    } catch { /* segue sem contexto externo */ }
+    }
+    const baseJuridica = [
+      trechos.length ? `BASE JURÍDICA INTELICITE:\n${trechos.slice(0, 24).map((t, i) => `[${i + 1}] ${t}`).join("\n\n")}` : "",
+      ...juris,
+    ].filter(Boolean).join("\n\n---\n\n");
 
     // 2) Monta o prompt e chama a Claude
     const docTrunc = texto.slice(0, 24000);
