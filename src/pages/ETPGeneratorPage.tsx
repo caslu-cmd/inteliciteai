@@ -54,25 +54,28 @@ const SECTIONS = [
   { id: 1, title: "Identificação",  icon: Building2,     ref: "Art. 18 — Dados do órgão e responsáveis",         required: ["orgao","setor","responsavel","oQueSeraContratado"] },
   { id: 2, title: "Necessidade",    icon: AlertTriangle,  ref: "Art. 18, §1º, I e II — Necessidade e alinhamento", required: ["descricaoNecessidade","problemaSolucionar","alinhamentoEstrategico"] },
   { id: 3, title: "Requisitos",     icon: Scale,          ref: "Art. 18, §1º, III — Técnicos e legais",            required: ["requisitosNegocio","requisitosTecnicos"] },
-  { id: 4, title: "Quantidades",    icon: Calculator,     ref: "Art. 18, §1º, IV e V — Quantidades e mercado",     required: ["descricaoItens","memoriaCalculo","alternativasAvaliadas","decisaoParcelamento"] },
+  { id: 4, title: "Quantidades",    icon: Calculator,     ref: "Art. 18, §1º, IV, V, VII e VIII — Quantidades, mercado, solução e parcelamento", required: ["descricaoItens","memoriaCalculo","alternativasAvaliadas","decisaoParcelamento"] },
   { id: 5, title: "Estimativa",     icon: TrendingUp,     ref: "Art. 18, §1º, VI — Valor e pesquisa de preços",    required: ["valorEstimado","fontePesquisa1"] },
-  { id: 6, title: "Riscos",         icon: ShieldAlert,    ref: "Art. 18, §1º, X e XI — Riscos e correlatas",       required: ["riscosIdentificados","medidasMitigacao","providencias"] },
-  { id: 7, title: "Conclusão",      icon: ClipboardCheck, ref: "Art. 18, §1º, VIII, IX e XII — Posicionamento",    required: ["resultadosPretendidos","viabilidade","justificativaViabilidade"] },
+  { id: 6, title: "Riscos",         icon: ShieldAlert,    ref: "Art. 18, X (riscos) e §1º, X a XII — Providências, correlatas e ambiental", required: ["riscosIdentificados","medidasMitigacao","providencias"] },
+  { id: 7, title: "Conclusão",      icon: ClipboardCheck, ref: "Art. 18, §1º, IX e XIII — Resultados e posicionamento conclusivo", required: ["resultadosPretendidos","viabilidade","justificativaViabilidade"] },
 ];
 
+// Art. 18, §1º, incisos I a XIII (numeração conferida na íntegra da Lei 14.133).
+// obrig = mínimo do §2º (I, IV, VI, VIII e XIII); os demais, se ausentes, pedem justificativa.
 const COMPLIANCE = [
-  { label: "I — Necessidade",   field: "descricaoNecessidade" },
-  { label: "II — PCA",          field: "previsaoPCA" },
-  { label: "III — Requisitos",  field: "requisitosTecnicos" },
-  { label: "IV — Quantidades",  field: "memoriaCalculo" },
-  { label: "V — Mercado",       field: "alternativasAvaliadas" },
-  { label: "VI — Valor",        field: "valorEstimado" },
-  { label: "VII — Parcelamento",field: "decisaoParcelamento" },
-  { label: "VIII — Resultados", field: "resultadosPretendidos" },
-  { label: "X — Riscos",        field: "riscosIdentificados" },
-  { label: "XI — Correlatas",   field: "contratacaoCorrelatas" },
-  { label: "XII — Ambiental",   field: "impactosAmbientais" },
-  { label: "XIII — Conclusivo", field: "viabilidade" },
+  { label: "I — Necessidade",    field: "descricaoNecessidade",  obrig: true },
+  { label: "II — PCA",           field: "previsaoPCA" },
+  { label: "III — Requisitos",   field: "requisitosTecnicos" },
+  { label: "IV — Quantidades",   field: "memoriaCalculo",        obrig: true },
+  { label: "V — Mercado",        field: "alternativasAvaliadas" },
+  { label: "VI — Valor",         field: "valorEstimado",         obrig: true },
+  { label: "VII — Solução",      field: "solucaoEscolhida" },
+  { label: "VIII — Parcelamento",field: "decisaoParcelamento",   obrig: true },
+  { label: "IX — Resultados",    field: "resultadosPretendidos" },
+  { label: "X — Providências",   field: "providencias" },
+  { label: "XI — Correlatas",    field: "contratacaoCorrelatas" },
+  { label: "XII — Ambiental",    field: "impactosAmbientais" },
+  { label: "XIII — Conclusivo",  field: "viabilidade",           obrig: true },
 ];
 
 // ── Helper components ──────────────────────────────────────────
@@ -412,7 +415,7 @@ function Sec4({ form, set, suggesting, onSuggest, aquisicaoItems, analisandoAqui
         <Textarea rows={3} value={form.solucaoEscolhida} onChange={e => set("solucaoEscolhida", e.target.value)} placeholder="Por que a solução escolhida é a mais adequada entre as alternativas avaliadas..." />
       </FL>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FL label="Decisão sobre Parcelamento" req tip="Art. 18, §1º, VII — Justificativa para parcelamento ou não da solução">
+        <FL label="Decisão sobre Parcelamento" req tip="Art. 18, §1º, VIII — Justificativas para o parcelamento ou não da contratação">
           <Select value={form.decisaoParcelamento} onValueChange={v => set("decisaoParcelamento", v)}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
@@ -662,7 +665,7 @@ function Sec6({ form, set, suggesting, onSuggest }: SectionProps) {
   return (
     <div className="space-y-4">
       <FL label="Riscos Identificados" req campo="riscosIdentificados" suggesting={suggesting} onSuggest={onSuggest}
-        tip="Identifique os principais riscos da contratação conforme Art. 18, §1º, X">
+        tip="Identifique os principais riscos da contratação conforme Art. 18, X (caput): riscos que possam comprometer o sucesso da licitação e a boa execução contratual">
         <Textarea rows={5} value={form.riscosIdentificados} onChange={e => set("riscosIdentificados", e.target.value)} placeholder="Risco 1: [descrição] — Probabilidade: Alta/Média/Baixa — Impacto: Alto/Médio/Baixo&#10;Risco 2: ..." />
       </FL>
       <FL label="Probabilidade e Impacto" tip="Matriz de riscos com probabilidade × impacto">
@@ -680,12 +683,12 @@ function Sec6({ form, set, suggesting, onSuggest }: SectionProps) {
         <FL label="Contratações Correlatas" tip="Art. 18, §1º, XI — Contratos relacionados a esta contratação">
           <Textarea rows={3} value={form.contratacaoCorrelatas} onChange={e => set("contratacaoCorrelatas", e.target.value)} placeholder="Contratos em vigor que se relacionam com esta contratação..." />
         </FL>
-        <FL label="Contratações Interdependentes" tip="Contratações cujo resultado depende desta ou vice-versa">
+        <FL label="Contratações Interdependentes" tip="Art. 18, §1º, XI — Contratações correlatas e/ou interdependentes">
           <Textarea rows={3} value={form.interdependentes} onChange={e => set("interdependentes", e.target.value)} placeholder="Contratações que dependem desta ou das quais esta depende..." />
         </FL>
       </div>
       <FL label="Providências a serem Adotadas" req campo="providencias" suggesting={suggesting} onSuggest={onSuggest}
-        tip="Art. 18, §1º, IX — Ações administrativas necessárias antes e durante a contratação">
+        tip="Art. 18, §1º, X — Providências prévias à celebração do contrato, inclusive capacitação de servidores para fiscalização e gestão">
         <Textarea rows={3} value={form.providencias} onChange={e => set("providencias", e.target.value)} placeholder="Ex: designar equipe de planejamento, obter autorização superior, emitir DFD, reservar dotação..." />
       </FL>
     </div>
@@ -696,7 +699,7 @@ function Sec7({ form, set, suggesting, onSuggest }: SectionProps) {
   return (
     <div className="space-y-4">
       <FL label="Resultados Pretendidos" req campo="resultadosPretendidos" suggesting={suggesting} onSuggest={onSuggest}
-        tip="Art. 18, §1º, VIII — Benefícios e resultados esperados com a contratação">
+        tip="Art. 18, §1º, IX — Resultados pretendidos em termos de economicidade e de melhor aproveitamento dos recursos">
         <Textarea rows={4} value={form.resultadosPretendidos} onChange={e => set("resultadosPretendidos", e.target.value)} placeholder="Descreva os resultados concretos esperados: melhoria de processos, redução de custos, aumento de eficiência..." />
       </FL>
       <FL label="Indicadores de Desempenho / Metas" campo="indicadoresDesempenho" suggesting={suggesting} onSuggest={onSuggest}
@@ -707,7 +710,7 @@ function Sec7({ form, set, suggesting, onSuggest }: SectionProps) {
         <Textarea rows={2} value={form.beneficiosEsperados} onChange={e => set("beneficiosEsperados", e.target.value)} placeholder="Benefícios adicionais esperados para a administração e para a sociedade..." />
       </FL>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FL label="Posicionamento sobre Viabilidade" req tip="Art. 18, §1º, XII — Conclusão sobre viabilidade e razoabilidade">
+        <FL label="Posicionamento sobre Viabilidade" req tip="Art. 18, §1º, XIII — Posicionamento conclusivo sobre a adequação da contratação">
           <Select value={form.viabilidade} onValueChange={v => set("viabilidade", v)}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
@@ -1174,16 +1177,18 @@ export default function ETPGeneratorPage() {
             <div className="mt-3 pt-3 border-t border-border">
               <p className="px-3 pb-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Conformidade Art. 18</p>
               <div className="space-y-0.5">
-                {COMPLIANCE.map(({ label, field }) => {
+                {COMPLIANCE.map(({ label, field, obrig }) => {
                   const ok = !!form[field as keyof ETPForm]?.trim();
                   return (
                     <div key={field} className="flex items-center gap-2 px-3 py-0.5">
                       <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", ok ? "bg-emerald-500" : "bg-muted-foreground/30")} />
                       <span className={cn("text-[10px]", ok ? "text-emerald-500" : "text-muted-foreground")}>{label}</span>
+                      {obrig && <span className="ml-auto text-[9px] font-semibold text-primary" title="Mínimo obrigatório (Art. 18, §2º)">§2º</span>}
                     </div>
                   );
                 })}
               </div>
+              <p className="px-3 pt-2 text-[9px] leading-snug text-muted-foreground">§2º: I, IV, VI, VIII e XIII são o mínimo; se faltar outro item, justifique.</p>
             </div>
           </nav>
 
